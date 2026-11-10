@@ -27,7 +27,8 @@ Como o Windows separa a internet por **processo/executável** (e não por janela
 ## Requisitos
 
 - Windows 10 ou 11
-- [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
+- Para **usar**: nada além do `HiddenApp.exe` gerado pelo perfil Portatil (o .NET já vem embutido)
+- Para **compilar**: [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - Executar como **administrador** (o app pede automaticamente — é necessário para criar regras no firewall)
 - Firewall do Windows ativo (se um antivírus substituir o firewall do Windows, as regras não têm efeito)
 
@@ -39,10 +40,16 @@ dotnet build -c Release
 
 Ou abra `HiddenApp.sln` no Visual Studio 2022. A interface é montada por código — use **Exibir Código (F7)** em vez do Designer.
 
-Para gerar um executável para usar no dia a dia:
+### Gerar o executável para compartilhar
+
+Dê dois cliques em **`publicar.bat`** (ou, no Visual Studio: botão direito no projeto → **Publicar** → perfil **Portatil**).
+
+Isso gera **um único `publish\HiddenApp.exe`** que já inclui o .NET — é só copiar esse arquivo para outra máquina com Windows 10/11 64 bits e abrir, sem instalar nada.
+
+Pela linha de comando:
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained false -o publish
+dotnet publish -p:PublishProfile=Portatil
 ```
 
 > Ative **"Iniciar com o Windows"** pelo executável final (da pasta `publish`), pois a tarefa de inicialização aponta para o `.exe` que está rodando.

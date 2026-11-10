@@ -1,0 +1,15 @@
+# Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+[Dd]ebug/
+[Rr]elease/
+[Pp]ublish/
+*.log
+
+# Designer não é usado (a interface é montada por código)
+MainForm.resx

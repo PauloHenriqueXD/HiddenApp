@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Exige rodar como Administrador (necessário para mexer no Firewall do Windows) -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <!-- Ícone do .exe (Explorer / barra de tarefas) -->
+    <ApplicationIcon>Assets\HiddenApp.ico</ApplicationIcon>
+    <AssemblyTitle>HiddenApp</AssemblyTitle>
+    <Product>HiddenApp</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ícone e logo embutidos no .exe (janela, bandeja e cabeçalho) -->
+    <EmbeddedResource Include="Assets\HiddenApp.ico" LogicalName="HiddenApp.ico" />
+    <EmbeddedResource Include="Assets\logo.png" LogicalName="logo.png" />
+  </ItemGroup>
+
+</Project>

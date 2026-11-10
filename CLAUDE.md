@@ -1,0 +1,115 @@
+# CLAUDE.md — contexto do projeto HiddenApp
+
+Guia para assistentes de IA (Claude, Copilot etc.) e para quem chega agora no código.
+Leia antes de mudar qualquer coisa. Detalhes de funcionamento estão em [ARQUITETURA.md](ARQUITETURA.md).
+
+## O que é
+
+App **Windows Forms (.NET 9)** que corta a internet de programas escolhidos pelo usuário,
+usando regras do **Firewall do Windows**. Inclui prévia ao vivo da janela, "cópia bloqueável"
+(segunda instância de um programa feita de hard links), ícone na bandeja, iniciar com o Windows
+e temas escuro/claro. Interface e textos em **português (Brasil)**.
+
+## Comandos
+
+```bash
+# Compilar (Windows)
+dotnet build -c Release
+
+# Gerar o .exe único e autocontido para distribuir (saída em publish\)
+dotnet publish -p:PublishProfile=Portatil      # ou: publicar.bat
+
+# Compilar fora do Windows (Linux/macOS) — só para checar erros
+dotnet build -c Release -p:EnableWindowsTargeting=true
+```
+
+Não há testes automatizados. Validação é manual (ver "Checklist de teste" abaixo).
+
+## Estrutura
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `Program.cs` | Entrada; instância única (Mutex + EventWaitHandle); argumento `--tray` |
+| `MainForm.cs` | Janela principal: montagem da UI, listas owner-draw, bandeja, ações |
+| `CloneDialog.cs` | Diálogo "Abrir cópia bloqueável" |
+| `FirewallManager.cs` | Cria/remove regras via `netsh`; guarda a lista de bloqueados |
+| `CloneManager.cs` | Cópias com hard links em `X:\HiddenAppClones\`, abertura e limpeza |
+| `WindowEnumerator.cs` | Lista janelas (estilo Alt+Tab), resolve processo/caminho, PIDs por .exe |
+| `WindowPreview.cs` | Miniatura ao vivo via DWM Thumbnails |
+| `StartupManager.cs` | "Iniciar com o Windows" via Tarefa Agendada (`schtasks /XML`) |
+| `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` |
+| `Theme.cs` | Paletas, tema atual, escala de DPI (`Theme.S`), barra de título escura, recursos embutidos |
+| `ThemedControls.cs` | Controles próprios: `RoundButton`, `Card`, `ToggleSwitch`, `ThemedListView`, renderer do menu |
+| `Native.cs` | Todo o P/Invoke (user32, kernel32, dwmapi, iphlpapi, advapi32) |
+| `Assets/` | `HiddenApp.ico` (ícone do exe/bandeja) e `logo.png` (cabeçalho), embutidos como recurso |
+| `Properties/PublishProfiles/Portatil.pubxml` | Publicação single-file self-contained win-x64 |
+
+## Regras e convenções
+
+- **A UI é montada por código.** Não use o Designer do Visual Studio no `MainForm`/`CloneDialog`
+  (ele cria `.resx`/`.Designer.cs` e pode reescrever o arquivo). `MainForm.resx` está no `.gitignore`.
+- **Cores sempre de `Theme.Current`** (nunca cores fixas). Controles novos devem ser repintados em
+  `MainForm.ApplyTheme()` ou ler a paleta no `OnPaint`. O tema muda em tempo real (`Theme.Changed`).
+- **Tamanhos em pixels sempre via `Theme.S(px)`** (escala 125%/150%). Fontes em pontos já escalam sozinhas.
+  O app é `SystemAware` de DPI — não trocar para PerMonitor sem revisar `Theme.Dpi`, que é calculado uma vez.
+- **Propriedades públicas em controles customizados** precisam de
+  `[DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]` — no .NET 9 a ausência
+  vira **erro** de build (WFO1000).
+- **Saída de `netsh`/`schtasks` é localizada** (vem em português no Windows do usuário). Decida
+  apenas pelo **código de saída**, nunca pelo texto.
+- **Textos da interface, mensagens e comentários em português.** Nomes de código em inglês.
+- **Requer administrador** (`app.manifest` → `requireAdministrator`). Tudo que o app abre por conta
+  própria (cópias) deve ser iniciado **sem elevação** via `Native.StartUnelevated`.
+- Nullable está ativado; mantenha o build **sem warnings**.
+
+## Armadilhas conhecidas (não "consertar" sem entender)
+
+- **O firewall bloqueia por caminho do .exe, nunca por PID ou janela.** Duas janelas do mesmo
+  programa compartilham o bloqueio. A "cópia bloqueável" existe exatamente para contornar isso.
+- **Cópias são hard links:** mesmo conteúdo do original. Nunca escreva em arquivos dentro de
+  `HiddenAppClones` achando que é uma cópia independente. Hard links só funcionam no mesmo volume,
+  por isso a pasta de cópias fica na raiz do disco do programa original.
+- **Bloquear uma cópia bloqueia todos os `.exe` da pasta da cópia** (`FirewallManager.TargetsFor`),
+  porque muitos apps usam launcher + outro executável. Ao apagar cópias, as regras precisam ser
+  removidas **antes** de apagar a pasta (depois não dá para listar os .exe).
+- **Iniciar com o Windows usa Tarefa Agendada**, não a chave `Run` do registro: o Windows ignora
+  programas `requireAdministrator` na chave `Run`. A tarefa usa `RunLevel=HighestAvailable` (sem UAC)
+  e aponta para o caminho do .exe atual (`RefreshIfEnabled` corrige se ele mudar).
+- **Iniciar escondido na bandeja** é feito sobrescrevendo `SetVisibleCore` (campo `_allowShow`).
+  Por isso a inicialização fica no construtor do `MainForm`, não no evento `Load` (que só dispara
+  quando a janela aparece pela primeira vez).
+- **O "X" esconde, não fecha.** Sair de verdade é pelo menu da bandeja (`ExitApp`).
+- **Prévia DWM** é desenhada em coordenadas do *Form*, não do painel; por isso `WindowPreview`
+  converte o retângulo e atualiza num timer.
+- **Derrubar conexões abertas** (`KillTcpConnections`) só funciona para TCP IPv4. Conexões IPv6/UDP
+  já abertas podem durar até o programa reconectar; as novas são bloqueadas pela regra.
+- **Visual Studio com arquivos abertos** pode salvar a versão antiga por cima de edições feitas fora
+  dele. Ao editar arquivos externamente, recarregue no VS ("Sim para Todos").
+
+## Dados persistidos
+
+| O quê | Onde |
+|---|---|
+| Programas bloqueados | `%AppData%\HiddenApp\blocked.json` (conferido contra o firewall ao abrir) |
+| Preferências (tema, aviso da bandeja) | `%AppData%\HiddenApp\settings.json` |
+| Regras de firewall | Nome `HiddenApp - <caminho do exe>`, uma de entrada e uma de saída |
+| Cópias | `X:\HiddenAppClones\<Programa>_<hash8>\` |
+| Inicialização | Tarefa agendada `HiddenApp` (argumento `--tray`) |
+
+## Checklist de teste manual
+
+1. Abrir o app (UAC aparece) → lista de janelas com ícones; prévia ao selecionar.
+2. Cortar internet de um navegador → página não carrega; status "BLOQUEADA"; regra aparece em
+   "Firewall do Windows com Segurança Avançada". Liberar → volta a funcionar.
+3. Abrir cópia bloqueável do Chrome → nova janela sem internet, a original continua com internet.
+4. Apagar cópias com a cópia fechada → pasta `HiddenAppClones` some e regras são removidas.
+5. Fechar no "X" → app continua na bandeja; menu da bandeja funciona; "Sair" encerra.
+6. Alternar tema escuro/claro → toda a janela, barra de título e menu da bandeja mudam.
+7. Ativar "Iniciar com o Windows" → reiniciar/fazer logon → app abre só na bandeja, sem UAC.
+8. Abrir o app de novo com ele na bandeja → a janela existente aparece (sem segunda instância).
+9. Testar em zoom de tela 125%/150%.
+
+## Versão e changelog
+
+A versão fica em `<Version>` no `HiddenApp.csproj`. Ao lançar mudanças, atualize o
+[CHANGELOG.md](CHANGELOG.md) e a versão juntos.

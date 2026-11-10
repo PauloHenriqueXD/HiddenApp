@@ -11,6 +11,7 @@
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <!-- Ícone do .exe (Explorer / barra de tarefas) -->
     <ApplicationIcon>Assets\HiddenApp.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
     <AssemblyTitle>HiddenApp</AssemblyTitle>
     <Product>HiddenApp</Product>
   </PropertyGroup>

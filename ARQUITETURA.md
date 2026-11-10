@@ -1,0 +1,257 @@
+# Arquitetura do HiddenApp
+
+Este documento explica **como** o HiddenApp funciona por dentro: quais APIs do Windows ele usa,
+por que cada decisão foi tomada e como as partes se conectam. Para convenções de código e
+armadilhas, veja [CLAUDE.md](CLAUDE.md). Para uso e compilação, veja o [README](README.md).
+
+## Visão geral
+
+```mermaid
+flowchart LR
+    subgraph UI["Interface (WinForms)"]
+        MF[MainForm]
+        CD[CloneDialog]
+        WP[WindowPreview]
+        TC[ThemedControls + Theme]
+    end
+
+    subgraph Core["Lógica"]
+        WE[WindowEnumerator]
+        FM[FirewallManager]
+        CM[CloneManager]
+        SM[StartupManager]
+        AS[AppSettings]
+    end
+
+    subgraph Win["Windows"]
+        FW[(Firewall do Windows<br/>netsh advfirewall)]
+        DWM[DWM<br/>miniaturas]
+        TS[(Agendador de Tarefas<br/>schtasks)]
+        FS[(Sistema de arquivos<br/>hard links)]
+        NET[Tabela TCP<br/>iphlpapi]
+    end
+
+    MF --> WE & FM & CM & SM & AS
+    MF --> WP --> DWM
+    CD --> CM
+    FM --> FW
+    CM --> FS
+    SM --> TS
+    MF -- derruba conexões --> NET
+    WE -. user32 / kernel32 .-> Win
+```
+
+O app é um único executável WinForms que roda **como administrador** (exigido pelo
+`app.manifest`), porque criar regras de firewall e tarefas agendadas com privilégio máximo
+exige elevação.
+
+## 1. Listagem de janelas — `WindowEnumerator`
+
+1. `EnumWindows` percorre todas as janelas de nível superior.
+2. Mantém só as que apareceriam no **Alt+Tab**: visíveis, sem dono (`GW_OWNER`), sem o estilo
+   `WS_EX_TOOLWINDOW` e não "ocultas" pelo DWM (`DWMWA_CLOAKED`, usado em apps suspensos do Windows 10/11).
+3. Para cada janela, `GetWindowThreadProcessId` dá o **PID**, e `QueryFullProcessImageName`
+   (com `PROCESS_QUERY_LIMITED_INFORMATION`) dá o **caminho do .exe**, funcionando até para processos elevados.
+4. **Apps da Microsoft Store:** a janela pertence ao `ApplicationFrameHost.exe`; o processo real é o
+   de uma janela filha com outro PID, encontrado via `EnumChildWindows`.
+
+Se o caminho não puder ser lido (processo protegido do sistema), a janela aparece como **SEM ACESSO**.
+
+## 2. Bloqueio de internet — `FirewallManager`
+
+### Por que firewall por caminho do .exe
+
+O Windows associa tráfego de rede a **processos/executáveis**, não a janelas. O Firewall do Windows
+filtra por **caminho do programa** (não aceita PID). Por isso o bloqueio é sempre do programa inteiro.
+
+### Como as regras são criadas
+
+Para cada executável alvo, são criadas duas regras com o mesmo nome:
+
+```
+netsh advfirewall firewall add rule name="HiddenApp - <caminho>" dir=out action=block program="<caminho>" enable=yes profile=any
+netsh advfirewall firewall add rule name="HiddenApp - <caminho>" dir=in  action=block program="<caminho>" enable=yes profile=any
+```
+
+- **Remover:** `delete rule name="HiddenApp - <caminho>"` apaga as duas de uma vez.
+- **Conferir se existe:** `show rule name=...` → código de saída `0` = existe.
+- A saída do `netsh` vem no idioma do Windows, então só o **código de saída** é usado.
+
+### Estado salvo
+
+A lista de programas bloqueados fica em `%AppData%\HiddenApp\blocked.json`. Ao abrir, cada item é
+**conferido no firewall**; se alguém apagou a regra manualmente, o item sai da lista.
+As regras continuam valendo com o app fechado e após reiniciar o PC.
+
+### Conexões que já estavam abertas
+
+Uma regra nova impede conexões **novas**, mas conexões TCP já estabelecidas podem continuar.
+Logo após bloquear, o app chama `GetExtendedTcpTable` (TCP IPv4 com PID dono) e, para cada
+conexão dos processos afetados, `SetTcpEntry` com estado `DELETE_TCB`, o que derruba a conexão.
+Limitação: não existe equivalente para IPv6 ou UDP.
+
+```mermaid
+sequenceDiagram
+    actor U as Usuário
+    participant MF as MainForm
+    participant FM as FirewallManager
+    participant N as netsh
+    participant T as Tabela TCP
+
+    U->>MF: Cortar internet
+    MF->>MF: Avisa se o programa tem outras janelas
+    MF->>FM: Block(caminho)
+    FM->>FM: TargetsFor(caminho) → lista de .exe
+    loop cada .exe
+        FM->>N: add rule dir=out / dir=in
+    end
+    FM->>FM: salva blocked.json
+    MF->>T: KillTcpConnections(PIDs desses .exe)
+    MF->>MF: RefreshAll() → status BLOQUEADA
+```
+
+## 3. Cópia bloqueável — `CloneManager`
+
+### O problema
+
+Como o firewall só distingue **caminhos**, duas janelas do mesmo `chrome.exe` não podem ter
+bloqueios diferentes.
+
+### A solução: o mesmo programa em outro caminho
+
+1. Calcula a pasta da cópia: `X:\HiddenAppClones\<Nome>_<hash>\`, onde `X:` é **o mesmo disco**
+   do original (hard links não atravessam volumes) e `<hash>` são 8 caracteres do SHA-1 do caminho
+   da pasta original (a mesma origem sempre gera a mesma cópia).
+2. Recria a árvore de pastas e, para cada arquivo, chama `CreateHardLink`.
+   - Hard link = **outro nome para o mesmo arquivo** no disco: criação instantânea, **zero espaço extra**.
+   - Se o link falhar (permissão), copia o arquivo de verdade.
+   - Pastas que são atalhos (junction/symlink) são ignoradas para evitar loops.
+3. Se a cópia já existe, só refaz os links de arquivos que mudaram (tamanho/data diferentes),
+   o que acontece quando o programa original é atualizado.
+4. Bloqueia a cópia (opcional, marcado por padrão) **antes** de abri-la, para ela nunca conectar.
+5. Abre o `.exe` da cópia **sem elevação** (ver abaixo).
+6. Após 4 segundos, verifica se algum processo da cópia ainda está rodando. Se não, o programa
+   provavelmente é de **instância única** e repassou a janela para o original, e o usuário é avisado.
+
+### Bloqueio de todos os executáveis da cópia
+
+Muitos programas usam um **launcher** que inicia outro `.exe` (ex.: Discord). Por isso, quando o alvo
+é uma cópia, `FirewallManager.TargetsFor` retorna **todos os `.exe` da pasta da cópia**, e o status
+"BLOQUEADA" vale para qualquer janela vinda dela.
+
+### Programas de instância única
+
+Navegadores verificam se já há uma instância usando a mesma pasta de perfil e, se houver, só pedem
+para ela abrir uma janela. Para evitar isso, o diálogo sugere um perfil separado dentro da cópia:
+
+| Programa | Argumento sugerido |
+|---|---|
+| Chrome, Edge, Brave, Vivaldi, Opera | `--user-data-dir="<cópia>\_HiddenAppData"` |
+| Firefox | `-no-remote -profile "<cópia>\_HiddenAppData"` |
+
+### Abrir sem privilégio de administrador
+
+Como o HiddenApp é elevado, um `Process.Start` comum criaria a cópia **também como administrador**
+(o que causa avisos e problemas em navegadores). `Native.StartUnelevated` faz:
+
+1. `GetShellWindow` → janela do Explorer → PID do Explorer (que roda como usuário comum);
+2. `OpenProcessToken` + `DuplicateTokenEx` → token primário não elevado;
+3. `CreateProcessWithTokenW` com esse token.
+
+Se falhar, usa `Process.Start` como plano B.
+
+### Apagar cópias
+
+`DeleteAllClones` percorre `HiddenAppClones` em todos os discos fixos, **pula pastas com processos
+rodando** e apaga o resto. Apagar um hard link não afeta o arquivo original. As regras de firewall
+das cópias são removidas **antes** (para conseguir listar os `.exe`), e as cópias que não puderam
+ser apagadas são bloqueadas de novo.
+
+## 4. Prévia ao vivo — `WindowPreview`
+
+Usa a mesma API das prévias do Alt+Tab e da barra de tarefas:
+
+1. `DwmRegisterThumbnail(form, janelaOrigem)` cria a miniatura;
+2. `DwmQueryThumbnailSourceSize` dá o tamanho original, para manter a proporção;
+3. `DwmUpdateThumbnailProperties` define o retângulo de destino.
+
+O DWM desenha a miniatura **em coordenadas do Form** (não do painel), então o painel converte sua
+posição e reajusta a cada 200 ms (redimensionamento, janela minimizada ou fechada).
+Janela minimizada não tem conteúdo para mostrar, então o painel exibe um aviso.
+
+## 5. Bandeja e ciclo de vida — `Program` + `MainForm`
+
+```mermaid
+stateDiagram-v2
+    [*] --> Verifica: Program.Main
+    Verifica --> SinalizaOutra: Mutex já existe
+    SinalizaOutra --> [*]: EventWaitHandle.Set()
+    Verifica --> Inicia: primeira instância
+    Inicia --> Bandeja: argumento --tray
+    Inicia --> Visivel: sem argumento
+    Bandeja --> Visivel: clique no ícone / outra instância
+    Visivel --> Bandeja: botão X
+    Visivel --> [*]: Sair (menu)
+    Bandeja --> [*]: Sair (menu)
+```
+
+- **Instância única:** `Mutex("HiddenApp_SingleInstance")`. Uma segunda execução sinaliza o evento
+  `HiddenApp_ShowWindow` e encerra; a primeira (que espera o evento numa thread) mostra a janela.
+- **Começar escondido:** `SetVisibleCore` é sobrescrito; enquanto `_allowShow` for falso, a janela
+  não aparece, mas o handle é criado (necessário para a prévia e para receber `BeginInvoke`).
+- **Fechar no X** cancela o fechamento e esconde; na primeira vez mostra um balão explicando.
+- **Menu da bandeja** é reconstruído a cada abertura (lista atual de bloqueados).
+
+## 6. Iniciar com o Windows — `StartupManager`
+
+A chave `HKCU\...\Run` **não funciona** para apps `requireAdministrator`: o Windows simplesmente
+não os inicia no logon. A solução é uma **Tarefa Agendada**:
+
+- gatilho: **logon do usuário atual**, com 5 s de atraso;
+- `RunLevel = HighestAvailable` → roda elevado **sem prompt do UAC**;
+- `LogonType = InteractiveToken` → aparece na sessão do usuário (necessário para a bandeja);
+- não para na bateria e sem limite de tempo de execução;
+- ação: `HiddenApp.exe --tray`.
+
+A tarefa é criada com `schtasks /Create /XML` (o XML permite configurar bateria e limite de tempo,
+o que os parâmetros simples do `schtasks` não permitem). Ao abrir, `RefreshIfEnabled` recria a
+tarefa para garantir que aponta para o `.exe` atual.
+
+## 7. Interface e temas — `Theme` + `ThemedControls`
+
+- **Paletas** (`Palette`): escura (padrão) e clara, com cores tiradas do ícone (azul-marinho,
+  ciano e vermelho). `Theme.Set()` troca a paleta e dispara `Theme.Changed`; o `MainForm` reaplica
+  as cores e repinta tudo.
+- **Controles próprios** desenhados em `OnPaint`: `RoundButton` (Primary/Secondary/Danger),
+  `Card` (painel arredondado com título), `ToggleSwitch` e `ThemedListView` (owner-draw, linhas mais
+  altas, etiquetas coloridas).
+- **Integração com o Windows:**
+  - barra de título escura (`DWMWA_USE_IMMERSIVE_DARK_MODE`) e, no Windows 11, na cor do tema
+    (`DWMWA_CAPTION_COLOR` / `DWMWA_TEXT_COLOR`);
+  - barras de rolagem escuras com `SetWindowTheme(..., "DarkMode_Explorer")`;
+  - menu da bandeja com `ToolStripProfessionalRenderer` personalizado.
+- **Escala de tela:** o app é `SystemAware`; `Theme.Dpi` é lido uma vez e `Theme.S(px)` converte
+  medidas pensadas para 100% de zoom.
+- **Recursos:** `HiddenApp.ico` e `logo.png` são embutidos no executável (`EmbeddedResource` com
+  `LogicalName`) e o `.ico` também é o ícone do `.exe` (`ApplicationIcon`).
+
+## 8. Publicação
+
+O perfil `Properties/PublishProfiles/Portatil.pubxml` gera um **único `HiddenApp.exe`** para
+`win-x64`, **autocontido** (inclui o runtime do .NET), com compressão e sem arquivos de debug.
+WinForms não suporta *trimming*, por isso o executável tem cerca de 50 MB.
+O ícone e o manifesto de administrador ficam embutidos no `.exe` final.
+
+## Mapa das APIs do Windows usadas
+
+| Área | API | Biblioteca |
+|---|---|---|
+| Janelas | `EnumWindows`, `EnumChildWindows`, `GetWindowText`, `GetWindowThreadProcessId`, `GetForegroundWindow`, `IsIconic` | user32 |
+| Janelas ocultas / prévia | `DwmGetWindowAttribute`, `DwmRegisterThumbnail`, `DwmUpdateThumbnailProperties` | dwmapi |
+| Tema | `DwmSetWindowAttribute`, `SetWindowTheme` | dwmapi, uxtheme |
+| Processos | `OpenProcess`, `QueryFullProcessImageName` | kernel32 |
+| Hard links | `CreateHardLink` | kernel32 |
+| Abrir sem elevação | `GetShellWindow`, `OpenProcessToken`, `DuplicateTokenEx`, `CreateProcessWithTokenW` | user32, advapi32 |
+| Conexões TCP | `GetExtendedTcpTable`, `SetTcpEntry` | iphlpapi |
+| Firewall | `netsh advfirewall firewall` | (processo externo) |
+| Inicialização | `schtasks /Create /XML` | (processo externo) |

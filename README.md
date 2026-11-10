@@ -68,3 +68,9 @@ dotnet publish -p:PublishProfile=Portatil
 - Programas que só permitem uma instância podem repassar a janela da cópia para o programa original; para navegadores conhecidos o HiddenApp já preenche um parâmetro de perfil separado.
 - Apps da Microsoft Store, programas que acessam a internet por um serviço do Windows e jogos com anti-cheat podem não funcionar com a cópia bloqueável.
 - Os arquivos da cópia são *hard links*: se a cópia alterar um arquivo da própria pasta, o original também é alterado.
+
+## Documentação
+
+- [ARQUITETURA.md](ARQUITETURA.md) — como o HiddenApp funciona por dentro
+- [CHANGELOG.md](CHANGELOG.md) — histórico de versões
+- [CLAUDE.md](CLAUDE.md) — contexto e convenções para quem (ou qual IA) for mexer no código

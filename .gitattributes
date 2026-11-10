@@ -7,3 +7,4 @@
 *.png binary
 *.bat text eol=crlf
 *.pubxml text eol=crlf
+*.md text eol=crlf

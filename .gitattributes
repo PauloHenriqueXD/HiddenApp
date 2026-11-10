@@ -5,3 +5,5 @@
 *.manifest text eol=crlf
 *.ico binary
 *.png binary
+*.bat text eol=crlf
+*.pubxml text eol=crlf

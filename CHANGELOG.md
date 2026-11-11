@@ -7,6 +7,10 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+_Nada ainda._
+
+## [2.0.1] - 2026-11-11
+
 ### Adicionado
 
 - Botão **"Sugestões"** no topo (e no menu da bandeja): enviar comentário ou sugestão pelo **Google Forms**

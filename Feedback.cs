@@ -16,7 +16,9 @@ internal static class Feedback
     /// Link "pré-preenchido" do Google Forms, gerado com as palavras VERSAO, WINDOWS e IDIOMA nos campos
     /// automáticos (elas são trocadas pelos valores reais). Vazio = opção do Google Forms escondida.
     /// </summary>
-    public const string GoogleFormTemplate = "";
+    public const string GoogleFormTemplate =
+        "https://docs.google.com/forms/d/e/1FAIpQLSfQYeg5CD2s1VTRWreMp1GK552oKRmw3Rrm7HTB6Nq7GDYRzQ/viewform?usp=pp_url" +
+        "&entry.1456746680=VERSAO&entry.725934931=WINDOWS&entry.213381452=IDIOMA";
 
     public static bool HasGoogleForm => GoogleFormTemplate.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 

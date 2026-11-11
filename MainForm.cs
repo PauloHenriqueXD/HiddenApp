@@ -44,7 +44,7 @@ public class MainForm : Form
     readonly Label _status = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
     readonly Label _statusCount = new() { Dock = DockStyle.Right, AutoSize = false, Width = Theme.S(280), TextAlign = ContentAlignment.MiddleRight };
 
-    readonly RoundButton _btnPick = new("Selecionar manualmente");
+    readonly RoundButton _btnPick = RoundButton.IconButton(Theme.Glyph.Search, "Selecionar manualmente", ButtonKind.Secondary);
     readonly System.Windows.Forms.Timer _pickTimer = new() { Interval = 1000 };
     int _countdown;
 
@@ -62,10 +62,10 @@ public class MainForm : Form
     readonly ContextMenuStrip _updatesMenu = new();
     readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 }; // a cada 6 horas
 
-    // ---------- Abas e auto clique ----------
+    // ---------- Abas e macros ----------
     readonly Panel _tabBar = new() { Dock = DockStyle.Top, Height = Theme.S(44) };
     readonly TabButton _tabInternet = new("Internet");
-    readonly TabButton _tabClicker = new("Auto clique");
+    readonly TabButton _tabClicker = new("Macro");
     AutoClickPage _autoClick = null!;
     const int HotkeyIdStart = 1, HotkeyIdStop = 2, HotkeyIdCapture = 3;
 
@@ -246,10 +246,11 @@ public class MainForm : Form
         _windows.MouseUp += (_, _) => _windows.Invalidate();
         _windows.ClientSizeChanged += (_, _) => FitColumns();
 
-        var btnBlock = new RoundButton("Bloquear internet", ButtonKind.Danger);
-        var btnUnblock = new RoundButton("Liberar internet", ButtonKind.Success);
-        var btnClone = new RoundButton("Abrir cópia bloqueável...", ButtonKind.Primary);
-        var btnRefresh = new RoundButton("Atualizar");
+        // Ações principais com ícone e texto; as demais só com ícone (o nome aparece no balão)
+        var btnBlock = RoundButton.IconTextButton(Theme.Glyph.Lock, "Bloquear internet", ButtonKind.Danger);
+        var btnUnblock = RoundButton.IconTextButton(Theme.Glyph.Unlock, "Liberar internet", ButtonKind.Success);
+        var btnClone = RoundButton.IconButton(Theme.Glyph.NewWindow, "Abrir cópia bloqueável", ButtonKind.Primary);
+        var btnRefresh = RoundButton.IconButton(Theme.Glyph.Refresh, "Atualizar", ButtonKind.Secondary);
         btnBlock.Click += (_, _) => BlockSelected();
         btnUnblock.Click += (_, _) => UnblockSelected();
         btnClone.Click += (_, _) => OpenClone();
@@ -315,9 +316,9 @@ public class MainForm : Form
     {
         _blockedList.DrawItem += (_, e) => DrawProgramItem(_blockedList, e);
 
-        var btnUnblockSel = new RoundButton("Liberar selecionado", ButtonKind.Success);
-        var btnUnblockAll = new RoundButton("Liberar todos");
-        var btnDeleteClones = new RoundButton("Apagar cópias");
+        var btnUnblockSel = RoundButton.IconButton(Theme.Glyph.Unlock, "Liberar selecionado", ButtonKind.Success);
+        var btnUnblockAll = RoundButton.IconButton(Theme.Glyph.SelectAll, "Liberar todos", ButtonKind.Secondary);
+        var btnDeleteClones = RoundButton.IconButton(Theme.Glyph.Delete, "Apagar cópias", ButtonKind.Danger);
         btnUnblockSel.Click += (_, _) =>
         {
             if (_blockedList.SelectedItem is string path)
@@ -366,11 +367,11 @@ public class MainForm : Form
         };
         _favoritesList.MouseDown += (_, e) => SelectOnRightClick(_favoritesList, e);
 
-        var btnBlock = new RoundButton("Bloquear", ButtonKind.Danger);
-        var btnUnblock = new RoundButton("Liberar", ButtonKind.Success);
-        var btnOpen = new RoundButton("Abrir");
-        var btnAdd = new RoundButton("Adicionar...");
-        var btnRemove = new RoundButton("Remover");
+        var btnBlock = RoundButton.IconButton(Theme.Glyph.Lock, "Bloquear", ButtonKind.Danger);
+        var btnUnblock = RoundButton.IconButton(Theme.Glyph.Unlock, "Liberar", ButtonKind.Success);
+        var btnOpen = RoundButton.IconButton(Theme.Glyph.Play, "Abrir", ButtonKind.Primary);
+        var btnAdd = RoundButton.IconButton(Theme.Glyph.Add, "Adicionar favorito", ButtonKind.Success);
+        var btnRemove = RoundButton.IconButton(Theme.Glyph.Remove, "Remover dos favoritos", ButtonKind.Danger);
         btnBlock.Click += (_, _) => { if (SelectedFavorite is string f) BlockPath(f); else SetStatus("Selecione um favorito primeiro."); };
         btnUnblock.Click += (_, _) => { if (SelectedFavorite is string f) UnblockPath(f); else SetStatus("Selecione um favorito primeiro."); };
         btnOpen.Click += (_, _) => { if (SelectedFavorite is string f) LaunchProgram(f); else SetStatus("Selecione um favorito primeiro."); };
@@ -379,11 +380,11 @@ public class MainForm : Form
 
         _tips.Set(btnBlock, "Bloquear", "Corta a internet do favorito selecionado, mesmo que ele não esteja aberto agora.\n\nAtalho: duplo clique no favorito.");
         _tips.Set(btnUnblock, "Liberar", "Devolve a internet ao favorito selecionado.");
-        _tips.Set(btnOpen, "Abrir", "Abre o programa selecionado. Cópias abrem com o mesmo perfil e as mesmas configurações de quando foram criadas.");
+        _tips.Set(btnOpen, "Abrir programa", "Abre o programa selecionado. Cópias abrem com o mesmo perfil e as mesmas configurações de quando foram criadas.");
         _tips.Set(btnAdd, "Adicionar favorito",
             "Escolhe um programa (.exe) do computador para colocar nos favoritos.\n\n" +
             "Dica: também dá para clicar na estrela ao lado de uma janela da lista.");
-        _tips.Set(btnRemove, "Remover", "Tira o programa dos favoritos. O bloqueio dele não muda.");
+        _tips.Set(btnRemove, "Remover dos favoritos", "Tira o programa dos favoritos. O bloqueio dele não muda.");
 
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
         toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, btnOpen, btnAdd, btnRemove });
@@ -482,8 +483,8 @@ public class MainForm : Form
         _tabInternet.Click += (_, _) => SelectTab(0);
         _tabClicker.Click += (_, _) => SelectTab(1);
         _tips.Set(_tabInternet, "Internet", "Bloquear e liberar a internet de programas, cópias bloqueáveis e favoritos.");
-        _tips.Set(_tabClicker, "Auto clique",
-            "Macros que clicam sozinhas em pontos de uma janela, em loop. Iniciar, parar e capturar ponto têm teclas de atalho.");
+        _tips.Set(_tabClicker, "Macro",
+            "Macros que clicam e apertam teclas sozinhas numa janela, em loop — na hora ou num horário agendado. Iniciar, parar e capturar ponto têm teclas de atalho.");
 
         _autoClick.StatusMessage += SetStatus;
         _autoClick.Notify += (title, text) => ShowBalloon(title, text);
@@ -502,7 +503,7 @@ public class MainForm : Form
         if (index == 0) { RefreshAll(); }
         SetStatus(index == 0
             ? "Selecione uma janela e clique em \"Bloquear internet\". Passe o mouse nos botões para ver o que cada um faz."
-            : $"Auto clique: crie uma macro, escolha a janela alvo e adicione os pontos. {HotkeyBox.Describe((Keys)_settings.HotkeyStart)} inicia, {HotkeyBox.Describe((Keys)_settings.HotkeyStop)} para.");
+            : $"Macro: crie uma macro, escolha a janela alvo e adicione os passos (cliques e teclas). {HotkeyBox.Describe((Keys)_settings.HotkeyStart)} inicia, {HotkeyBox.Describe((Keys)_settings.HotkeyStop)} para.");
     }
 
     // =====================================================================
@@ -530,7 +531,7 @@ public class MainForm : Form
         _autoClick.SetHotkeyLabels(HotkeyBox.Describe(start), HotkeyBox.Describe(stop), HotkeyBox.Describe(capture));
 
         if (failed.Count == 0) return;
-        string msg = $"Estas teclas já estão sendo usadas por outro programa e não funcionarão como atalho: {string.Join(", ", failed)}. Troque em Auto clique → Teclas de atalho.";
+        string msg = $"Estas teclas já estão sendo usadas por outro programa e não funcionarão como atalho: {string.Join(", ", failed)}. Troque em Macro → Teclas de atalho.";
         if (showErrors) Msg.Show(msg, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         else SetStatus(msg);
     }
@@ -597,19 +598,19 @@ public class MainForm : Form
         _trayMenu.Items.Clear();
         _trayMenu.Items.Add(new ToolStripMenuItem("Abrir HiddenApp", null, (_, _) => ShowFromTray()) { Font = BoldFont });
         if (_autoClick.IsRunning)
-            _trayMenu.Items.Add(new ToolStripMenuItem($"■ Parar auto clique ({HotkeyBox.Describe((Keys)_settings.HotkeyStop)})", null,
+            _trayMenu.Items.Add(new ToolStripMenuItem($"■ Parar macro ({HotkeyBox.Describe((Keys)_settings.HotkeyStop)})", null,
                 (_, _) => _autoClick.StopRunning()) { Font = BoldFont, ForeColor = Theme.Current.Danger });
         else if (_autoClick.Macros.Count > 0)
         {
-            var clickMenu = new ToolStripMenuItem("Auto clique");
+            var clickMenu = new ToolStripMenuItem("Macros");
             foreach (var macro in _autoClick.Macros)
             {
                 var mm = macro;
-                clickMenu.DropDownItems.Add(new ToolStripMenuItem($"▶ {mm.Name}", null, (_, _) => _autoClick.StartMacro(mm))
-                { ToolTipText = $"{mm.TargetName} · {mm.Steps.Count} ponto(s)" });
+                clickMenu.DropDownItems.Add(new ToolStripMenuItem($"{(mm.Favorite ? "★" : "▶")} {mm.Name}", null, (_, _) => _autoClick.StartMacro(mm))
+                { ToolTipText = $"{mm.TargetName} · {mm.Steps.Count} passo(s)" });
             }
             clickMenu.DropDownItems.Add(new ToolStripSeparator());
-            clickMenu.DropDownItems.Add(new ToolStripMenuItem("Abrir a aba Auto clique", null, (_, _) => { ShowFromTray(); SelectTab(1); }));
+            clickMenu.DropDownItems.Add(new ToolStripMenuItem("Abrir a aba Macro", null, (_, _) => { ShowFromTray(); SelectTab(1); }));
             _trayMenu.Items.Add(clickMenu);
         }
         if (_update != null)
@@ -746,7 +747,7 @@ public class MainForm : Form
     {
         int n = FirewallManager.Blocked.Count;
         string tip = n == 0 ? "HiddenApp" : $"HiddenApp - {n} bloqueado(s)";
-        if (_autoClick?.IsRunning == true) tip = $"HiddenApp - auto clique: {_autoClick.RunningName}";
+        if (_autoClick?.IsRunning == true) tip = $"HiddenApp - macro: {_autoClick.RunningName}";
         if (_update != null) tip += $" - nova versão {_update.Version}";
         tip = L.T(tip);
         _tray.Text = tip.Length > 63 ? tip[..63] : tip;

@@ -7,6 +7,12 @@ public enum ClickButton { Esquerdo, Direito, Meio }
 
 public enum ClickAction { Clique, CliqueDuplo, Segurar }
 
+/// <summary>O que o passo faz: clicar num ponto da janela ou apertar uma tecla.</summary>
+public enum StepKind { Clique, Tecla }
+
+/// <summary>Quando o agendamento se repete.</summary>
+public enum ScheduleRepeat { TodoDia, UmaVez }
+
 public enum ClickMode
 {
     /// <summary>Manda o clique direto para o controle embaixo do ponto, sem mexer no mouse (não funciona em todo programa).</summary>
@@ -19,11 +25,16 @@ public enum ClickMode
     RealComRetorno,
 }
 
-/// <summary>Um ponto da macro: onde clicar e como.</summary>
+/// <summary>Um passo da macro: um clique num ponto da janela ou uma tecla.</summary>
 public class MacroStep
 {
-    /// <summary>Nome ou descrição opcional do ponto (ex.: "Botão Coletar"), para entender o que cada um faz.</summary>
+    /// <summary>Nome ou descrição opcional do passo (ex.: "Botão Coletar"), para entender o que cada um faz.</summary>
     public string? Label { get; set; }
+
+    public StepKind Kind { get; set; } = StepKind.Clique;
+
+    /// <summary>Tecla do passo "Tecla", com Ctrl/Alt/Shift se houver (valor de <see cref="Keys"/>). 0 = nenhuma.</summary>
+    public int Key { get; set; }
 
     /// <summary>Posição relativa à área interna da janela (0 a 1), para continuar certa se a janela mudar de tamanho.</summary>
     public double RelX { get; set; } = 0.5;
@@ -46,8 +57,18 @@ public class MacroStep
 
     public MacroStep Clone() => (MacroStep)MemberwiseClone();
 
+    [JsonIgnore]
+    public Keys KeyValue => (Keys)Key;
+
     public string Describe()
     {
+        if (Kind == StepKind.Tecla)
+        {
+            string key = Key == 0 ? L.T("nenhuma tecla") : HotkeyBox.Describe(KeyValue);
+            string press = Action == ClickAction.Segurar ? L.F("Segurar {0}", Ms(HoldMs)) : L.T("Apertar");
+            string n = Repeat > 1 ? L.F("{0}x a cada {1}", Repeat, Ms(IntervalMs)) : "1x";
+            return L.F("{0} · {1} · {2} · depois espera {3}", key, press, n, Ms(DelayAfterMs));
+        }
         string action = Action switch
         {
             ClickAction.CliqueDuplo => L.T("Duplo"),
@@ -61,7 +82,7 @@ public class MacroStep
     public static string Ms(int ms) => ms >= 1000 && ms % 100 == 0 ? $"{ms / 1000.0:0.#} s" : $"{ms} ms";
 }
 
-/// <summary>Uma macro de auto clique: janela alvo + pontos que rodam em loop.</summary>
+/// <summary>Uma macro: janela alvo + passos (cliques e teclas) que rodam em loop.</summary>
 public class Macro
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
@@ -71,7 +92,20 @@ public class Macro
     public string? TargetExe { get; set; }
     public string? TargetTitle { get; set; }
 
-    public ClickMode Mode { get; set; } = ClickMode.SegundoPlano;
+    public ClickMode Mode { get; set; } = ClickMode.Real;
+
+    /// <summary>Favorita: aparece no topo da lista, com estrela.</summary>
+    public bool Favorite { get; set; }
+
+    /// <summary>Iniciar sozinha num horário (HH:mm), todo dia ou uma vez.</summary>
+    public bool ScheduleEnabled { get; set; }
+    public string ScheduleTime { get; set; } = "14:00";
+    public ScheduleRepeat ScheduleRepeat { get; set; } = ScheduleRepeat.TodoDia;
+    /// <summary>Data em que o agendamento já disparou (evita rodar duas vezes no mesmo dia).</summary>
+    public DateTime? ScheduleLastRun { get; set; }
+
+    [JsonIgnore]
+    public TimeSpan ScheduleAt => TimeSpan.TryParse(ScheduleTime, out var t) && t >= TimeSpan.Zero && t < TimeSpan.FromDays(1) ? t : new TimeSpan(14, 0, 0);
 
     /// <summary>Quantas vezes repetir a sequência de pontos (0 = sem parar).</summary>
     public int Loops { get; set; }
@@ -130,7 +164,8 @@ internal static class MacroStore
     class MacroFile
     {
         public string Formato { get; set; } = "HiddenApp.Macro";
-        public int Versao { get; set; } = 1;
+        /// <summary>1 = só cliques; 2 = passos de tecla, favorito e agendamento.</summary>
+        public int Versao { get; set; } = 2;
         public List<Macro> Macros { get; set; } = new();
     }
 
@@ -148,7 +183,7 @@ internal static class MacroStore
         catch (Exception ex) { throw new InvalidOperationException("O arquivo não é uma macro válida do HiddenApp.", ex); }
         if (file == null || file.Formato != "HiddenApp.Macro" || file.Macros.Count == 0)
             throw new InvalidOperationException("O arquivo não é uma macro válida do HiddenApp.");
-        if (file.Versao > 1)
+        if (file.Versao > 2)
             throw new InvalidOperationException("Esta macro foi criada numa versão mais nova do HiddenApp. Atualize o programa para importá-la.");
 
         foreach (var m in file.Macros) Sanitize(m);
@@ -165,6 +200,7 @@ internal static class MacroStore
             _ => m.Mode,
         };
         m.Steps ??= new();
+        if (!TimeSpan.TryParse(m.ScheduleTime, out _)) m.ScheduleTime = "14:00";
     }
 
     /// <summary>Garante valores dentro dos limites (arquivos podem ter sido editados à mão).</summary>
@@ -178,8 +214,13 @@ internal static class MacroStore
         m.JitterPercent = Math.Clamp(m.JitterPercent, 0, 50);
         m.Steps ??= new();
         if (m.Steps.Count > 500) m.Steps = m.Steps.Take(500).ToList();
+        m.ScheduleEnabled = false; // agendamento não vem de arquivos de outras pessoas
+        m.ScheduleLastRun = null;
+        if (!Enum.IsDefined(m.ScheduleRepeat)) m.ScheduleRepeat = ScheduleRepeat.TodoDia;
         foreach (var s in m.Steps)
         {
+            if (!Enum.IsDefined(s.Kind)) s.Kind = StepKind.Clique;
+            if (s.Key < 0 || ((Keys)s.Key & Keys.KeyCode) == Keys.None) s.Key = 0;
             s.Label = string.IsNullOrWhiteSpace(s.Label) ? null : s.Label.Trim()[..Math.Min(s.Label.Trim().Length, 60)];
             s.RelX = double.IsFinite(s.RelX) ? Math.Clamp(s.RelX, 0, 1) : 0.5;
             s.RelY = double.IsFinite(s.RelY) ? Math.Clamp(s.RelY, 0, 1) : 0.5;

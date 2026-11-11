@@ -6,7 +6,7 @@ Leia antes de mudar qualquer coisa. Detalhes de funcionamento estão em [ARQUITE
 ## O que é
 
 App **Windows Forms (.NET 9)** com duas abas: **Internet** (corta a internet de programas escolhidos
-usando regras do **Firewall do Windows**) e **Auto clique** (macros que clicam em pontos de uma janela em loop). Inclui prévia ao vivo da janela, "cópia bloqueável"
+usando regras do **Firewall do Windows**) e **Macro** (macros que clicam e apertam teclas numa janela, em loop, na hora ou agendadas). Inclui prévia ao vivo da janela, "cópia bloqueável"
 (segunda instância de um programa feita de hard links), ícone na bandeja, iniciar com o Windows
 e temas escuro/claro. Código e textos-base em **português (Brasil)**; interface traduzida para inglês e chinês simplificado.
 
@@ -41,9 +41,9 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` (tema, favoritos, betas, última versão perguntada) |
 | `UpdateManager.cs` | `SemVer`; consulta ao GitHub Releases, download, verificação SHA-256 e troca do .exe |
 | `UpdateDialog.cs` | Diálogo "Nova versão disponível" com novidades e progresso do download |
-| `AutoClickPage.cs` | Aba "Auto clique": lista de macros, configuração (alvo, modo, loop, pontos), prévia clicável |
-| `Macro.cs` | Modelos `Macro`/`MacroStep` (posições relativas 0–1) e `MacroStore` (`macros.json`) |
-| `ClickRunner.cs` | Executa macros numa thread: modo segundo plano (`PostMessage`) ou real (`SendInput`), loop, segurar, pausas de segurança; acha a janela alvo e captura a posição do mouse |
+| `AutoClickPage.cs` | Aba "Macro": lista de macros (favoritas no topo, ordem manual), configuração (alvo, modo, loop, agendamento), passos, prévia clicável; timer que dispara macros agendadas |
+| `Macro.cs` | Modelos `Macro`/`MacroStep` (passo = clique em posição relativa 0–1 ou tecla) e `MacroStore` (`macros.json`) |
+| `ClickRunner.cs` | Executa macros numa thread: cliques e teclas no modo segundo plano (`PostMessage`) ou real (`SendInput`), loop, segurar, pausas de segurança; acha a janela alvo e captura a posição do mouse |
 | `HotkeyDialog.cs` | `HotkeyBox` (grava uma tecla) e diálogo para trocar as teclas de iniciar/parar/capturar |
 | `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder); link do GitHub Sponsors |
 | `Feedback.cs` | Botão "Sugestões": abre o Google Forms (`GoogleFormTemplate`) ou uma issue do GitHub já preenchidos com versão/Windows/idioma |
@@ -146,7 +146,16 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   modo, inclua nos dois lugares e no `MacroStore.Sanitize`/`Normalize`.
 - **Botões só com ícone:** `RoundButton.IconButton(Theme.Glyph.X, "nome", kind)` usa a fonte de ícones do Windows
   (Segoe Fluent Icons / MDL2). O nome vai no balão de ajuda. Cores: verde = criar, vermelho = excluir, ciano = duplicar.
-- **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 1, Macros: [...] }`. Ao mudar o formato,
+- **Passos de tecla:** `MacroStep.Kind = Tecla` e `Key` = valor de `Keys` (com Ctrl/Alt/Shift). Modo real usa `SendInput`
+  com **scan code** (jogos leem o código físico); modificadores são soltos no `finally`. Segundo plano manda
+  `WM_KEYDOWN/UP` (ou `WM_SYSKEY*` com Alt) para o controle com foco (`Native.FocusedChild`). As teclas de atalho globais
+  (F7/F8/F9) não chegam na caixa de tecla, porque o `RegisterHotKey` as consome.
+- **Agendamento:** `AutoClickPage.CheckSchedules` roda a cada 10 s e só dispara até 2 min depois do horário (PC desligado
+  ou app fechado no horário = não roda atrasado). `ScheduleLastRun` evita rodar duas vezes no dia; ao mudar o horário, se o
+  de hoje já passou, a próxima vez é amanhã. Agendamento nunca vem ligado em macros importadas.
+- **Favoritas e ordem:** a ordem de `_macros` (e do `macros.json`) é a ordem do usuário; a lista mostra `Ordered()`
+  (favoritas primeiro). Subir/descer troca de lugar só dentro do mesmo grupo.
+- **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 2, Macros: [...] }` (versão 2 = passos de tecla). Ao mudar o formato,
   suba `Versao` e trate versões antigas em `MacroStore.Import` (versões mais novas são recusadas com aviso).
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.
 - **Teclas de atalho globais** usam `RegisterHotKey` no handle do `MainForm` (ids 1–3, tratadas no `WndProc`).
@@ -197,9 +206,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 12. Passar o mouse nos botões → balão de ajuda com as cores do tema.
 13. "❤ Apoiar" → QR legível pelo app do banco nos dois temas; "Copiar código Pix" funciona; o banco mostra
     o recebedor "Paulo Henrique Ferrari Mantuaneli".
-14. Auto clique: criar macro, escolher janela, adicionar pontos pela prévia e com F9; "Testar ponto"; iniciar com F7
+14. Macro: criar macro, escolher janela, adicionar pontos pela prévia e com F9; "Testar ponto"; iniciar com F7
     com outra janela em foco e parar com F8; modo real pausa ao trocar de janela; trocar as teclas e conferir que
-    as novas funcionam; macros continuam salvas após reabrir o app.
+    as novas funcionam; macros continuam salvas após reabrir o app. Passo de tecla (ex.: Ctrl+S no Bloco de Notas) nos
+    dois modos; agendar para daqui a 2 minutos (todo dia e só uma vez); favoritar e subir/descer macros.
 15. Idioma: botão 🌐 → English → reiniciar → janela, balões, menus da bandeja, diálogos e mensagens em inglês;
     repetir com 简体中文 (sem quadradinhos no lugar dos caracteres) e voltar para Português.
 

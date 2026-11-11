@@ -24,21 +24,23 @@
 - **Languages:** Português (Brasil), English and 简体中文 (Simplified Chinese). By default it follows the Windows language; change it with the 🌐 button at the top.
 - **Automatic updates:** tells you when there's a new version on GitHub and updates with one click (always asks first). Option to receive beta versions.
 
-## Auto click
+## Macro
 
-On the **Auto click** tab you create **macros** that click a window by themselves:
+On the **Macro** tab you create **macros** that click and press keys in a window by themselves:
 
 1. Click the green **+** and choose the **target window**.
 2. Add **points**: click **+ Add points** and then on the window preview — or place the mouse over the window itself and press **F9**.
 3. For each point, choose the button, the action (click, double or hold), how many clicks in a row, the interval and the wait before the next point. Each point can have a **name or description**.
 4. Press **F7** to start and **F8** to stop — in any program. The keys can be changed.
 
-Points run **in a loop**, in order. There are two modes:
+Steps can be **clicks** or **keys** (with Ctrl/Alt/Shift — use the green keyboard button). They run **in a loop**, in order.
+You can **schedule** a macro ("Start at" 14:00, every day or only once), mark **favorites** (star, kept at the top) and
+**reorder** the list. There are two modes:
 
 | Mode | How it works | Note |
 |---|---|---|
-| **Background** | Sends the click straight to the window, without moving the mouse | You keep using the PC; not every program accepts it (many games ignore it) |
-| **Real click** | Moves the mouse and really clicks | Works almost everywhere; the window must be in front (pauses by itself if it isn't) |
+| **Real** (default) | Moves the mouse, clicks and presses keys for real | Works almost everywhere; the window must be in front (pauses by itself if it isn't) |
+| **Background** | Sends clicks and keys straight to the window, without moving the mouse | You keep using the PC; not every program accepts it (many games ignore it) |
 
 **Sharing macros:** the **export** and **import** buttons save and open `.hiddenmacro` files.
 

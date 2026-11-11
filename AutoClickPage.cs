@@ -1,9 +1,10 @@
 namespace HiddenApp;
 
 /// <summary>
-/// Aba "Auto clique". Layout em três colunas, sem rolagem:
-///   [Macros + configuração da macro] [Pontos + ponto selecionado] [Prévia da janela alvo]
+/// Aba "Macro". Layout em três colunas, sem rolagem:
+///   [Macros + configuração da macro] [Passos + passo selecionado] [Prévia da janela alvo]
 /// e uma barra fixa embaixo com Iniciar / Parar / Testar / Teclas de atalho.
+/// Passos são cliques num ponto da janela ou teclas. Macros podem iniciar sozinhas num horário.
 /// </summary>
 public class AutoClickPage : Panel
 {
@@ -12,6 +13,7 @@ public class AutoClickPage : Panel
     readonly List<Macro> _macros = MacroStore.Load();
     readonly ClickRunner _runner = new();
     readonly System.Windows.Forms.Timer _saveTimer = new() { Interval = 600 };
+    readonly System.Windows.Forms.Timer _scheduleTimer = new() { Interval = 10_000 };
 
     Macro? _current;
     IntPtr _targetHandle;
@@ -28,7 +30,7 @@ public class AutoClickPage : Panel
     readonly TableLayoutPanel _leftColumn = new() { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
     readonly Card _macrosCard = new("Macros");
     readonly Card _settingsCard = new("Macro selecionada");
-    readonly Card _pointsCard = new("Pontos de clique", "rodam em loop, na ordem");
+    readonly Card _pointsCard = new("Passos", "rodam em loop, na ordem");
     readonly Card _previewCard = new("Janela alvo");
     readonly Panel _actionBar = new() { Dock = DockStyle.Bottom, Height = Theme.S(58), Padding = new Padding(Theme.S(7), Theme.S(8), Theme.S(7), 0) };
 
@@ -39,15 +41,23 @@ public class AutoClickPage : Panel
     readonly TableLayoutPanel _settingsForm = NewForm(2);
     readonly TextBox _name = new() { BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
     readonly ComboBox _target = NewCombo();
-    readonly ComboBox _mode = NewCombo("Segundo plano (não mexe no mouse)", "Clique real (move o mouse)");
+    readonly ComboBox _mode = NewCombo("Segundo plano (não mexe no mouse)", "Real (mouse e teclado de verdade)");
     readonly ComboBox _loopKind = NewCombo("Sem parar", "Número de vezes");
     readonly NumericUpDown _loops = NewNum(1, 1_000_000, 10);
     readonly NumericUpDown _jitter = NewNum(0, 50, 0);
+    readonly CheckBox _schedOn = new() { AutoSize = true, Margin = new Padding(0, Theme.S(5), Theme.S(4), 0) };
+    readonly NumericUpDown _schedHour = NewNum(0, 23, 14);
+    readonly NumericUpDown _schedMin = NewNum(0, 59, 0);
+    readonly ComboBox _schedRepeat = NewCombo("Todo dia", "Só uma vez");
 
     readonly ListBox _stepList = NewList(42);
     readonly Label _emptySteps = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted" };
     readonly TableLayoutPanel _stepEditor = NewForm(4);
+    readonly ComboBox _kind = NewCombo("Clique do mouse", "Tecla");
     readonly ComboBox _button = NewCombo("Esquerdo", "Direito", "Meio");
+    readonly HotkeyBox _keyBox = new() { Dock = DockStyle.Fill, PlaceholderText = "Clique aqui e aperte a tecla" };
+    readonly Panel _buttonOrKey = new() { Dock = DockStyle.Fill, Margin = new Padding(0) };
+    Label? _buttonLabel;
     readonly ComboBox _action = NewCombo("Clique", "Clique duplo", "Segurar");
     readonly NumericUpDown _hold = NewNum(10, 3_600_000, 100);
     readonly NumericUpDown _repeat = NewNum(1, 1_000_000, 1);
@@ -59,17 +69,21 @@ public class AutoClickPage : Panel
     readonly RoundButton _btnDelete = RoundButton.IconButton(Theme.Glyph.Delete, "Excluir macro", ButtonKind.Danger);
     readonly RoundButton _btnImport = RoundButton.IconButton(Theme.Glyph.Import, "Importar macros", ButtonKind.Secondary);
     readonly RoundButton _btnExport = RoundButton.IconButton(Theme.Glyph.Export, "Exportar macros", ButtonKind.Secondary);
+    readonly RoundButton _btnMacroUp = RoundButton.IconButton(Theme.Glyph.Up, "Subir macro", ButtonKind.Secondary);
+    readonly RoundButton _btnMacroDown = RoundButton.IconButton(Theme.Glyph.Down, "Descer macro", ButtonKind.Secondary);
+    readonly ContextMenuStrip _macroMenu = new();
     readonly ContextMenuStrip _exportMenu = new();
     readonly RoundButton _btnAddPoint = new("+ Adicionar pontos", ButtonKind.Primary);
+    readonly RoundButton _btnAddKey = RoundButton.IconButton(Theme.Glyph.Keyboard, "Adicionar tecla", ButtonKind.Success);
     readonly RoundButton _btnMovePoint = RoundButton.IconButton(Theme.Glyph.Pin, "Reposicionar ponto", ButtonKind.Secondary);
-    readonly RoundButton _btnRemovePoint = RoundButton.IconButton(Theme.Glyph.Delete, "Remover ponto", ButtonKind.Danger);
-    readonly RoundButton _btnUp = RoundButton.IconButton(Theme.Glyph.Up, "Subir ponto", ButtonKind.Secondary);
-    readonly RoundButton _btnDown = RoundButton.IconButton(Theme.Glyph.Down, "Descer ponto", ButtonKind.Secondary);
+    readonly RoundButton _btnRemovePoint = RoundButton.IconButton(Theme.Glyph.Delete, "Remover passo", ButtonKind.Danger);
+    readonly RoundButton _btnUp = RoundButton.IconButton(Theme.Glyph.Up, "Subir passo", ButtonKind.Secondary);
+    readonly RoundButton _btnDown = RoundButton.IconButton(Theme.Glyph.Down, "Descer passo", ButtonKind.Secondary);
     readonly TextBox _stepLabel = new() { BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill, PlaceholderText = "Ex.: Botão Coletar, Fechar janela..." };
     readonly TableLayoutPanel _stepNameForm = NewForm(2);
     readonly RoundButton _btnStart = new("▶ Iniciar (F7)", ButtonKind.Success);
     readonly RoundButton _btnStop = new("■ Parar (F8)", ButtonKind.Danger);
-    readonly RoundButton _btnTest = new("Testar ponto");
+    readonly RoundButton _btnTest = new("Testar passo");
     readonly RoundButton _btnHotkeys = new("⌨ Teclas de atalho");
     readonly Label _status = new() { Dock = DockStyle.Fill, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft, Tag = "muted" };
 
@@ -83,6 +97,7 @@ public class AutoClickPage : Panel
     static readonly Font BoldFont = new("Segoe UI Semibold", 9.5f);
     static readonly Font SmallFont = new("Segoe UI", 8.5f);
     static readonly Font PillFont = new("Segoe UI Semibold", 8f);
+    static readonly Font StarFont = new("Segoe UI Symbol", 12f);
 
     public event Action<string>? StatusMessage;
     public event Action? RunningChanged;
@@ -92,7 +107,8 @@ public class AutoClickPage : Panel
 
     public bool IsRunning => _runner.IsRunning;
     public string? RunningName => _runner.Current?.Name;
-    public IReadOnlyList<Macro> Macros => _macros;
+    /// <summary>Macros na ordem da lista (favoritas primeiro).</summary>
+    public IReadOnlyList<Macro> Macros => Ordered();
 
     internal AutoClickPage(AppSettings settings, ThemedToolTip tips)
     {
@@ -105,8 +121,8 @@ public class AutoClickPage : Panel
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
         _grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 44));
-        _leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 56));
+        _leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        _leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
         _leftColumn.Controls.Add(_macrosCard, 0, 0);
         _leftColumn.Controls.Add(_settingsCard, 0, 1);
         _grid.Controls.Add(_leftColumn, 0, 0);
@@ -133,8 +149,11 @@ public class AutoClickPage : Panel
             Say(reason, notify: true);
         });
 
-        RefreshMacroList(_macros.FirstOrDefault(m => m.Id == _settings.LastMacroId) ?? _macros.FirstOrDefault());
+        RefreshMacroList(_macros.FirstOrDefault(m => m.Id == _settings.LastMacroId) ?? Ordered().FirstOrDefault());
         ApplyTheme();
+
+        _scheduleTimer.Tick += (_, _) => CheckSchedules();
+        _scheduleTimer.Start();
     }
 
     // =====================================================================
@@ -168,7 +187,7 @@ public class AutoClickPage : Panel
         return t;
     }
 
-    static void AddField(TableLayoutPanel form, string label, Control field)
+    static Label AddField(TableLayoutPanel form, string label, Control field)
     {
         bool secondPair = form.ColumnCount == 4 && form.Controls.Count % 4 == 2;
         var l = new Label
@@ -179,6 +198,7 @@ public class AutoClickPage : Panel
         field.Margin = new Padding(0, Theme.S(3), 0, Theme.S(3));
         form.Controls.Add(l);
         form.Controls.Add(field);
+        return l;
     }
 
     static FlowLayoutPanel Toolbar(params Control[] buttons)
@@ -192,13 +212,41 @@ public class AutoClickPage : Panel
     {
         _macroList.DrawItem += DrawMacroItem;
         _macroList.SelectedIndexChanged += (_, _) => { if (!_loading) LoadMacro(_macroList.SelectedItem as Macro); };
+        // Estrela antes do nome: clique alterna o favorito
+        _macroList.MouseDown += (_, e) =>
+        {
+            int i = _macroList.IndexFromPoint(e.Location);
+            if (i < 0 || _macroList.Items[i] is not Macro m) return;
+            if (e.Button == MouseButtons.Right) { _macroList.SelectedIndex = i; return; }
+            if (e.Button == MouseButtons.Left && e.X < StarAreaWidth && !_runner.IsRunning) ToggleFavorite(m);
+        };
+        _macroList.MouseMove += (_, e) =>
+            _macroList.Cursor = e.X < StarAreaWidth && _macroList.IndexFromPoint(e.Location) >= 0 ? Cursors.Hand : Cursors.Default;
+        _macroMenu.Opening += (_, e) =>
+        {
+            _macroMenu.Items.Clear();
+            if (_current == null || _runner.IsRunning) { e.Cancel = true; return; }
+            var m = _current;
+            _macroMenu.Items.Add(new ToolStripMenuItem(m.Favorite ? "Remover dos favoritos" : "★ Adicionar aos favoritos", null, (_, _) => ToggleFavorite(m)));
+            _macroMenu.Items.Add(new ToolStripMenuItem("Subir macro", null, (_, _) => MoveMacro(-1)));
+            _macroMenu.Items.Add(new ToolStripMenuItem("Descer macro", null, (_, _) => MoveMacro(+1)));
+            _macroMenu.Items.Add(new ToolStripSeparator());
+            _macroMenu.Items.Add(new ToolStripMenuItem("Duplicar macro", null, (_, _) => _btnDuplicate.PerformClick()));
+            _macroMenu.Items.Add(new ToolStripMenuItem("Excluir macro", null, (_, _) => _btnDelete.PerformClick()));
+            L.Apply(_macroMenu.Items);
+        };
+        _macroList.ContextMenuStrip = _macroMenu;
+        _btnMacroUp.Click += (_, _) => MoveMacro(-1);
+        _btnMacroDown.Click += (_, _) => MoveMacro(+1);
         _btnNew.Click += (_, _) => NewMacro();
         _btnDuplicate.Click += (_, _) =>
         {
             if (_current == null) return;
             var copy = _current.Clone();
             copy.Name = L.F("{0} (cópia)", _current.Name);
-            _macros.Add(copy);
+            copy.ScheduleEnabled = false;
+            copy.ScheduleLastRun = null;
+            _macros.Insert(_macros.IndexOf(_current) + 1, copy);
             SaveNow();
             RefreshMacroList(copy);
         };
@@ -207,10 +255,12 @@ public class AutoClickPage : Panel
             if (_current == null) return;
             if (Msg.Show($"Excluir a macro \"{_current.Name}\"?", "HiddenApp",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-            int i = _macros.IndexOf(_current);
+            var ordered = Ordered();
+            int i = ordered.IndexOf(_current);
             _macros.Remove(_current);
+            ordered.Remove(_current);
             SaveNow();
-            RefreshMacroList(_macros.Count == 0 ? null : _macros[Math.Clamp(i, 0, _macros.Count - 1)]);
+            RefreshMacroList(ordered.Count == 0 ? null : ordered[Math.Clamp(i, 0, ordered.Count - 1)]);
         };
 
         _btnImport.Click += (_, _) => ImportMacros();
@@ -227,7 +277,7 @@ public class AutoClickPage : Panel
 
         _macrosCard.Controls.Add(_macroList);
         _macrosCard.Controls.Add(_emptyMacros);
-        _macrosCard.Controls.Add(Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnImport, _btnExport));
+        _macrosCard.Controls.Add(Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnImport, _btnExport));
     }
 
     void BuildSettingsCard()
@@ -239,6 +289,14 @@ public class AutoClickPage : Panel
         AddField(_settingsForm, "Repetir", _loopKind);
         AddField(_settingsForm, "Vezes", _loops);
         AddField(_settingsForm, "Variação (%)", _jitter);
+        var sched = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
+        _schedHour.Width = _schedMin.Width = Theme.S(52);
+        _schedHour.Dock = _schedMin.Dock = DockStyle.None;
+        _schedHour.Margin = _schedMin.Margin = new Padding(0, Theme.S(1), 0, 0);
+        var colon = new Label { Text = ":", AutoSize = true, Margin = new Padding(Theme.S(2), Theme.S(4), Theme.S(2), 0) };
+        sched.Controls.AddRange(new Control[] { _schedOn, _schedHour, colon, _schedMin });
+        AddField(_settingsForm, "Iniciar às", sched);
+        AddField(_settingsForm, "Agenda", _schedRepeat);
 
         _name.TextChanged += (_, _) => Change(m => m.Name = string.IsNullOrWhiteSpace(_name.Text) ? "Sem nome" : _name.Text.Trim());
         _target.DropDown += (_, _) => RefreshTargets();
@@ -261,6 +319,10 @@ public class AutoClickPage : Panel
         };
         _loops.ValueChanged += (_, _) => Change(m => m.Loops = _loopKind.SelectedIndex == 1 ? (int)_loops.Value : 0);
         _jitter.ValueChanged += (_, _) => Change(m => m.JitterPercent = (int)_jitter.Value);
+        _schedOn.CheckedChanged += (_, _) => { UpdateScheduleFields(); ScheduleChanged(); };
+        _schedHour.ValueChanged += (_, _) => ScheduleChanged();
+        _schedMin.ValueChanged += (_, _) => ScheduleChanged();
+        _schedRepeat.SelectedIndexChanged += (_, _) => ScheduleChanged();
 
         _settingsCard.Controls.Add(_settingsForm);
     }
@@ -270,6 +332,7 @@ public class AutoClickPage : Panel
         _stepList.DrawItem += DrawStepItem;
         _stepList.SelectedIndexChanged += (_, _) => { if (!_loading) LoadStep(); };
         _btnAddPoint.Click += (_, _) => TogglePick(PickKind.Add);
+        _btnAddKey.Click += (_, _) => AddKeyStep();
         _btnMovePoint.Click += (_, _) => TogglePick(PickKind.Move);
         _btnRemovePoint.Click += (_, _) =>
         {
@@ -282,20 +345,39 @@ public class AutoClickPage : Panel
         _btnUp.Click += (_, _) => MoveStep(-1);
         _btnDown.Click += (_, _) => MoveStep(+1);
 
-        // Nome do ponto (linha inteira) e, abaixo, dois campos por linha para caber sem rolagem
+        // Nome do passo (linha inteira) e, abaixo, dois campos por linha para caber sem rolagem
         AddField(_stepNameForm, "Nome", _stepLabel);
         _stepLabel.TextChanged += (_, _) => ChangeStep(s => s.Label = string.IsNullOrWhiteSpace(_stepLabel.Text) ? null : _stepLabel.Text.Trim());
-        AddField(_stepEditor, "Botão", _button);
+
+        // "Botão" (clique) e "Tecla" dividem o mesmo lugar: aparece um ou outro conforme o tipo do passo
+        _button.Margin = _keyBox.Margin = new Padding(0);
+        _buttonOrKey.Height = Math.Max(_button.PreferredHeight, _keyBox.PreferredHeight);
+        _buttonOrKey.Controls.Add(_button);
+        _buttonOrKey.Controls.Add(_keyBox);
+        AddField(_stepEditor, "Tipo", _kind);
+        _buttonLabel = AddField(_stepEditor, "Botão", _buttonOrKey);
         AddField(_stepEditor, "Ação", _action);
-        AddField(_stepEditor, "Cliques", _repeat);
+        AddField(_stepEditor, "Vezes", _repeat);
         AddField(_stepEditor, "Intervalo (ms)", _interval);
         AddField(_stepEditor, "Segurar (ms)", _hold);
         AddField(_stepEditor, "Espera depois (ms)", _delay);
+        _kind.SelectedIndexChanged += (_, _) =>
+        {
+            if (_loading || SelectedStep is not MacroStep s) return;
+            s.Kind = _kind.SelectedIndex == 1 ? StepKind.Tecla : StepKind.Clique;
+            if (s.Action == ClickAction.CliqueDuplo && s.Kind == StepKind.Tecla) s.Action = ClickAction.Clique;
+            ScheduleSave();
+            _stepList.Invalidate();
+            LoadStep();
+            if (s.Kind == StepKind.Tecla && s.Key == 0) _keyBox.Focus();
+        };
         _button.SelectedIndexChanged += (_, _) => ChangeStep(s => s.Button = (ClickButton)Math.Max(0, _button.SelectedIndex));
+        _keyBox.TextChanged += (_, _) => ChangeStep(s => s.Key = (int)_keyBox.Keys);
         _action.SelectedIndexChanged += (_, _) =>
         {
-            _hold.Enabled = _action.SelectedIndex == 2;
-            ChangeStep(s => s.Action = (ClickAction)Math.Max(0, _action.SelectedIndex));
+            var a = ActionFromIndex(_action.SelectedIndex);
+            _hold.Enabled = a == ClickAction.Segurar;
+            ChangeStep(s => s.Action = a);
         };
         _hold.ValueChanged += (_, _) => ChangeStep(s => s.HoldMs = (int)_hold.Value);
         _repeat.ValueChanged += (_, _) => { _interval.Enabled = _repeat.Value > 1; ChangeStep(s => s.Repeat = (int)_repeat.Value); };
@@ -304,7 +386,7 @@ public class AutoClickPage : Panel
 
         var editorTitle = new Label
         {
-            Text = "Ponto selecionado", AutoSize = false, Dock = DockStyle.Top, Height = Theme.S(30),
+            Text = "Passo selecionado", AutoSize = false, Dock = DockStyle.Top, Height = Theme.S(30),
             Font = new Font("Segoe UI Semibold", 9.5f), TextAlign = ContentAlignment.BottomLeft
         };
         var editor = new Panel { Dock = DockStyle.Bottom, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
@@ -315,7 +397,7 @@ public class AutoClickPage : Panel
 
         _pointsCard.Controls.Add(_stepList);
         _pointsCard.Controls.Add(_emptySteps);
-        _pointsCard.Controls.Add(Toolbar(_btnAddPoint, _btnMovePoint, _btnRemovePoint, _btnUp, _btnDown));
+        _pointsCard.Controls.Add(Toolbar(_btnAddPoint, _btnAddKey, _btnMovePoint, _btnRemovePoint, _btnUp, _btnDown));
         _pointsCard.Controls.Add(editor);
     }
 
@@ -348,28 +430,39 @@ public class AutoClickPage : Panel
         _tips.Set(_btnImport, "Importar macros", "Abre arquivos .hiddenmacro recebidos de outras pessoas e adiciona as macros na sua lista.");
         _tips.Set(_btnExport, "Exportar macros",
             "Salva a macro selecionada (ou todas) num arquivo .hiddenmacro, para compartilhar com outras pessoas.");
-        _tips.Set(_stepLabel, "Nome do ponto", "Um nome ou descrição opcional, para quem ver a macro entender o que cada ponto faz.");
+        _tips.Set(_btnMacroUp, "Subir macro", "Move a macro selecionada para cima na lista. As favoritas (com estrela) ficam sempre no topo.");
+        _tips.Set(_btnMacroDown, "Descer macro", "Move a macro selecionada para baixo na lista. As favoritas (com estrela) ficam sempre no topo.");
+        _tips.Set(_stepLabel, "Nome do passo", "Um nome ou descrição opcional, para quem ver a macro entender o que cada passo faz.");
+        _tips.Set(_btnAddKey, "Adicionar tecla",
+            "Adiciona um passo que aperta uma tecla (com Ctrl, Alt ou Shift, se quiser) depois do passo selecionado. " +
+            "Depois clique na caixa \"Tecla\" e aperte a tecla desejada.");
+        _tips.Set(_kind, "Tipo do passo", "Clique do mouse: clica num ponto da janela.\nTecla: aperta uma tecla do teclado na janela alvo.");
+        _tips.Set(_keyBox, "Tecla", "Clique aqui e aperte a tecla (pode combinar com Ctrl, Alt ou Shift). As teclas de atalho do HiddenApp não podem ser usadas.");
+        _tips.Set(_schedOn, "Agendar",
+            "Inicia esta macro sozinha no horário escolhido (o HiddenApp precisa estar aberto, mesmo escondido perto do relógio, " +
+            "e a janela alvo precisa estar aberta).");
+        _tips.Set(_schedRepeat, "Agenda", "Todo dia: roda todos os dias nesse horário.\nSó uma vez: roda na próxima vez que der o horário e depois desliga o agendamento.");
         _tips.Set(_btnAddPoint, "Adicionar pontos",
             "Liga o modo de adicionar: cada clique na prévia (à direita) vira um ponto, na ordem. Clique em \"✓ Concluir\" quando terminar.\n\n" +
             "Atalho: posicione o mouse na própria janela alvo e aperte a tecla de captura.");
         _tips.Set(_btnMovePoint, "Reposicionar ponto", "Muda o lugar do ponto selecionado: depois de clicar aqui, clique na prévia na nova posição.");
-        _tips.Set(_btnRemovePoint, "Remover ponto", "Apaga o ponto selecionado.");
-        _tips.Set(_btnUp, "Subir ponto", "Move o ponto selecionado para antes na sequência.");
-        _tips.Set(_btnDown, "Descer ponto", "Move o ponto selecionado para depois na sequência.");
-        _tips.Set(_btnTest, "Testar ponto",
-            "Dá um único clique no ponto selecionado, para conferir se acerta o lugar e se o modo de clique funciona nesse programa.");
+        _tips.Set(_btnRemovePoint, "Remover passo", "Apaga o passo selecionado.");
+        _tips.Set(_btnUp, "Subir passo", "Move o passo selecionado para antes na sequência.");
+        _tips.Set(_btnDown, "Descer passo", "Move o passo selecionado para depois na sequência.");
+        _tips.Set(_btnTest, "Testar passo",
+            "Executa só o passo selecionado uma vez, para conferir se acerta o lugar (ou a tecla) e se o modo funciona nesse programa.");
         _tips.Set(_btnHotkeys, "Teclas de atalho", "Troca as teclas de iniciar, parar e capturar ponto. Elas funcionam mesmo com outra janela em uso.");
-        _tips.Set(_mode, "Modo de clique",
-            "Segundo plano: manda o clique para a janela sem mexer no mouse — você continua usando o PC. " +
+        _tips.Set(_mode, "Modo",
+            "Segundo plano: manda cliques e teclas para a janela sem mexer no mouse — você continua usando o PC. " +
             "Nem todo programa aceita (muitos jogos ignoram).\n\n" +
-            "Clique real: move o mouse e clica de verdade. Funciona em quase tudo, mas a janela precisa estar na frente; " +
-            "se você trocar de janela, o auto clique pausa sozinho.");
-        _tips.Set(_loopKind, "Repetir", "Sem parar: a sequência de pontos roda até você apertar a tecla de parar.\nNúmero de vezes: roda a sequência inteira essa quantidade de vezes.");
+            "Real: move o mouse, clica e aperta as teclas de verdade. Funciona em quase tudo, mas a janela precisa estar na frente; " +
+            "se você trocar de janela, a macro pausa sozinha.");
+        _tips.Set(_loopKind, "Repetir", "Sem parar: a sequência de passos roda até você apertar a tecla de parar.\nNúmero de vezes: roda a sequência inteira essa quantidade de vezes.");
         _tips.Set(_jitter, "Variação aleatória", "Muda um pouco cada intervalo (em %), para os cliques não terem um ritmo perfeitamente exato. 0 = tempos exatos.");
-        _tips.Set(_repeat, "Cliques", "Quantos cliques seguidos neste mesmo ponto antes de ir para o próximo.");
-        _tips.Set(_interval, "Intervalo", "Tempo entre os cliques seguidos neste ponto, em milissegundos (1000 ms = 1 segundo).");
-        _tips.Set(_hold, "Segurar", "Por quanto tempo o botão fica apertado (só na ação \"Segurar\").");
-        _tips.Set(_delay, "Espera depois", "Tempo de espera depois deste ponto, antes de ir para o próximo.");
+        _tips.Set(_repeat, "Vezes", "Quantas vezes seguidas este passo é feito (cliques ou toques na tecla) antes de ir para o próximo.");
+        _tips.Set(_interval, "Intervalo", "Tempo entre as repetições deste passo, em milissegundos (1000 ms = 1 segundo).");
+        _tips.Set(_hold, "Segurar", "Por quanto tempo o botão ou a tecla fica apertado (só na ação \"Segurar\").");
+        _tips.Set(_delay, "Espera depois", "Tempo de espera depois deste passo, antes de ir para o próximo.");
     }
 
     // =====================================================================
@@ -400,6 +493,8 @@ public class AutoClickPage : Panel
                     c.BackColor = p.Surface2; c.ForeColor = p.Text; break;
                 case ListBox:
                     c.BackColor = p.Surface; c.ForeColor = p.Text; break;
+                case CheckBox:
+                    c.ForeColor = p.Text; break;
                 case Label l:
                     l.ForeColor = (l.Tag as string) == "muted" ? p.Muted : p.Text; break;
             }
@@ -418,12 +513,36 @@ public class AutoClickPage : Panel
     // =====================================================================
     void NewMacro()
     {
-        var m = new Macro { Name = $"Macro {_macros.Count + 1}" };
+        var m = new Macro { Name = $"Macro {_macros.Count + 1}", Mode = ClickMode.Real };
         _macros.Add(m);
         SaveNow();
         RefreshMacroList(m);
         _target.Focus();
-        SetStatus("Macro criada. Agora escolha a janela alvo e adicione os pontos de clique.");
+        SetStatus("Macro criada. Agora escolha a janela alvo e adicione os passos (cliques e teclas).");
+    }
+
+    /// <summary>Ordem de exibição: favoritas primeiro; dentro de cada grupo, a ordem escolhida pelo usuário.</summary>
+    List<Macro> Ordered() => _macros.Where(m => m.Favorite).Concat(_macros.Where(m => !m.Favorite)).ToList();
+
+    void ToggleFavorite(Macro m)
+    {
+        m.Favorite = !m.Favorite;
+        SaveNow();
+        RefreshMacroList(_current ?? m);
+        Say(m.Favorite ? $"\"{m.Name}\" está nos favoritos." : $"\"{m.Name}\" saiu dos favoritos.");
+    }
+
+    /// <summary>Sobe/desce a macro selecionada dentro do seu grupo (favoritas ou não).</summary>
+    void MoveMacro(int delta)
+    {
+        if (_current == null || _runner.IsRunning) return;
+        var ordered = Ordered();
+        int i = ordered.IndexOf(_current), j = i + delta;
+        if (j < 0 || j >= ordered.Count || ordered[j].Favorite != _current.Favorite) return;
+        int a = _macros.IndexOf(_current), b = _macros.IndexOf(ordered[j]);
+        (_macros[a], _macros[b]) = (_macros[b], _macros[a]);
+        SaveNow();
+        RefreshMacroList(_current);
     }
 
     void RefreshMacroList(Macro? select)
@@ -431,7 +550,7 @@ public class AutoClickPage : Panel
         _loading = true;
         _macroList.BeginUpdate();
         _macroList.Items.Clear();
-        foreach (var m in _macros) _macroList.Items.Add(m);
+        foreach (var m in Ordered()) _macroList.Items.Add(m);
         _macroList.EndUpdate();
         _loading = false;
         bool any = _macros.Count > 0;
@@ -450,11 +569,17 @@ public class AutoClickPage : Panel
         try
         {
             _name.Text = m?.Name ?? "";
-            _mode.SelectedIndex = Math.Max(0, Array.IndexOf(ModeOrder, m?.Mode ?? ClickMode.SegundoPlano));
+            _mode.SelectedIndex = Math.Max(0, Array.IndexOf(ModeOrder, m?.Mode ?? ClickMode.Real));
             _loopKind.SelectedIndex = (m?.Loops ?? 0) > 0 ? 1 : 0;
             _loops.Value = Math.Clamp(m?.Loops > 0 ? m.Loops : 10, (int)_loops.Minimum, (int)_loops.Maximum);
             _loops.Enabled = _loopKind.SelectedIndex == 1;
             _jitter.Value = Math.Clamp(m?.JitterPercent ?? 0, 0, 50);
+            var at = m?.ScheduleAt ?? new TimeSpan(14, 0, 0);
+            _schedOn.Checked = m?.ScheduleEnabled ?? false;
+            _schedHour.Value = at.Hours;
+            _schedMin.Value = at.Minutes;
+            _schedRepeat.SelectedIndex = m?.ScheduleRepeat == ScheduleRepeat.UmaVez ? 1 : 0;
+            UpdateScheduleFields();
             _targetHandle = m != null ? ClickRunner.FindWindow(m, IntPtr.Zero) : IntPtr.Zero;
             RefreshTargets();
         }
@@ -518,8 +643,8 @@ public class AutoClickPage : Panel
         _emptySteps.Text = _current == null
             ? "Crie ou selecione uma macro à esquerda."
             : _current.TargetExe == null
-                ? "Nenhum ponto ainda.\n\n1. Escolha a janela alvo (à esquerda)\n2. Clique em \"+ Adicionar pontos\"\n3. Clique na prévia nos lugares desejados"
-                : $"Nenhum ponto ainda.\n\nClique em \"+ Adicionar pontos\" e depois na prévia,\nou posicione o mouse na janela alvo e aperte {_captureKey}.";
+                ? "Nenhum passo ainda.\n\n1. Escolha a janela alvo (à esquerda)\n2. Clique em \"+ Adicionar pontos\" e depois na prévia,\n   ou no botão do teclado para adicionar uma tecla"
+                : $"Nenhum passo ainda.\n\nClique em \"+ Adicionar pontos\" e depois na prévia,\nposicione o mouse na janela alvo e aperte {_captureKey},\nou use o botão do teclado para adicionar uma tecla.";
     }
 
     MacroStep? SelectedStep => _stepList.SelectedItem as MacroStep;
@@ -530,18 +655,99 @@ public class AutoClickPage : Panel
         _loading = true;
         try
         {
+            bool key = s?.Kind == StepKind.Tecla;
             _stepLabel.Text = s?.Label ?? "";
+            _kind.SelectedIndex = key ? 1 : 0;
+            _button.Visible = !key;
+            _keyBox.Visible = key;
+            if (_buttonLabel != null) _buttonLabel.Text = key ? "Tecla" : "Botão";
             _button.SelectedIndex = (int)(s?.Button ?? ClickButton.Esquerdo);
-            _action.SelectedIndex = (int)(s?.Action ?? ClickAction.Clique);
+            _keyBox.Keys = (Keys)(s?.Key ?? 0);
+            if ((s?.Key ?? 0) == 0) _keyBox.Text = "";
+            // Ações: clique tem "Clique / Clique duplo / Segurar"; tecla tem "Apertar / Segurar"
+            _action.Items.Clear();
+            _action.Items.AddRange(key ? new object[] { L.T("Apertar"), L.T("Segurar") }
+                                       : new object[] { L.T("Clique"), L.T("Clique duplo"), L.T("Segurar") });
+            _action.SelectedIndex = IndexFromAction(s?.Action ?? ClickAction.Clique, key);
             _hold.Value = Math.Clamp(s?.HoldMs ?? 100, (int)_hold.Minimum, (int)_hold.Maximum);
             _repeat.Value = Math.Clamp(s?.Repeat ?? 1, 1, (int)_repeat.Maximum);
             _interval.Value = Math.Clamp(s?.IntervalMs ?? 100, 1, (int)_interval.Maximum);
             _delay.Value = Math.Clamp(s?.DelayAfterMs ?? 100, 0, (int)_delay.Maximum);
-            _hold.Enabled = _action.SelectedIndex == 2;
+            _hold.Enabled = (s?.Action ?? ClickAction.Clique) == ClickAction.Segurar;
             _interval.Enabled = _repeat.Value > 1;
         }
         finally { _loading = false; }
         UpdateButtons();
+    }
+
+    bool SelectedIsKey => SelectedStep?.Kind == StepKind.Tecla;
+
+    ClickAction ActionFromIndex(int index) => SelectedIsKey
+        ? (index == 1 ? ClickAction.Segurar : ClickAction.Clique)
+        : index switch { 1 => ClickAction.CliqueDuplo, 2 => ClickAction.Segurar, _ => ClickAction.Clique };
+
+    static int IndexFromAction(ClickAction action, bool key) => key
+        ? (action == ClickAction.Segurar ? 1 : 0)
+        : action switch { ClickAction.CliqueDuplo => 1, ClickAction.Segurar => 2, _ => 0 };
+
+    /// <summary>Adiciona um passo de tecla depois do passo selecionado (ou no fim) e pede a tecla.</summary>
+    void AddKeyStep()
+    {
+        if (_current == null) { Say("Crie ou selecione uma macro primeiro."); return; }
+        CancelPick();
+        var step = new MacroStep { Kind = StepKind.Tecla };
+        int at = SelectedStep is MacroStep sel ? _current.Steps.IndexOf(sel) + 1 : _current.Steps.Count;
+        _current.Steps.Insert(at, step);
+        SaveNow();
+        RefreshSteps(step);
+        _keyBox.Focus();
+        SetStatus("Passo de tecla adicionado: clique na caixa \"Tecla\" e aperte a tecla desejada.");
+    }
+
+    // =====================================================================
+    //  Agendamento: iniciar a macro sozinha num horário
+    // =====================================================================
+    void UpdateScheduleFields() => _schedHour.Enabled = _schedMin.Enabled = _schedRepeat.Enabled = _schedOn.Checked;
+
+    void ScheduleChanged()
+    {
+        if (_loading || _current == null) return;
+        var m = _current;
+        m.ScheduleEnabled = _schedOn.Checked;
+        m.ScheduleTime = $"{(int)_schedHour.Value:00}:{(int)_schedMin.Value:00}";
+        m.ScheduleRepeat = _schedRepeat.SelectedIndex == 1 ? ScheduleRepeat.UmaVez : ScheduleRepeat.TodoDia;
+        // Se o horário de hoje já passou, a próxima vez é amanhã (não dispara na hora só por ter ligado)
+        m.ScheduleLastRun = DateTime.Now.TimeOfDay >= m.ScheduleAt ? DateTime.Today : null;
+        ScheduleSave();
+        _macroList.Invalidate();
+        if (m.ScheduleEnabled)
+            SetStatus(L.F("A macro vai iniciar sozinha {0} às {1}.",
+                L.T(m.ScheduleLastRun == DateTime.Today ? "amanhã" : "hoje"), m.ScheduleTime));
+    }
+
+    /// <summary>Confere as macros agendadas (a cada 10 s). Só dispara até 2 minutos depois do horário.</summary>
+    void CheckSchedules()
+    {
+        var now = DateTime.Now;
+        foreach (var m in _macros.Where(m => m.ScheduleEnabled).ToList())
+        {
+            var at = now.Date + m.ScheduleAt;
+            if (now < at || now - at > TimeSpan.FromMinutes(2) || m.ScheduleLastRun?.Date == now.Date) continue;
+
+            m.ScheduleLastRun = now.Date;
+            if (m.ScheduleRepeat == ScheduleRepeat.UmaVez) m.ScheduleEnabled = false;
+            SaveNow();
+            if (m == _current) { _loading = true; _schedOn.Checked = m.ScheduleEnabled; UpdateScheduleFields(); _loading = false; }
+            _macroList.Invalidate();
+
+            if (_runner.IsRunning)
+            {
+                Say($"A macro \"{m.Name}\" estava agendada para {m.ScheduleTime}, mas outra macro já está rodando.", notify: true);
+                continue;
+            }
+            Say($"Horário agendado ({m.ScheduleTime}): iniciando \"{m.Name}\".", notify: true);
+            StartMacro(m);
+        }
     }
 
     void MoveStep(int delta)
@@ -645,7 +851,7 @@ public class AutoClickPage : Panel
     {
         if (_pick == kind) { CancelPick(); return; }
         if (_current == null) { Say("Crie ou selecione uma macro primeiro."); return; }
-        if (kind == PickKind.Move && SelectedStep == null) { Say("Selecione o ponto que quer reposicionar."); return; }
+        if (kind == PickKind.Move && SelectedStep?.Kind != StepKind.Clique) { Say("Selecione o ponto que quer reposicionar."); return; }
         if (_targetHandle == IntPtr.Zero || !Native.IsWindow(_targetHandle))
         {
             Say($"Primeiro escolha a janela alvo (ela precisa estar aberta). Ou posicione o mouse na janela e aperte {_captureKey}.");
@@ -725,8 +931,9 @@ public class AutoClickPage : Panel
         }
         else
         {
-            // O ponto novo herda a configuração do último, para agilizar sequências parecidas
-            step = _current.Steps.LastOrDefault()?.Clone() ?? new MacroStep();
+            // O ponto novo herda a configuração do último clique, para agilizar sequências parecidas
+            step = _current.Steps.LastOrDefault(s => s.Kind == StepKind.Clique)?.Clone() ?? new MacroStep();
+            step.Label = null;
             step.RelX = rx; step.RelY = ry;
             _current.Steps.Add(step);
             Say(_pick == PickKind.Add
@@ -753,8 +960,8 @@ public class AutoClickPage : Panel
         if (_runner.IsRunning) return;
         CancelPick();
         var m = _current ?? _macros.FirstOrDefault(x => x.Id == _settings.LastMacroId);
-        if (m == null) { Say("Crie uma macro na aba Auto clique antes de iniciar.", notify: true); return; }
-        if (m.Steps.Count == 0) { Say($"A macro \"{m.Name}\" ainda não tem pontos de clique.", notify: true); return; }
+        if (m == null) { Say("Crie uma macro na aba Macro antes de iniciar.", notify: true); return; }
+        if (m.Steps.Count == 0) { Say($"A macro \"{m.Name}\" ainda não tem passos.", notify: true); return; }
 
         var window = ClickRunner.FindWindow(m, m == _current ? _targetHandle : IntPtr.Zero);
         if (window == IntPtr.Zero)
@@ -781,16 +988,24 @@ public class AutoClickPage : Panel
 
     void TestStep()
     {
-        if (_runner.IsRunning || _current == null || SelectedStep is not MacroStep s) { Say("Selecione um ponto para testar."); return; }
+        if (_runner.IsRunning || _current == null || SelectedStep is not MacroStep s) { Say("Selecione um passo para testar."); return; }
         if (_targetHandle == IntPtr.Zero || !Native.IsWindow(_targetHandle)) { Say("A janela alvo não está aberta."); return; }
         CancelPick();
         var test = new Macro
         {
             Name = "Teste", Mode = _current.Mode, Loops = 1, TargetExe = _current.TargetExe,
-            Steps = { new MacroStep { RelX = s.RelX, RelY = s.RelY, Button = s.Button, Action = s.Action, HoldMs = s.HoldMs, Repeat = 1, DelayAfterMs = 0 } }
+            Steps = { CloneForTest(s) }
         };
         try { _runner.Start(test, _targetHandle); UpdateButtons(); }
         catch (Exception ex) { Say(ex.Message); }
+    }
+
+    static MacroStep CloneForTest(MacroStep s)
+    {
+        var c = s.Clone();
+        c.Repeat = 1;
+        c.DelayAfterMs = 0;
+        return c;
     }
 
     void UpdateButtons()
@@ -803,9 +1018,10 @@ public class AutoClickPage : Panel
         _btnStop.Enabled = running;
         _btnTest.Enabled = has && !running && SelectedStep != null;
         _btnNew.Enabled = _btnImport.Enabled = _btnExport.Enabled = !running;
-        _btnDuplicate.Enabled = _btnDelete.Enabled = has && !running;
-        _btnAddPoint.Enabled = has && !running;
-        _btnMovePoint.Enabled = _btnRemovePoint.Enabled = _btnUp.Enabled = _btnDown.Enabled = SelectedStep != null && !running;
+        _btnDuplicate.Enabled = _btnDelete.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = has && !running;
+        _btnAddPoint.Enabled = _btnAddKey.Enabled = has && !running;
+        _btnRemovePoint.Enabled = _btnUp.Enabled = _btnDown.Enabled = SelectedStep != null && !running;
+        _btnMovePoint.Enabled = SelectedStep?.Kind == StepKind.Clique && !running;
         _macroList.Enabled = !running;
     }
 
@@ -845,7 +1061,7 @@ public class AutoClickPage : Panel
         _btnStart.Text = $"▶ Iniciar ({start})";
         _btnStop.Text = $"■ Parar ({stop})";
         _tips.Set(_btnStart, "Iniciar", $"Começa a macro selecionada. Atalho: {start} (funciona mesmo com outra janela em uso).");
-        _tips.Set(_btnStop, "Parar", $"Para o auto clique na hora. Atalho: {stop} (funciona mesmo com outra janela em uso).");
+        _tips.Set(_btnStop, "Parar", $"Para a macro na hora. Atalho: {stop} (funciona mesmo com outra janela em uso).");
         UpdatePreviewHint();
         UpdateEmptySteps();
     }
@@ -856,7 +1072,7 @@ public class AutoClickPage : Panel
     {
         SetStatus(text);
         StatusMessage?.Invoke(text);
-        if (notify && FindForm() is Form f && !f.Visible) Notify?.Invoke("Auto clique", L.T(text));
+        if (notify && FindForm() is Form f && !f.Visible) Notify?.Invoke("Macro", L.T(text));
     }
 
     void OnUi(Action action)
@@ -877,19 +1093,28 @@ public class AutoClickPage : Panel
         Color bg = selected ? p.Selection : p.Surface;
         using (var b = new SolidBrush(bg)) g.FillRectangle(b, e.Bounds);
 
-        int x = e.Bounds.Left + Theme.S(10);
+        // Estrela: amarela = favorita; cinza = clique para favoritar
+        var star = new Rectangle(e.Bounds.Left + Theme.S(4), e.Bounds.Top, StarAreaWidth - Theme.S(4), e.Bounds.Height);
+        TextRenderer.DrawText(g, m.Favorite ? "★" : "☆", StarFont, star, m.Favorite ? p.Favorite : Theme.Blend(p.Muted, bg, 0.35),
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+
+        int x = e.Bounds.Left + StarAreaWidth + Theme.S(2);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(4)) / 2;
         bool running = _runner.IsRunning && _runner.Current?.Id == m.Id;
         int pillW = running ? TextRenderer.MeasureText(L.T("RODANDO"), PillFont).Width + Theme.S(10) : 0;
-        TextRenderer.DrawText(g, m.Name, BoldFont, new Rectangle(x, top, e.Bounds.Width - Theme.S(24) - pillW, BoldFont.Height), p.Text,
+        TextRenderer.DrawText(g, m.Name, BoldFont, new Rectangle(x, top, e.Bounds.Right - x - Theme.S(14) - pillW, BoldFont.Height), p.Text,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
         if (running)
             DrawPill(g, "RODANDO", p.Success, bg, e.Bounds.Right - pillW - Theme.S(8), new Rectangle(0, top, 0, BoldFont.Height));
 
-        string info = L.F("{0} · {1} ponto(s)", m.TargetName, m.Steps.Count);
-        TextRenderer.DrawText(g, info, SmallFont, new Rectangle(x, top + BoldFont.Height + Theme.S(4), e.Bounds.Width - Theme.S(20), SmallFont.Height),
+        string info = L.F("{0} · {1} passo(s)", m.TargetName, m.Steps.Count);
+        if (m.ScheduleEnabled)
+            info += " · " + (m.ScheduleRepeat == ScheduleRepeat.TodoDia ? L.F("todo dia às {0}", m.ScheduleTime) : L.F("às {0}", m.ScheduleTime));
+        TextRenderer.DrawText(g, info, SmallFont, new Rectangle(x, top + BoldFont.Height + Theme.S(4), e.Bounds.Right - x - Theme.S(8), SmallFont.Height),
             p.Muted, TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
     }
+
+    static int StarAreaWidth => Theme.S(28);
 
     void DrawStepItem(object? sender, DrawItemEventArgs e)
     {
@@ -904,18 +1129,22 @@ public class AutoClickPage : Panel
         int d = Theme.S(24);
         var circle = new Rectangle(e.Bounds.Left + Theme.S(8), e.Bounds.Top + (e.Bounds.Height - d) / 2, d, d);
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        using (var cb = new SolidBrush(p.Accent)) g.FillEllipse(cb, circle);
+        bool key = s.Kind == StepKind.Tecla;
+        // Número do passo: círculo azul para clique, verde para tecla
+        using (var cb = new SolidBrush(key ? p.Success : p.Accent)) g.FillEllipse(cb, circle);
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
-        TextRenderer.DrawText(g, (e.Index + 1).ToString(), PillFont, circle, p.AccentText,
+        TextRenderer.DrawText(g, (e.Index + 1).ToString(), PillFont, circle, key ? p.SuccessText : p.AccentText,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
 
         int x = circle.Right + Theme.S(10);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(2)) / 2;
-        string position = L.F("Posição {0} × {1}", s.RelX.ToString("P0"), s.RelY.ToString("P0"));
+        string position = key
+            ? (s.Key == 0 ? L.T("Tecla (escolha a tecla)") : L.F("Tecla {0}", HotkeyBox.Describe(s.KeyValue)))
+            : L.F("Posição {0} × {1}", s.RelX.ToString("P0"), s.RelY.ToString("P0"));
         TextRenderer.DrawText(g, s.Label ?? position, BoldFont,
             new Rectangle(x, top, e.Bounds.Right - x - Theme.S(6), BoldFont.Height), p.Text,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-        TextRenderer.DrawText(g, (s.Label != null ? position + " · " : "") + s.Describe(), SmallFont,
+        TextRenderer.DrawText(g, (s.Label != null && !key ? position + " · " : "") + s.Describe(), SmallFont,
             new Rectangle(x, top + BoldFont.Height + Theme.S(2), e.Bounds.Right - x - Theme.S(6), SmallFont.Height), p.Muted,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
     }
@@ -942,6 +1171,7 @@ public class AutoClickPage : Panel
             _runner.Stop();
             if (_saveTimer.Enabled) MacroStore.Save(_macros);
             _saveTimer.Dispose();
+            _scheduleTimer.Dispose();
         }
         base.Dispose(disposing);
     }

@@ -21,6 +21,8 @@ internal static class Native
     [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attr, out int value, int size);
 
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmd);
+    public const int SW_RESTORE = 9;
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
 
     // ---------- Miniatura ao vivo (mesma API do Alt+Tab) ----------
@@ -165,7 +167,17 @@ internal static class Native
     public struct MOUSEINPUT { public int dx, dy; public uint mouseData, dwFlags, time; public IntPtr dwExtraInfo; }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct INPUT { public uint type; public MOUSEINPUT mi; }
+    public struct KEYBDINPUT { public ushort wVk, wScan; public uint dwFlags, time; public IntPtr dwExtraInfo; }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct InputUnion
+    {
+        [FieldOffset(0)] public MOUSEINPUT mi;
+        [FieldOffset(0)] public KEYBDINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct INPUT { public uint type; public InputUnion u; }
 
     [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint count, INPUT[] inputs, int size);
 
@@ -177,8 +189,70 @@ internal static class Native
     /// <summary>Envia um evento de botão do mouse "de verdade" (na posição atual do cursor).</summary>
     public static void SendMouseButton(uint flag)
     {
-        var input = new[] { new INPUT { type = INPUT_MOUSE, mi = new MOUSEINPUT { dwFlags = flag } } };
+        var input = new[] { new INPUT { type = INPUT_MOUSE, u = new InputUnion { mi = new MOUSEINPUT { dwFlags = flag } } } };
         SendInput(1, input, Marshal.SizeOf<INPUT>());
+    }
+
+    // ---------- Teclado ----------
+    public const uint INPUT_KEYBOARD = 1;
+    public const uint KEYEVENTF_EXTENDEDKEY = 0x1, KEYEVENTF_KEYUP = 0x2, KEYEVENTF_SCANCODE = 0x8;
+    public const uint WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
+    const uint MAPVK_VK_TO_VSC = 0;
+
+    [DllImport("user32.dll")] static extern uint MapVirtualKey(uint code, uint mapType);
+
+    /// <summary>Teclas que o Windows marca como "estendidas" (setas, Insert/Delete, Home/End, Page Up/Down...).</summary>
+    public static bool IsExtendedKey(Keys key) => key is Keys.Left or Keys.Right or Keys.Up or Keys.Down
+        or Keys.Insert or Keys.Delete or Keys.Home or Keys.End or Keys.PageUp or Keys.PageDown
+        or Keys.NumLock or Keys.Divide or Keys.RControlKey or Keys.RMenu or Keys.LWin or Keys.RWin or Keys.Apps
+        or Keys.PrintScreen;
+
+    public static ushort ScanCode(Keys key) => (ushort)MapVirtualKey((uint)key, MAPVK_VK_TO_VSC);
+
+    /// <summary>
+    /// Aperta ou solta uma tecla "de verdade". Manda o código físico (scan code), que é o que jogos com
+    /// DirectInput/raw input leem; o Windows converte para a tecla virtual para os demais programas.
+    /// </summary>
+    public static void SendKey(Keys key, bool up)
+    {
+        ushort scan = ScanCode(key);
+        uint flags = up ? KEYEVENTF_KEYUP : 0;
+        if (IsExtendedKey(key)) flags |= KEYEVENTF_EXTENDEDKEY;
+        var ki = scan != 0
+            ? new KEYBDINPUT { wScan = scan, dwFlags = flags | KEYEVENTF_SCANCODE }
+            : new KEYBDINPUT { wVk = (ushort)key, dwFlags = flags };
+        var input = new[] { new INPUT { type = INPUT_KEYBOARD, u = new InputUnion { ki = ki } } };
+        SendInput(1, input, Marshal.SizeOf<INPUT>());
+    }
+
+    /// <summary>lParam de WM_KEYDOWN/WM_KEYUP (contagem 1, scan code, tecla estendida e estado de transição).</summary>
+    public static IntPtr KeyLParam(Keys key, bool up)
+    {
+        long lp = 1 | ((long)ScanCode(key) << 16);
+        if (IsExtendedKey(key)) lp |= 1L << 24;
+        if (up) lp |= (1L << 30) | (1L << 31);
+        return (IntPtr)lp;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct GUITHREADINFO
+    {
+        public int cbSize, flags;
+        public IntPtr hwndActive, hwndFocus, hwndCapture, hwndMenuOwner, hwndMoveSize, hwndCaret;
+        public RECT rcCaret;
+    }
+
+    [DllImport("user32.dll")] static extern bool GetGUIThreadInfo(uint threadId, ref GUITHREADINFO info);
+
+    /// <summary>Controle que tem o foco do teclado dentro da janela (ou a própria janela).</summary>
+    public static IntPtr FocusedChild(IntPtr window)
+    {
+        var info = new GUITHREADINFO { cbSize = Marshal.SizeOf<GUITHREADINFO>() };
+        uint thread = GetWindowThreadProcessId(window, out _);
+        if (thread != 0 && GetGUIThreadInfo(thread, ref info) && info.hwndFocus != IntPtr.Zero &&
+            GetAncestor(info.hwndFocus, GA_ROOT) == window)
+            return info.hwndFocus;
+        return window;
     }
 
     public const uint WM_MOUSEMOVE = 0x0200,

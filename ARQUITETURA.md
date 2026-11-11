@@ -282,14 +282,16 @@ Nada é baixado: a chave só muda numa versão nova, que passa pelo GitHub ofici
 A janela de doação mostra o nome completo do recebedor para quem doa conferir no app do banco — a defesa
 contra cópias falsas do programa com outra chave.
 
-## 9. Auto clique — `AutoClickPage` + `ClickRunner` + `Macro`
+## 9. Macro — `AutoClickPage` + `ClickRunner` + `Macro`
 
 ### Modelo
 
 Uma **macro** tem a janela alvo (caminho do `.exe` + título, para reencontrá-la), o **modo**, quantas voltas
-(0 = sem parar), a variação aleatória dos tempos e a lista de **pontos**. Cada ponto guarda a posição
-**relativa** (0 a 1) à área interna da janela, o botão, a ação (clique, duplo, segurar + tempo), quantos
-cliques seguidos, o intervalo e a espera antes do próximo. Tudo fica em `%AppData%\HiddenApp\macros.json`.
+(0 = sem parar), a variação aleatória dos tempos, se é **favorita**, o **agendamento** (horário, todo dia ou uma
+vez) e a lista de **passos**. Um passo é um **clique** — posição **relativa** (0 a 1) à área interna da janela,
+botão, ação (clique, duplo, segurar + tempo) — ou uma **tecla** (`Keys` com Ctrl/Alt/Shift, apertar ou segurar).
+Todo passo tem quantas vezes seguidas, o intervalo e a espera antes do próximo. Tudo fica em
+`%AppData%\HiddenApp\macros.json`, na ordem escolhida pelo usuário (a lista mostra as favoritas primeiro).
 
 ### Execução
 
@@ -302,7 +304,7 @@ flowchart TD
     W -- minimizada / modo real sem foco --> P[Pausa e avisa] --> W
     W -- fechada --> X[Para]
     W -- ok --> C[Converte posição relativa<br/>em pixels da janela]
-    C --> M{Modo}
+    C --> M{Modo<br/>clique ou tecla}
     M -- segundo plano --> PM[PostMessage no controle<br/>embaixo do ponto]
     M -- real --> SI[SetCursorPos + SendInput]
     PM & SI --> D[Intervalo / espera<br/>com variação opcional]
@@ -318,6 +320,10 @@ flowchart TD
 - **Por que não há mais modos:** dois modos extras ("segundo plano alternativo" com `SendMessage` e "real com
   retorno" com foco temporário) foram testados e removidos por não funcionarem em jogos que leem o mouse direto do
   hardware. Macros antigas com esses modos são convertidas ao carregar.
+- **Teclas:** no modo real, `SendInput` com o *scan code* da tecla (`KEYEVENTF_SCANCODE`, + `EXTENDEDKEY` para setas
+  etc.), que é o que jogos com DirectInput/raw input leem; Ctrl/Alt/Shift são apertados antes e soltos depois.
+  No segundo plano, `WM_KEYDOWN/WM_KEYUP` (`WM_SYSKEY*` com Alt) vão para o controle com foco da janela
+  (`GetGUIThreadInfo`). Combinações em segundo plano podem não funcionar, porque o estado real do teclado não muda.
 - **Segurar:** aperta, espera o tempo e solta — o soltar fica num `finally`, então o botão nunca fica preso.
 - **DPI:** a thread adota o contexto de DPI da janela alvo (`SetThreadDpiAwarenessContext` com
   `GetWindowDpiAwarenessContext`), para que posições de mouse e da janela usem as mesmas coordenadas que ela.
@@ -329,11 +335,18 @@ flowchart TD
 - **Pela tecla de captura (F9):** lê a posição do mouse, descobre a janela embaixo dele (`WindowFromPoint` +
   `GetAncestor`) e converte para posição relativa na área interna. Se a macro ainda não tem alvo, essa janela vira o alvo.
 
+### Agendamento
+
+Um timer de 10 s confere as macros com agendamento ligado. A macro inicia se o horário de hoje chegou há no máximo
+2 minutos e ela ainda não rodou hoje (`ScheduleLastRun`); "só uma vez" desliga o agendamento depois de disparar.
+Se outra macro estiver rodando, avisa e não inicia. No modo real, a janela alvo é restaurada e trazida para a frente.
+Funciona com o app escondido na bandeja, mas não com o app fechado ou o PC desligado/suspenso no horário.
+
 ### Compartilhar macros
 
-Exportar grava um `.hiddenmacro` (JSON com `Formato`, `Versao` e a lista de macros). Importar confere o formato,
+Exportar grava um `.hiddenmacro` (JSON com `Formato`, `Versao` = 2 e a lista de macros; a versão 1 só tinha cliques). Importar confere o formato,
 recusa versões mais novas, dá um Id novo a cada macro e corrige valores fora dos limites (posições fora de 0–1,
-tempos negativos, quantidades absurdas). Como o programa alvo pode estar em outra pasta no PC de quem importa,
+tempos negativos, quantidades absurdas) e nunca traz o agendamento ligado. Como o programa alvo pode estar em outra pasta no PC de quem importa,
 a busca da janela também aceita o mesmo **nome de .exe** em qualquer caminho.
 
 ### Teclas de atalho

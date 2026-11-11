@@ -1,8 +1,8 @@
 namespace HiddenApp;
 
 /// <summary>
-/// Executa uma macro numa thread separada: percorre os pontos em loop, clicando no modo
-/// "segundo plano" (mensagens direto para a janela) ou "real" (move o mouse e clica).
+/// Executa uma macro numa thread separada: percorre os passos em loop — cliques e teclas — no modo
+/// "segundo plano" (mensagens direto para a janela) ou "real" (mouse e teclado de verdade).
 /// Para com <see cref="Stop"/> (tecla F8), quando o número de voltas acaba ou se a janela fecha.
 /// </summary>
 internal sealed class ClickRunner
@@ -21,7 +21,9 @@ internal sealed class ClickRunner
     public void Start(Macro macro, IntPtr window)
     {
         if (IsRunning) return;
-        if (macro.Steps.Count == 0) throw new InvalidOperationException("A macro não tem nenhum ponto de clique.");
+        if (macro.Steps.Count == 0) throw new InvalidOperationException("A macro não tem nenhum passo.");
+        int noKey = macro.Steps.FindIndex(s => s.Kind == StepKind.Tecla && s.Key == 0);
+        if (noKey >= 0) throw new InvalidOperationException(L.F("O passo {0} não tem tecla escolhida.", noKey + 1));
         if (!Native.IsWindow(window)) throw new InvalidOperationException("A janela alvo não está aberta.");
 
         IsRunning = true;
@@ -30,7 +32,7 @@ internal sealed class ClickRunner
         var token = _cts.Token;
         // Cópia dos dados: editar a macro enquanto ela roda não muda a execução atual
         var steps = macro.Steps.Select(s => s.Clone()).ToList();
-        var thread = new Thread(() => Run(macro, steps, window, token)) { IsBackground = true, Name = "AutoClique" };
+        var thread = new Thread(() => Run(macro, steps, window, token)) { IsBackground = true, Name = "Macro" };
         thread.Start();
     }
 
@@ -38,15 +40,18 @@ internal sealed class ClickRunner
 
     void Run(Macro macro, List<MacroStep> steps, IntPtr window, CancellationToken token)
     {
-        string reason = "Auto clique parado.";
-        long clicks = 0;
+        string reason = "Macro parada.";
+        long actions = 0;
         try
         {
             // Coordenadas na mesma escala de DPI da janela alvo
             using var dpi = new Native.DpiScope(window);
 
             if (macro.Mode == ClickMode.Real)
+            {
+                if (Native.IsIconic(window)) Native.ShowWindow(window, Native.SW_RESTORE);
                 Native.ForceForeground(window);
+            }
 
             for (int loop = 1; macro.Loops == 0 || loop <= macro.Loops; loop++)
             {
@@ -56,19 +61,20 @@ internal sealed class ClickRunner
                     for (int r = 0; r < Math.Max(1, step.Repeat); r++)
                     {
                         WaitUntilReady(macro, window, token);
-                        Progress?.Invoke($"Volta {loop}{(macro.Loops > 0 ? $"/{macro.Loops}" : "")} · ponto {i + 1}/{steps.Count} · {clicks} cliques");
-                        DoClick(macro.Mode, step, window, token);
-                        clicks++;
+                        Progress?.Invoke($"Volta {loop}{(macro.Loops > 0 ? $"/{macro.Loops}" : "")} · passo {i + 1}/{steps.Count} · {actions} ações");
+                        if (step.Kind == StepKind.Tecla) DoKey(macro.Mode, step, window, token);
+                        else DoClick(macro.Mode, step, window, token);
+                        actions++;
                         if (r < step.Repeat - 1) Sleep(step.IntervalMs, macro.JitterPercent, token);
                     }
                     Sleep(step.DelayAfterMs, macro.JitterPercent, token);
                 }
             }
-            reason = $"Macro \"{macro.Name}\" concluída ({clicks} cliques).";
+            reason = $"Macro \"{macro.Name}\" concluída ({actions} ações).";
         }
-        catch (OperationCanceledException) { reason = $"Macro \"{macro.Name}\" parada ({clicks} cliques)."; }
+        catch (OperationCanceledException) { reason = $"Macro \"{macro.Name}\" parada ({actions} ações)."; }
         catch (WindowGoneException) { reason = $"A janela alvo foi fechada. Macro \"{macro.Name}\" parada."; }
-        catch (Exception ex) { reason = $"O auto clique parou por um erro: {ex.Message}"; }
+        catch (Exception ex) { reason = $"A macro parou por um erro: {ex.Message}"; }
         finally
         {
             IsRunning = false;
@@ -215,6 +221,53 @@ internal sealed class ClickRunner
                 Native.PostMessage(target, down, (IntPtr)mk, lp);
                 Native.PostMessage(target, up, IntPtr.Zero, lp);
                 break;
+        }
+    }
+
+    // =====================================================================
+    //  Teclas
+    // =====================================================================
+
+    static readonly (Keys Flag, Keys Key)[] Modifiers =
+        { (Keys.Control, Keys.ControlKey), (Keys.Alt, Keys.Menu), (Keys.Shift, Keys.ShiftKey) };
+
+    void DoKey(ClickMode mode, MacroStep step, IntPtr window, CancellationToken token)
+    {
+        Keys all = step.KeyValue;
+        Keys key = all & Keys.KeyCode;
+        var mods = Modifiers.Where(m => all.HasFlag(m.Flag)).Select(m => m.Key).ToList();
+        bool hold = step.Action == ClickAction.Segurar;
+
+        if (mode == ClickMode.Real)
+        {
+            // Modificadores apertados antes e soltos depois, na ordem inversa
+            foreach (var m in mods) Native.SendKey(m, up: false);
+            try
+            {
+                Native.SendKey(key, up: false);
+                try { if (hold) Sleep(step.HoldMs, 0, token); else Thread.Sleep(30); }
+                finally { Native.SendKey(key, up: true); } // solta a tecla mesmo se mandarem parar
+            }
+            finally { for (int i = mods.Count - 1; i >= 0; i--) Native.SendKey(mods[i], up: true); }
+        }
+        else
+        {
+            // Segundo plano: mensagens para o controle com foco dentro da janela. Alt usa as mensagens "SYS".
+            IntPtr target = Native.FocusedChild(window);
+            bool alt = all.HasFlag(Keys.Alt);
+            uint down = alt ? Native.WM_SYSKEYDOWN : Native.WM_KEYDOWN, up = alt ? Native.WM_SYSKEYUP : Native.WM_KEYUP;
+            foreach (var m in mods) Native.PostMessage(target, down, (IntPtr)(int)m, Native.KeyLParam(m, false));
+            try
+            {
+                Native.PostMessage(target, down, (IntPtr)(int)key, Native.KeyLParam(key, false));
+                try { if (hold) Sleep(step.HoldMs, 0, token); }
+                finally { Native.PostMessage(target, up, (IntPtr)(int)key, Native.KeyLParam(key, true)); }
+            }
+            finally
+            {
+                for (int i = mods.Count - 1; i >= 0; i--)
+                    Native.PostMessage(target, up, (IntPtr)(int)mods[i], Native.KeyLParam(mods[i], true));
+            }
         }
     }
 

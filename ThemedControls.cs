@@ -51,6 +51,10 @@ public class RoundButton : Button
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string? IconGlyph { get; set; }
 
+    /// <summary>Com ícone, mostra também o texto ao lado (para as ações principais).</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool ShowText { get; set; }
+
     static Font? _iconFont;
     static Font IconFont => _iconFont ??= Theme.IconFont(11f);
 
@@ -59,6 +63,10 @@ public class RoundButton : Button
     /// <summary>Botão quadrado só com ícone. O texto (nome) é usado por leitores de tela.</summary>
     public static RoundButton IconButton(string glyph, string name, ButtonKind kind) =>
         new(name, kind) { IconGlyph = glyph, Margin = new Padding(0, 0, Theme.S(6), Theme.S(8)) };
+
+    /// <summary>Botão com ícone e texto lado a lado.</summary>
+    public static RoundButton IconTextButton(string glyph, string text, ButtonKind kind) =>
+        new(text, kind) { IconGlyph = glyph, ShowText = true };
 
     public RoundButton(string text, ButtonKind kind = ButtonKind.Secondary)
     {
@@ -76,8 +84,9 @@ public class RoundButton : Button
 
     public override Size GetPreferredSize(Size proposed)
     {
-        if (IconGlyph != null) return new Size(Theme.S(38), Theme.S(34));
+        if (IconGlyph != null && !ShowText) return new Size(Theme.S(38), Theme.S(34));
         var s = TextRenderer.MeasureText(Text, Font);
+        if (IconGlyph != null) s.Width += TextRenderer.MeasureText(IconGlyph, IconFont).Width + Theme.S(2);
         return new Size(s.Width + Theme.S(28), Math.Max(Theme.S(34), s.Height + Theme.S(14)));
     }
 
@@ -116,8 +125,20 @@ public class RoundButton : Button
                 g.DrawPath(pen, path);
             }
         }
-        TextRenderer.DrawText(g, IconGlyph ?? Text, IconGlyph != null ? IconFont : Font, ClientRectangle, text,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+        const TextFormatFlags center = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+                                       TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+        if (IconGlyph != null && ShowText)
+        {
+            // Ícone + texto, centralizados juntos
+            var iconSize = TextRenderer.MeasureText(g, IconGlyph, IconFont, Size.Empty, TextFormatFlags.NoPadding);
+            var textSize = TextRenderer.MeasureText(g, Text, Font, Size.Empty, TextFormatFlags.NoPadding);
+            int gap = Theme.S(7);
+            int x = (Width - iconSize.Width - gap - textSize.Width) / 2;
+            TextRenderer.DrawText(g, IconGlyph, IconFont, new Rectangle(x, 0, iconSize.Width, Height), text, center);
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(x + iconSize.Width + gap, 0, textSize.Width + Theme.S(2), Height), text, center);
+            return;
+        }
+        TextRenderer.DrawText(g, IconGlyph ?? Text, IconGlyph != null ? IconFont : Font, ClientRectangle, text, center);
     }
 }
 

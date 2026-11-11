@@ -40,23 +40,24 @@ e4631919-5794-44d5-b5ed-5ebe8c9b5ac8
 Antes de confirmar o Pix, confira se o recebedor é **Paulo Henrique Ferrari Mantuaneli**. Se o nome for outro,
 você pode estar usando uma cópia falsa do programa: o HiddenApp oficial só é distribuído por este repositório.
 
-## Auto clique
+## Macro
 
-Na aba **Auto clique** você cria **macros** que clicam sozinhas numa janela:
+Na aba **Macro** você cria **macros** que clicam e apertam teclas sozinhas numa janela:
 
 1. Clique no **+** verde e escolha a **janela alvo**.
-2. Adicione os **pontos**: clique em **+ Adicionar pontos** e depois na prévia da janela — ou posicione o mouse
-   na própria janela e aperte **F9**.
+2. Adicione os **passos**: clique em **+ Adicionar pontos** e depois na prévia da janela (ou posicione o mouse
+   na própria janela e aperte **F9**); para uma **tecla**, use o botão verde do teclado e aperte a tecla desejada.
 3. Para cada ponto, escolha o botão, a ação (clique, duplo ou segurar), quantos cliques seguidos, o intervalo
    e a espera antes do próximo ponto.
 4. Aperte **F7** para iniciar e **F8** para parar — em qualquer programa. As teclas podem ser trocadas.
 
-Os pontos rodam **em loop**, na ordem. Há dois modos:
+Os passos rodam **em loop**, na ordem. Dá para **agendar** a macro ("Iniciar às" 14:00, todo dia ou só uma vez),
+**favoritar** (estrela, fica no topo) e **ordenar** a lista. Há dois modos:
 
 | Modo | Como funciona | Observação |
 |---|---|---|
-| **Segundo plano** | Envia o clique direto para a janela, sem mexer no mouse | Você continua usando o PC; nem todo programa aceita (muitos jogos ignoram) |
-| **Clique real** | Move o mouse e clica de verdade | Funciona em quase tudo; a janela precisa estar na frente (pausa sozinho se não estiver) |
+| **Real** (padrão) | Move o mouse, clica e aperta as teclas de verdade | Funciona em quase tudo; a janela precisa estar na frente (pausa sozinho se não estiver) |
+| **Segundo plano** | Envia cliques e teclas direto para a janela, sem mexer no mouse | Você continua usando o PC; nem todo programa aceita (muitos jogos ignoram) |
 
 **Compartilhar macros:** os botões de **exportar** e **importar** da lista de macros salvam e abrem arquivos
 `.hiddenmacro`, para trocar macros com outras pessoas. Cada ponto pode ter um **nome ou descrição** para

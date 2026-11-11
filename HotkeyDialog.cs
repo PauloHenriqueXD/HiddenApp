@@ -52,7 +52,7 @@ public class HotkeyBox : TextBox
     }
 }
 
-/// <summary>Janela para trocar as teclas de iniciar, parar e capturar ponto do auto clique.</summary>
+/// <summary>Janela para trocar as teclas de iniciar, parar e capturar ponto das macros.</summary>
 public class HotkeyDialog : Form
 {
     readonly HotkeyBox _start = new(), _stop = new(), _capture = new();
@@ -84,7 +84,7 @@ public class HotkeyDialog : Form
             box.Font = new Font("Segoe UI Semibold", 10.5f);
         }
 
-        var title = new Label { Text = "Teclas de atalho do auto clique", AutoSize = true, Font = new Font("Segoe UI Semibold", 13f), ForeColor = p.Text };
+        var title = new Label { Text = "Teclas de atalho das macros", AutoSize = true, Font = new Font("Segoe UI Semibold", 13f), ForeColor = p.Text };
         var intro = new Label
         {
             AutoSize = true, MaximumSize = new Size(Theme.S(440), 0), ForeColor = p.Muted, Margin = new Padding(0, Theme.S(4), 0, Theme.S(14)),
@@ -100,7 +100,7 @@ public class HotkeyDialog : Form
             form.Controls.Add(box);
         }
         Row("Iniciar macro", _start);
-        Row("Parar auto clique", _stop);
+        Row("Parar macro", _stop);
         Row("Capturar ponto (posição do mouse)", _capture);
 
         var reset = new RoundButton("Restaurar padrão") { Margin = new Padding(0) };

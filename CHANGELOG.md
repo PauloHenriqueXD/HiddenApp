@@ -21,14 +21,22 @@ Segunda fase do projeto: **auto clique**.
     **quantos cliques seguidos no mesmo lugar**, intervalo entre eles e espera antes do próximo ponto.
   - Repetir a sequência **sem parar** ou um **número de vezes**; variação aleatória opcional nos tempos.
   - Macros salvas automaticamente, com criar, duplicar e excluir.
-- **Dois modos de clique:**
+- **Quatro modos de clique:**
   - **Segundo plano:** manda o clique direto para a janela, sem mexer no mouse (nem todo programa aceita).
+  - **Segundo plano (alternativo):** outra forma de clique sem mexer no mouse, para programas que ignoram o primeiro.
   - **Clique real:** move o mouse e clica de verdade; **pausa sozinho** se a janela alvo sair da frente,
     para não clicar em outro programa.
-- **Marcar pontos** clicando na **prévia ao vivo** da janela alvo, ou posicionando o mouse na janela e apertando
-  a tecla de captura. As posições são relativas à janela: continuam certas se ela mudar de lugar ou de tamanho.
+  - **Clique real com retorno:** traz a janela para a frente por um instante, clica de verdade e devolve o mouse
+    e a janela que você estava usando — para jogos que só aceitam clique real.
+- **Marcar pontos** clicando na **prévia ao vivo** da janela alvo (o modo "+ Adicionar pontos" fica ligado até
+  "✓ Concluir", então dá para marcar vários seguidos), ou posicionando o mouse na janela e apertando a tecla de captura. As posições são relativas à janela: continuam certas se ela mudar de lugar ou de tamanho.
 - **Teclas de atalho globais** (funcionam em qualquer programa): **F7 inicia**, **F8 para**, **F9 captura o ponto**.
   Podem ser trocadas em "Teclas de atalho", com combinações de Ctrl, Alt e Shift.
+- **Exportar e importar macros** (arquivo `.hiddenmacro`) para compartilhar com outras pessoas. Valores fora do normal
+  são corrigidos na importação, e a janela alvo é procurada pelo nome do programa se ele estiver em outra pasta.
+- Tempos padrão de **100 ms** (intervalo, espera e segurar).
+- Layout em três colunas que cabe na tela sem rolagem: macros e configuração, pontos e ponto selecionado, prévia;
+  barra de Iniciar/Parar fixa embaixo, com instruções passo a passo.
 - Botão **"Testar ponto"** para conferir se o clique acerta o lugar e se o modo funciona naquele programa.
 - Menu da bandeja: iniciar qualquer macro e **parar o auto clique**; a dica do ícone mostra a macro em execução.
 - Para automaticamente se a janela alvo for fechada; pausa enquanto ela estiver minimizada.

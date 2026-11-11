@@ -46,7 +46,7 @@ internal sealed class ClickRunner
             using var dpi = new Native.DpiScope(window);
 
             if (macro.Mode == ClickMode.Real)
-                Native.SetForegroundWindow(window);
+                Native.ForceForeground(window);
 
             for (int loop = 1; macro.Loops == 0 || loop <= macro.Loops; loop++)
             {
@@ -133,8 +133,13 @@ internal sealed class ClickRunner
     void DoClick(ClickMode mode, MacroStep step, IntPtr window, CancellationToken token)
     {
         var pt = ClientPoint(step, window);
-        if (mode == ClickMode.Real) RealClick(step, window, pt, token);
-        else BackgroundClick(step, window, pt, token);
+        switch (mode)
+        {
+            case ClickMode.Real: RealClick(step, window, pt, token); break;
+            case ClickMode.RealComRetorno: RealClickWithReturn(step, window, pt, token); break;
+            case ClickMode.SegundoPlanoAlternativo: BackgroundClickAlt(step, window, pt, token); break;
+            default: BackgroundClick(step, window, pt, token); break;
+        }
     }
 
     // ---------- Modo real: move o mouse e clica de verdade ----------
@@ -143,7 +148,39 @@ internal sealed class ClickRunner
         var screen = clientPt;
         Native.ClientToScreen(window, ref screen);
         Native.SetCursorPos(screen.X, screen.Y);
+        PressButton(step, token);
+    }
 
+    // ---------- Modo real com retorno: foca por um instante, clica e devolve tudo como estava ----------
+    void RealClickWithReturn(MacroStep step, IntPtr window, Native.POINT clientPt, CancellationToken token)
+    {
+        IntPtr previous = Native.GetForegroundWindow();
+        Native.GetCursorPos(out var previousCursor);
+        try
+        {
+            Native.ForceForeground(window);
+            // Espera a janela realmente ficar na frente (até ~250 ms)
+            for (int i = 0; i < 25 && Native.GetAncestor(Native.GetForegroundWindow(), Native.GA_ROOT) != window; i++)
+                Thread.Sleep(10);
+
+            var screen = clientPt;
+            Native.ClientToScreen(window, ref screen);
+            Native.SetCursorPos(screen.X, screen.Y);
+            Thread.Sleep(15); // alguns jogos precisam "ver" o mouse no lugar antes do clique
+            PressButton(step, token);
+            Thread.Sleep(20);
+        }
+        finally
+        {
+            Native.SetCursorPos(previousCursor.X, previousCursor.Y);
+            if (previous != IntPtr.Zero && previous != window && Native.IsWindow(previous))
+                Native.ForceForeground(previous);
+        }
+    }
+
+    /// <summary>Aperta e solta (ou segura) o botão do mouse "de verdade", na posição atual do cursor.</summary>
+    void PressButton(MacroStep step, CancellationToken token)
+    {
         (uint down, uint up) = step.Button switch
         {
             ClickButton.Direito => (Native.MOUSEEVENTF_RIGHTDOWN, Native.MOUSEEVENTF_RIGHTUP),
@@ -165,6 +202,48 @@ internal sealed class ClickRunner
                 break;
             default:
                 Native.SendMouseButton(down); Native.SendMouseButton(up);
+                break;
+        }
+    }
+
+    // ---------- Modo segundo plano alternativo: ativa por mensagem e usa SendMessage na janela principal ----------
+    void BackgroundClickAlt(MacroStep step, IntPtr window, Native.POINT pt, CancellationToken token)
+    {
+        (uint down, uint up, uint dbl, int mk) = step.Button switch
+        {
+            ClickButton.Direito => (Native.WM_RBUTTONDOWN, Native.WM_RBUTTONUP, Native.WM_RBUTTONDBLCLK, Native.MK_RBUTTON),
+            ClickButton.Meio => (Native.WM_MBUTTONDOWN, Native.WM_MBUTTONUP, Native.WM_MBUTTONDBLCLK, Native.MK_MBUTTON),
+            _ => (Native.WM_LBUTTONDOWN, Native.WM_LBUTTONUP, Native.WM_LBUTTONDBLCLK, Native.MK_LBUTTON),
+        };
+        IntPtr lp = Native.MakeLParam(pt.X, pt.Y);
+
+        // Alguns programas só aceitam clique se acharem que estão ativos e com o cursor sobre eles
+        Native.SendMessageSafe(window, Native.WM_ACTIVATE, (IntPtr)Native.WA_ACTIVE, IntPtr.Zero);
+        Native.SendMessageSafe(window, Native.WM_SETCURSOR, window, Native.MakeLParam(Native.HTCLIENT, (int)down));
+        Native.SendMessageSafe(window, Native.WM_MOUSEMOVE, IntPtr.Zero, lp);
+
+        void Click()
+        {
+            Native.SendMessageSafe(window, down, (IntPtr)mk, lp);
+            Native.SendMessageSafe(window, Native.WM_MOUSEMOVE, (IntPtr)mk, lp);
+            Thread.Sleep(10);
+            Native.SendMessageSafe(window, up, IntPtr.Zero, lp);
+        }
+
+        switch (step.Action)
+        {
+            case ClickAction.Segurar:
+                Native.SendMessageSafe(window, down, (IntPtr)mk, lp);
+                try { Sleep(step.HoldMs, 0, token); }
+                finally { Native.SendMessageSafe(window, up, IntPtr.Zero, lp); }
+                break;
+            case ClickAction.CliqueDuplo:
+                Click();
+                Native.SendMessageSafe(window, dbl, (IntPtr)mk, lp);
+                Native.SendMessageSafe(window, up, IntPtr.Zero, lp);
+                break;
+            default:
+                Click();
                 break;
         }
     }
@@ -235,6 +314,14 @@ internal sealed class ClickRunner
         var candidates = WindowEnumerator.GetOpenWindows()
             .Where(w => w.ExePath != null && w.ExePath.Equals(macro.TargetExe, StringComparison.OrdinalIgnoreCase))
             .ToList();
+        // Macro importada de outro PC: o programa pode estar instalado em outra pasta — procura pelo nome do .exe
+        if (candidates.Count == 0)
+        {
+            string exeName = Path.GetFileName(macro.TargetExe);
+            candidates = WindowEnumerator.GetOpenWindows()
+                .Where(w => w.ExePath != null && Path.GetFileName(w.ExePath).Equals(exeName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
         var sameTitle = candidates.FirstOrDefault(w => w.Title == macro.TargetTitle);
         return (sameTitle ?? candidates.FirstOrDefault())?.Handle ?? IntPtr.Zero;
     }

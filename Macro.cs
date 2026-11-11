@@ -9,10 +9,14 @@ public enum ClickAction { Clique, CliqueDuplo, Segurar }
 
 public enum ClickMode
 {
-    /// <summary>Manda o clique direto para a janela, sem mexer no mouse (não funciona em todo programa).</summary>
+    /// <summary>Manda o clique direto para o controle embaixo do ponto, sem mexer no mouse (não funciona em todo programa).</summary>
     SegundoPlano,
-    /// <summary>Move o mouse de verdade e clica (funciona em quase tudo, mas ocupa o mouse).</summary>
+    /// <summary>Move o mouse de verdade e clica (funciona em quase tudo, mas a janela precisa estar na frente).</summary>
     Real,
+    /// <summary>Outra forma de clique sem mexer no mouse: ativa a janela por mensagem e envia o clique direto (SendMessage).</summary>
+    SegundoPlanoAlternativo,
+    /// <summary>Traz a janela para a frente por um instante, clica de verdade e devolve o mouse e a janela anterior.</summary>
+    RealComRetorno,
 }
 
 /// <summary>Um ponto da macro: onde clicar e como.</summary>
@@ -26,7 +30,7 @@ public class MacroStep
     public ClickAction Action { get; set; } = ClickAction.Clique;
 
     /// <summary>Quanto tempo segurar o botão (só para a ação "Segurar").</summary>
-    public int HoldMs { get; set; } = 1000;
+    public int HoldMs { get; set; } = 100;
 
     /// <summary>Quantos cliques seguidos neste mesmo ponto.</summary>
     public int Repeat { get; set; } = 1;
@@ -35,7 +39,7 @@ public class MacroStep
     public int IntervalMs { get; set; } = 100;
 
     /// <summary>Espera depois de terminar este ponto, antes de ir para o próximo.</summary>
-    public int DelayAfterMs { get; set; } = 500;
+    public int DelayAfterMs { get; set; } = 100;
 
     public MacroStep Clone() => (MacroStep)MemberwiseClone();
 
@@ -107,6 +111,62 @@ internal static class MacroStore
         }
         catch { }
         return new();
+    }
+
+    // ---------- Compartilhar macros (arquivo .hiddenmacro) ----------
+    public const string FileExtension = ".hiddenmacro";
+    public const string FileFilter = "Macro do HiddenApp (*.hiddenmacro)|*.hiddenmacro|Todos os arquivos (*.*)|*.*";
+
+    /// <summary>Conteúdo do arquivo exportado: identifica o formato para não aceitar qualquer JSON.</summary>
+    class MacroFile
+    {
+        public string Formato { get; set; } = "HiddenApp.Macro";
+        public int Versao { get; set; } = 1;
+        public List<Macro> Macros { get; set; } = new();
+    }
+
+    public static void Export(IEnumerable<Macro> macros, string path)
+    {
+        var file = new MacroFile { Macros = macros.ToList() };
+        File.WriteAllText(path, JsonSerializer.Serialize(file, Options));
+    }
+
+    /// <summary>Lê um arquivo exportado. As macros recebem um Id novo e valores fora do normal são corrigidos.</summary>
+    public static List<Macro> Import(string path)
+    {
+        MacroFile? file;
+        try { file = JsonSerializer.Deserialize<MacroFile>(File.ReadAllText(path), Options); }
+        catch (Exception ex) { throw new InvalidOperationException("O arquivo não é uma macro válida do HiddenApp.", ex); }
+        if (file == null || file.Formato != "HiddenApp.Macro" || file.Macros.Count == 0)
+            throw new InvalidOperationException("O arquivo não é uma macro válida do HiddenApp.");
+        if (file.Versao > 1)
+            throw new InvalidOperationException("Esta macro foi criada numa versão mais nova do HiddenApp. Atualize o programa para importá-la.");
+
+        foreach (var m in file.Macros) Sanitize(m);
+        return file.Macros;
+    }
+
+    /// <summary>Garante valores dentro dos limites (arquivos podem ter sido editados à mão).</summary>
+    static void Sanitize(Macro m)
+    {
+        m.Id = Guid.NewGuid().ToString("N");
+        m.Name = string.IsNullOrWhiteSpace(m.Name) ? "Macro importada" : m.Name.Trim()[..Math.Min(m.Name.Trim().Length, 80)];
+        if (!Enum.IsDefined(m.Mode)) m.Mode = ClickMode.SegundoPlano;
+        m.Loops = Math.Clamp(m.Loops, 0, 1_000_000);
+        m.JitterPercent = Math.Clamp(m.JitterPercent, 0, 50);
+        m.Steps ??= new();
+        if (m.Steps.Count > 500) m.Steps = m.Steps.Take(500).ToList();
+        foreach (var s in m.Steps)
+        {
+            s.RelX = double.IsFinite(s.RelX) ? Math.Clamp(s.RelX, 0, 1) : 0.5;
+            s.RelY = double.IsFinite(s.RelY) ? Math.Clamp(s.RelY, 0, 1) : 0.5;
+            if (!Enum.IsDefined(s.Button)) s.Button = ClickButton.Esquerdo;
+            if (!Enum.IsDefined(s.Action)) s.Action = ClickAction.Clique;
+            s.HoldMs = Math.Clamp(s.HoldMs, 10, 3_600_000);
+            s.Repeat = Math.Clamp(s.Repeat, 1, 1_000_000);
+            s.IntervalMs = Math.Clamp(s.IntervalMs, 1, 3_600_000);
+            s.DelayAfterMs = Math.Clamp(s.DelayAfterMs, 0, 3_600_000);
+        }
     }
 
     public static void Save(List<Macro> macros)

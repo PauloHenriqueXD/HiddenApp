@@ -49,7 +49,12 @@ Os pontos rodam **em loop**, na ordem. Há dois modos:
 | Modo | Como funciona | Observação |
 |---|---|---|
 | **Segundo plano** | Envia o clique direto para a janela, sem mexer no mouse | Você continua usando o PC; nem todo programa aceita (muitos jogos ignoram) |
+| **Segundo plano (alternativo)** | Outra forma de envio, também sem mexer no mouse | Teste se o primeiro não funcionar |
 | **Clique real** | Move o mouse e clica de verdade | Funciona em quase tudo; a janela precisa estar na frente (pausa sozinho se não estiver) |
+| **Clique real com retorno** | Traz a janela por um instante, clica e devolve o mouse e a janela anterior | Para jogos que só aceitam clique real; dá uma "piscada" a cada clique |
+
+**Compartilhar macros:** no botão **⋯** da lista de macros dá para **exportar** (arquivo `.hiddenmacro`) e
+**importar** macros de outras pessoas.
 
 > ⚠️ Muitos **jogos online** proíbem macros e auto clique nos termos de uso, e sistemas anti-cheat podem
 > **banir a conta**. Confira as regras antes de usar em jogos.

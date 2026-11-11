@@ -299,6 +299,12 @@ flowchart TD
   jogos e alguns apps ignoram mensagens que não vêm do hardware.
 - **Real:** move o cursor e usa `SendInput`. Só clica quando a janela alvo está em primeiro plano; se o usuário
   trocar de janela, a macro pausa até a janela voltar para a frente.
+- **Segundo plano (alternativo):** envia `WM_ACTIVATE` e `WM_SETCURSOR` e depois o clique com `SendMessageTimeout`
+  na janela principal (sem descer aos controles filhos), para programas que só aceitam clique quando "acham" que
+  estão ativos.
+- **Real com retorno:** guarda a janela em primeiro plano e a posição do cursor, traz a janela alvo para a frente
+  (`AttachThreadInput` + `SetForegroundWindow`, porque o Windows bloqueia a troca de foco vinda de segundo plano),
+  clica com `SendInput` e devolve o cursor e a janela anterior — sempre, mesmo se a macro for parada.
 - **Segurar:** aperta, espera o tempo e solta — o soltar fica num `finally`, então o botão nunca fica preso.
 - **DPI:** a thread adota o contexto de DPI da janela alvo (`SetThreadDpiAwarenessContext` com
   `GetWindowDpiAwarenessContext`), para que posições de mouse e da janela usem as mesmas coordenadas que ela.
@@ -309,6 +315,13 @@ flowchart TD
   na miniatura vira uma posição relativa (0–1) diretamente.
 - **Pela tecla de captura (F9):** lê a posição do mouse, descobre a janela embaixo dele (`WindowFromPoint` +
   `GetAncestor`) e converte para posição relativa na área interna. Se a macro ainda não tem alvo, essa janela vira o alvo.
+
+### Compartilhar macros
+
+Exportar grava um `.hiddenmacro` (JSON com `Formato`, `Versao` e a lista de macros). Importar confere o formato,
+recusa versões mais novas, dá um Id novo a cada macro e corrige valores fora dos limites (posições fora de 0–1,
+tempos negativos, quantidades absurdas). Como o programa alvo pode estar em outra pasta no PC de quem importa,
+a busca da janela também aceita o mesmo **nome de .exe** em qualquer caminho.
 
 ### Teclas de atalho
 

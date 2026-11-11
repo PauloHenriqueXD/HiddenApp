@@ -123,8 +123,15 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   A thread do clique usa `Native.DpiScope(janela)` para trabalhar na mesma escala de DPI da janela alvo;
   sem isso, cliques erram de lugar em telas com zoom ou em programas sem suporte a DPI.
 - **Auto clique — modos:** "segundo plano" usa `PostMessage` no controle filho embaixo do ponto
-  (`ChildWindowFromPointEx`); muitos jogos (DirectX/raw input) ignoram. "Real" usa `SetCursorPos` + `SendInput`
-  e **só clica com a janela alvo em primeiro plano** (senão pausa) — não remova essa proteção.
+  (`ChildWindowFromPointEx`); "segundo plano (alternativo)" usa `SendMessageTimeout` na janela principal com
+  `WM_ACTIVATE`/`WM_SETCURSOR` antes. Jogos com DirectInput/raw input ignoram ambos (o cursor do jogo até se move,
+  mas o clique não vale). "Real" usa `SetCursorPos` + `SendInput` e **só clica com a janela alvo em primeiro plano**
+  (senão pausa) — não remova essa proteção. "Real com retorno" usa `Native.ForceForeground` (AttachThreadInput),
+  clica e **sempre** devolve cursor e janela anterior no `finally`.
+- **Ordem dos modos na interface** é `AutoClickPage.ModeOrder` (índice da lista ≠ valor do enum); ao adicionar um
+  modo, inclua nos dois lugares e no `MacroStore.Sanitize`.
+- **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 1, Macros: [...] }`. Ao mudar o formato,
+  suba `Versao` e trate versões antigas em `MacroStore.Import` (versões mais novas são recusadas com aviso).
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.
 - **Teclas de atalho globais** usam `RegisterHotKey` no handle do `MainForm` (ids 1–3, tratadas no `WndProc`).
   Se outra aplicação já usa a tecla, o registro falha e o usuário é avisado.

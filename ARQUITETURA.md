@@ -299,12 +299,9 @@ flowchart TD
   jogos e alguns apps ignoram mensagens que não vêm do hardware.
 - **Real:** move o cursor e usa `SendInput`. Só clica quando a janela alvo está em primeiro plano; se o usuário
   trocar de janela, a macro pausa até a janela voltar para a frente.
-- **Segundo plano (alternativo):** envia `WM_ACTIVATE` e `WM_SETCURSOR` e depois o clique com `SendMessageTimeout`
-  na janela principal (sem descer aos controles filhos), para programas que só aceitam clique quando "acham" que
-  estão ativos.
-- **Real com retorno:** guarda a janela em primeiro plano e a posição do cursor, traz a janela alvo para a frente
-  (`AttachThreadInput` + `SetForegroundWindow`, porque o Windows bloqueia a troca de foco vinda de segundo plano),
-  clica com `SendInput` e devolve o cursor e a janela anterior — sempre, mesmo se a macro for parada.
+- **Por que não há mais modos:** dois modos extras ("segundo plano alternativo" com `SendMessage` e "real com
+  retorno" com foco temporário) foram testados e removidos por não funcionarem em jogos que leem o mouse direto do
+  hardware. Macros antigas com esses modos são convertidas ao carregar.
 - **Segurar:** aperta, espera o tempo e solta — o soltar fica num `finally`, então o botão nunca fica preso.
 - **DPI:** a thread adota o contexto de DPI da janela alvo (`SetThreadDpiAwarenessContext` com
   `GetWindowDpiAwarenessContext`), para que posições de mouse e da janela usem as mesmas coordenadas que ela.

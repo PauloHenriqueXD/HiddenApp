@@ -13,15 +13,18 @@ public enum ClickMode
     SegundoPlano,
     /// <summary>Move o mouse de verdade e clica (funciona em quase tudo, mas a janela precisa estar na frente).</summary>
     Real,
-    /// <summary>Outra forma de clique sem mexer no mouse: ativa a janela por mensagem e envia o clique direto (SendMessage).</summary>
+    // Modos removidos na 2.0.0 (não funcionaram). Continuam aqui só para macros salvas/exportadas com eles
+    // abrirem sem erro: ao carregar, viram SegundoPlano/Real (ver MacroStore.Normalize).
     SegundoPlanoAlternativo,
-    /// <summary>Traz a janela para a frente por um instante, clica de verdade e devolve o mouse e a janela anterior.</summary>
     RealComRetorno,
 }
 
 /// <summary>Um ponto da macro: onde clicar e como.</summary>
 public class MacroStep
 {
+    /// <summary>Nome ou descrição opcional do ponto (ex.: "Botão Coletar"), para entender o que cada um faz.</summary>
+    public string? Label { get; set; }
+
     /// <summary>Posição relativa à área interna da janela (0 a 1), para continuar certa se a janela mudar de tamanho.</summary>
     public double RelX { get; set; } = 0.5;
     public double RelY { get; set; } = 0.5;
@@ -99,6 +102,8 @@ internal static class MacroStore
     static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
+        // Grava acentos e outros idiomas legíveis (o arquivo não vai para páginas web)
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         Converters = { new JsonStringEnumConverter() },
     };
 
@@ -107,7 +112,11 @@ internal static class MacroStore
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<List<Macro>>(File.ReadAllText(FilePath), Options) ?? new();
+            {
+                var list = JsonSerializer.Deserialize<List<Macro>>(File.ReadAllText(FilePath), Options) ?? new();
+                foreach (var m in list) Normalize(m);
+                return list;
+            }
         }
         catch { }
         return new();
@@ -146,18 +155,32 @@ internal static class MacroStore
         return file.Macros;
     }
 
+    /// <summary>Converte modos que não existem mais para o equivalente atual.</summary>
+    static void Normalize(Macro m)
+    {
+        m.Mode = m.Mode switch
+        {
+            ClickMode.RealComRetorno => ClickMode.Real,
+            ClickMode.SegundoPlanoAlternativo => ClickMode.SegundoPlano,
+            _ => m.Mode,
+        };
+        m.Steps ??= new();
+    }
+
     /// <summary>Garante valores dentro dos limites (arquivos podem ter sido editados à mão).</summary>
     static void Sanitize(Macro m)
     {
+        Normalize(m);
         m.Id = Guid.NewGuid().ToString("N");
         m.Name = string.IsNullOrWhiteSpace(m.Name) ? "Macro importada" : m.Name.Trim()[..Math.Min(m.Name.Trim().Length, 80)];
-        if (!Enum.IsDefined(m.Mode)) m.Mode = ClickMode.SegundoPlano;
+        if (m.Mode != ClickMode.Real) m.Mode = ClickMode.SegundoPlano;
         m.Loops = Math.Clamp(m.Loops, 0, 1_000_000);
         m.JitterPercent = Math.Clamp(m.JitterPercent, 0, 50);
         m.Steps ??= new();
         if (m.Steps.Count > 500) m.Steps = m.Steps.Take(500).ToList();
         foreach (var s in m.Steps)
         {
+            s.Label = string.IsNullOrWhiteSpace(s.Label) ? null : s.Label.Trim()[..Math.Min(s.Label.Trim().Length, 60)];
             s.RelX = double.IsFinite(s.RelX) ? Math.Clamp(s.RelX, 0, 1) : 0.5;
             s.RelY = double.IsFinite(s.RelY) ? Math.Clamp(s.RelY, 0, 1) : 0.5;
             if (!Enum.IsDefined(s.Button)) s.Button = ClickButton.Esquerdo;

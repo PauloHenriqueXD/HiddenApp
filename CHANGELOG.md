@@ -21,17 +21,18 @@ Segunda fase do projeto: **auto clique**.
     **quantos cliques seguidos no mesmo lugar**, intervalo entre eles e espera antes do próximo ponto.
   - Repetir a sequência **sem parar** ou um **número de vezes**; variação aleatória opcional nos tempos.
   - Macros salvas automaticamente, com criar, duplicar e excluir.
-- **Quatro modos de clique:**
-  - **Segundo plano:** manda o clique direto para a janela, sem mexer no mouse (nem todo programa aceita).
-  - **Segundo plano (alternativo):** outra forma de clique sem mexer no mouse, para programas que ignoram o primeiro.
+- **Dois modos de clique:**
+  - **Segundo plano:** manda o clique direto para a janela, sem mexer no mouse (nem todo programa aceita;
+    muitos jogos ignoram).
   - **Clique real:** move o mouse e clica de verdade; **pausa sozinho** se a janela alvo sair da frente,
     para não clicar em outro programa.
-  - **Clique real com retorno:** traz a janela para a frente por um instante, clica de verdade e devolve o mouse
-    e a janela que você estava usando — para jogos que só aceitam clique real.
 - **Marcar pontos** clicando na **prévia ao vivo** da janela alvo (o modo "+ Adicionar pontos" fica ligado até
   "✓ Concluir", então dá para marcar vários seguidos), ou posicionando o mouse na janela e apertando a tecla de captura. As posições são relativas à janela: continuam certas se ela mudar de lugar ou de tamanho.
 - **Teclas de atalho globais** (funcionam em qualquer programa): **F7 inicia**, **F8 para**, **F9 captura o ponto**.
   Podem ser trocadas em "Teclas de atalho", com combinações de Ctrl, Alt e Shift.
+- **Nome ou descrição em cada ponto** (ex.: "Botão Coletar"), mostrado na lista de pontos.
+- Botões da lista de macros e dos pontos com **ícones coloridos** (verde = criar, vermelho = excluir, ciano = duplicar),
+  com o nome e a explicação no balão ao passar o mouse.
 - **Exportar e importar macros** (arquivo `.hiddenmacro`) para compartilhar com outras pessoas. Valores fora do normal
   são corrigidos na importação, e a janela alvo é procurada pelo nome do programa se ele estiver em outra pasta.
 - Tempos padrão de **100 ms** (intervalo, espera e segurar).

@@ -187,16 +187,6 @@ internal static class Native
                       WM_MBUTTONDOWN = 0x0207, WM_MBUTTONUP = 0x0208, WM_MBUTTONDBLCLK = 0x0209;
     public const int MK_LBUTTON = 0x1, MK_RBUTTON = 0x2, MK_MBUTTON = 0x10;
 
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeoutMs, out IntPtr result);
-    public const uint SMTO_ABORTIFHUNG = 0x2;
-    public const uint WM_ACTIVATE = 0x0006, WM_SETCURSOR = 0x0020;
-    public const int WA_ACTIVE = 1, HTCLIENT = 1;
-
-    /// <summary>SendMessage com tempo limite (não trava se o programa alvo estiver travado).</summary>
-    public static void SendMessageSafe(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam) =>
-        SendMessageTimeout(hWnd, msg, wParam, lParam, SMTO_ABORTIFHUNG, 500, out _);
-
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool attach);
     [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr hWnd);

@@ -21,8 +21,7 @@ public class AutoClickPage : Panel
     string _startKey = "F7", _stopKey = "F8", _captureKey = "F9";
 
     /// <summary>Ordem dos modos na lista (índice da lista → modo).</summary>
-    static readonly ClickMode[] ModeOrder =
-        { ClickMode.SegundoPlano, ClickMode.SegundoPlanoAlternativo, ClickMode.Real, ClickMode.RealComRetorno };
+    static readonly ClickMode[] ModeOrder = { ClickMode.SegundoPlano, ClickMode.Real };
 
     // ---------- Layout ----------
     readonly TableLayoutPanel _grid = new() { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
@@ -35,12 +34,12 @@ public class AutoClickPage : Panel
 
     readonly ListBox _macroList = NewList(50);
     readonly Label _emptyMacros = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted",
-        Text = "Nenhuma macro ainda.\nClique em \"Nova\" para criar a primeira\nou importe uma macro em \"⋯\"." };
+        Text = "Nenhuma macro ainda.\nClique no + verde para criar a primeira\nou importe uma macro recebida." };
 
     readonly TableLayoutPanel _settingsForm = NewForm(2);
     readonly TextBox _name = new() { BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
     readonly ComboBox _target = NewCombo();
-    readonly ComboBox _mode = NewCombo("Segundo plano", "Segundo plano (alternativo)", "Clique real", "Clique real com retorno");
+    readonly ComboBox _mode = NewCombo("Segundo plano (não mexe no mouse)", "Clique real (move o mouse)");
     readonly ComboBox _loopKind = NewCombo("Sem parar", "Número de vezes");
     readonly NumericUpDown _loops = NewNum(1, 1_000_000, 10);
     readonly NumericUpDown _jitter = NewNum(0, 50, 0);
@@ -55,16 +54,19 @@ public class AutoClickPage : Panel
     readonly NumericUpDown _interval = NewNum(1, 3_600_000, 100);
     readonly NumericUpDown _delay = NewNum(0, 3_600_000, 100);
 
-    readonly RoundButton _btnNew = new("Nova", ButtonKind.Primary);
-    readonly RoundButton _btnDuplicate = new("Duplicar");
-    readonly RoundButton _btnDelete = new("Excluir");
-    readonly RoundButton _btnMore = new("⋯");
-    readonly ContextMenuStrip _moreMenu = new();
+    readonly RoundButton _btnNew = RoundButton.IconButton(Theme.Glyph.Add, "Nova macro", ButtonKind.Success);
+    readonly RoundButton _btnDuplicate = RoundButton.IconButton(Theme.Glyph.Copy, "Duplicar macro", ButtonKind.Primary);
+    readonly RoundButton _btnDelete = RoundButton.IconButton(Theme.Glyph.Delete, "Excluir macro", ButtonKind.Danger);
+    readonly RoundButton _btnImport = RoundButton.IconButton(Theme.Glyph.Import, "Importar macros", ButtonKind.Secondary);
+    readonly RoundButton _btnExport = RoundButton.IconButton(Theme.Glyph.Export, "Exportar macros", ButtonKind.Secondary);
+    readonly ContextMenuStrip _exportMenu = new();
     readonly RoundButton _btnAddPoint = new("+ Adicionar pontos", ButtonKind.Primary);
-    readonly RoundButton _btnMovePoint = new("Reposicionar");
-    readonly RoundButton _btnRemovePoint = new("Remover");
-    readonly RoundButton _btnUp = new("↑");
-    readonly RoundButton _btnDown = new("↓");
+    readonly RoundButton _btnMovePoint = RoundButton.IconButton(Theme.Glyph.Pin, "Reposicionar ponto", ButtonKind.Secondary);
+    readonly RoundButton _btnRemovePoint = RoundButton.IconButton(Theme.Glyph.Delete, "Remover ponto", ButtonKind.Danger);
+    readonly RoundButton _btnUp = RoundButton.IconButton(Theme.Glyph.Up, "Subir ponto", ButtonKind.Secondary);
+    readonly RoundButton _btnDown = RoundButton.IconButton(Theme.Glyph.Down, "Descer ponto", ButtonKind.Secondary);
+    readonly TextBox _stepLabel = new() { BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill, PlaceholderText = "Ex.: Botão Coletar, Fechar janela..." };
+    readonly TableLayoutPanel _stepNameForm = NewForm(2);
     readonly RoundButton _btnStart = new("▶ Iniciar (F7)", ButtonKind.Success);
     readonly RoundButton _btnStop = new("■ Parar (F8)", ButtonKind.Danger);
     readonly RoundButton _btnTest = new("Testar ponto");
@@ -211,21 +213,20 @@ public class AutoClickPage : Panel
             RefreshMacroList(_macros.Count == 0 ? null : _macros[Math.Clamp(i, 0, _macros.Count - 1)]);
         };
 
-        // Menu "⋯": importar e exportar
-        _btnMore.Click += (_, _) =>
+        _btnImport.Click += (_, _) => ImportMacros();
+        _btnExport.Click += (_, _) =>
         {
-            _moreMenu.Items.Clear();
-            _moreMenu.Items.Add(new ToolStripMenuItem("Importar macros...", null, (_, _) => ImportMacros()));
-            _moreMenu.Items.Add(new ToolStripMenuItem("Exportar a macro selecionada...", null, (_, _) => ExportMacros(selectedOnly: true))
+            _exportMenu.Items.Clear();
+            _exportMenu.Items.Add(new ToolStripMenuItem("Exportar a macro selecionada...", null, (_, _) => ExportMacros(selectedOnly: true))
             { Enabled = _current != null });
-            _moreMenu.Items.Add(new ToolStripMenuItem("Exportar todas as macros...", null, (_, _) => ExportMacros(selectedOnly: false))
+            _exportMenu.Items.Add(new ToolStripMenuItem("Exportar todas as macros...", null, (_, _) => ExportMacros(selectedOnly: false))
             { Enabled = _macros.Count > 0 });
-            _moreMenu.Show(_btnMore, new Point(0, _btnMore.Height));
+            _exportMenu.Show(_btnExport, new Point(0, _btnExport.Height));
         };
 
         _macrosCard.Controls.Add(_macroList);
         _macrosCard.Controls.Add(_emptyMacros);
-        _macrosCard.Controls.Add(Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnMore));
+        _macrosCard.Controls.Add(Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnImport, _btnExport));
     }
 
     void BuildSettingsCard()
@@ -280,7 +281,9 @@ public class AutoClickPage : Panel
         _btnUp.Click += (_, _) => MoveStep(-1);
         _btnDown.Click += (_, _) => MoveStep(+1);
 
-        // Ponto selecionado: dois campos por linha, para caber sem rolagem
+        // Nome do ponto (linha inteira) e, abaixo, dois campos por linha para caber sem rolagem
+        AddField(_stepNameForm, "Nome", _stepLabel);
+        _stepLabel.TextChanged += (_, _) => ChangeStep(s => s.Label = string.IsNullOrWhiteSpace(_stepLabel.Text) ? null : _stepLabel.Text.Trim());
         AddField(_stepEditor, "Botão", _button);
         AddField(_stepEditor, "Ação", _action);
         AddField(_stepEditor, "Cliques", _repeat);
@@ -305,6 +308,7 @@ public class AutoClickPage : Panel
         };
         var editor = new Panel { Dock = DockStyle.Bottom, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         editor.Controls.Add(_stepEditor);
+        editor.Controls.Add(_stepNameForm);
         editor.Controls.Add(editorTitle);
         editor.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, 0, editor.Width, 0); };
 
@@ -338,26 +342,27 @@ public class AutoClickPage : Panel
     void SetupTips()
     {
         _tips.Set(_btnNew, "Nova macro", "Cria uma macro vazia. Depois escolha a janela alvo e adicione os pontos de clique.");
-        _tips.Set(_btnDuplicate, "Duplicar", "Cria uma cópia da macro selecionada, para fazer variações sem mexer na original.");
-        _tips.Set(_btnDelete, "Excluir", "Apaga a macro selecionada.");
-        _tips.Set(_btnMore, "Importar e exportar",
-            "Exporta macros para um arquivo .hiddenmacro, para compartilhar com outras pessoas, e importa macros recebidas.");
+        _tips.Set(_btnDuplicate, "Duplicar macro", "Cria uma cópia da macro selecionada, para fazer variações sem mexer na original.");
+        _tips.Set(_btnDelete, "Excluir macro", "Apaga a macro selecionada (pede confirmação).");
+        _tips.Set(_btnImport, "Importar macros", "Abre arquivos .hiddenmacro recebidos de outras pessoas e adiciona as macros na sua lista.");
+        _tips.Set(_btnExport, "Exportar macros",
+            "Salva a macro selecionada (ou todas) num arquivo .hiddenmacro, para compartilhar com outras pessoas.");
+        _tips.Set(_stepLabel, "Nome do ponto", "Um nome ou descrição opcional, para quem ver a macro entender o que cada ponto faz.");
         _tips.Set(_btnAddPoint, "Adicionar pontos",
             "Liga o modo de adicionar: cada clique na prévia (à direita) vira um ponto, na ordem. Clique em \"✓ Concluir\" quando terminar.\n\n" +
             "Atalho: posicione o mouse na própria janela alvo e aperte a tecla de captura.");
-        _tips.Set(_btnMovePoint, "Reposicionar", "Muda o lugar do ponto selecionado: depois de clicar aqui, clique na prévia na nova posição.");
-        _tips.Set(_btnRemovePoint, "Remover", "Apaga o ponto selecionado.");
-        _tips.Set(_btnUp, "Subir", "Move o ponto selecionado para antes na sequência.");
-        _tips.Set(_btnDown, "Descer", "Move o ponto selecionado para depois na sequência.");
+        _tips.Set(_btnMovePoint, "Reposicionar ponto", "Muda o lugar do ponto selecionado: depois de clicar aqui, clique na prévia na nova posição.");
+        _tips.Set(_btnRemovePoint, "Remover ponto", "Apaga o ponto selecionado.");
+        _tips.Set(_btnUp, "Subir ponto", "Move o ponto selecionado para antes na sequência.");
+        _tips.Set(_btnDown, "Descer ponto", "Move o ponto selecionado para depois na sequência.");
         _tips.Set(_btnTest, "Testar ponto",
             "Dá um único clique no ponto selecionado, para conferir se acerta o lugar e se o modo de clique funciona nesse programa.");
         _tips.Set(_btnHotkeys, "Teclas de atalho", "Troca as teclas de iniciar, parar e capturar ponto. Elas funcionam mesmo com outra janela em uso.");
         _tips.Set(_mode, "Modo de clique",
-            "Segundo plano: manda o clique para a janela sem mexer no mouse — você continua usando o PC.\n" +
-            "Segundo plano (alternativo): outra forma de clique sem mexer no mouse; teste se o primeiro não funcionar.\n" +
-            "Clique real: move o mouse e clica de verdade; a janela precisa estar na frente (pausa sozinho se não estiver).\n" +
-            "Clique real com retorno: traz a janela para a frente por um instante, clica e devolve o mouse e a janela que você estava usando.\n\n" +
-            "Muitos jogos só aceitam os modos de clique real.");
+            "Segundo plano: manda o clique para a janela sem mexer no mouse — você continua usando o PC. " +
+            "Nem todo programa aceita (muitos jogos ignoram).\n\n" +
+            "Clique real: move o mouse e clica de verdade. Funciona em quase tudo, mas a janela precisa estar na frente; " +
+            "se você trocar de janela, o auto clique pausa sozinho.");
         _tips.Set(_loopKind, "Repetir", "Sem parar: a sequência de pontos roda até você apertar a tecla de parar.\nNúmero de vezes: roda a sequência inteira essa quantidade de vezes.");
         _tips.Set(_jitter, "Variação aleatória", "Muda um pouco cada intervalo (em %), para os cliques não terem um ritmo perfeitamente exato. 0 = tempos exatos.");
         _tips.Set(_repeat, "Cliques", "Quantos cliques seguidos neste mesmo ponto antes de ir para o próximo.");
@@ -524,6 +529,7 @@ public class AutoClickPage : Panel
         _loading = true;
         try
         {
+            _stepLabel.Text = s?.Label ?? "";
             _button.SelectedIndex = (int)(s?.Button ?? ClickButton.Esquerdo);
             _action.SelectedIndex = (int)(s?.Action ?? ClickAction.Clique);
             _hold.Value = Math.Clamp(s?.HoldMs ?? 100, (int)_hold.Minimum, (int)_hold.Maximum);
@@ -648,7 +654,9 @@ public class AutoClickPage : Panel
         _pick = kind;
         _preview.PickMode = true;
         _btnAddPoint.Text = kind == PickKind.Add ? "✓ Concluir" : "+ Adicionar pontos";
-        _btnMovePoint.Text = kind == PickKind.Move ? "Cancelar" : "Reposicionar";
+        _btnMovePoint.IconGlyph = kind == PickKind.Move ? Theme.Glyph.Cancel : Theme.Glyph.Pin;
+        _btnMovePoint.Kind = kind == PickKind.Move ? ButtonKind.Primary : ButtonKind.Secondary;
+        _btnMovePoint.Invalidate();
         UpdatePreviewHint();
         SetStatus(kind == PickKind.Add
             ? "Modo de adicionar ligado: clique na prévia (à direita) em cada lugar, na ordem. \"✓ Concluir\" quando terminar."
@@ -660,7 +668,9 @@ public class AutoClickPage : Panel
         _pick = PickKind.None;
         _preview.PickMode = false;
         _btnAddPoint.Text = "+ Adicionar pontos";
-        _btnMovePoint.Text = "Reposicionar";
+        _btnMovePoint.IconGlyph = Theme.Glyph.Pin;
+        _btnMovePoint.Kind = ButtonKind.Secondary;
+        _btnMovePoint.Invalidate();
         UpdatePreviewHint();
     }
 
@@ -787,11 +797,11 @@ public class AutoClickPage : Panel
         bool running = _runner.IsRunning;
         bool has = _current != null;
         _settingsForm.Enabled = has && !running;
-        _stepEditor.Enabled = has && !running && SelectedStep != null;
+        _stepEditor.Enabled = _stepNameForm.Enabled = has && !running && SelectedStep != null;
         _btnStart.Enabled = has && !running;
         _btnStop.Enabled = running;
         _btnTest.Enabled = has && !running && SelectedStep != null;
-        _btnNew.Enabled = _btnMore.Enabled = !running;
+        _btnNew.Enabled = _btnImport.Enabled = _btnExport.Enabled = !running;
         _btnDuplicate.Enabled = _btnDelete.Enabled = has && !running;
         _btnAddPoint.Enabled = has && !running;
         _btnMovePoint.Enabled = _btnRemovePoint.Enabled = _btnUp.Enabled = _btnDown.Enabled = SelectedStep != null && !running;
@@ -900,8 +910,11 @@ public class AutoClickPage : Panel
 
         int x = circle.Right + Theme.S(10);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(2)) / 2;
-        TextRenderer.DrawText(g, $"Posição {s.RelX:P0} × {s.RelY:P0}", BoldFont, new Point(x, top), p.Text);
-        TextRenderer.DrawText(g, s.Describe(), SmallFont,
+        string position = $"Posição {s.RelX:P0} × {s.RelY:P0}";
+        TextRenderer.DrawText(g, s.Label ?? position, BoldFont,
+            new Rectangle(x, top, e.Bounds.Right - x - Theme.S(6), BoldFont.Height), p.Text,
+            TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+        TextRenderer.DrawText(g, (s.Label != null ? position + " · " : "") + s.Describe(), SmallFont,
             new Rectangle(x, top + BoldFont.Height + Theme.S(2), e.Bounds.Right - x - Theme.S(6), SmallFont.Height), p.Muted,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
     }

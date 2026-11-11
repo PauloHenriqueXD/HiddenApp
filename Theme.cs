@@ -84,6 +84,21 @@ public static class Theme
     public static Icon AppIcon => _icon ??= LoadIcon();
     public static Image Logo => _logo ??= Image.FromStream(Resource("logo.png"));
 
+    // ---------- Ícones (fonte de ícones do Windows: Fluent no Win11, MDL2 no Win10) ----------
+    static string? _iconFamily;
+    public static Font IconFont(float size)
+    {
+        _iconFamily ??= FontFamily.Families.Any(f => f.Name == "Segoe Fluent Icons") ? "Segoe Fluent Icons" : "Segoe MDL2 Assets";
+        return new Font(_iconFamily, size);
+    }
+
+    /// <summary>Códigos dos ícones usados nos botões (iguais nas duas fontes de ícones).</summary>
+    public static class Glyph
+    {
+        public const string Add = "\uE710", Copy = "\uE8C8", Delete = "\uE74D", Import = "\uE896", Export = "\uE898",
+                            Up = "\uE74A", Down = "\uE74B", Pin = "\uE707", Cancel = "\uE711";
+    }
+
     public static Icon TrayIcon(int size) => new(Resource("HiddenApp.ico"), new Size(size, size));
 
     static Icon LoadIcon() => new(Resource("HiddenApp.ico"));

@@ -46,7 +46,19 @@ public class RoundButton : Button
 {
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public ButtonKind Kind { get; set; } = ButtonKind.Secondary;
+
+    /// <summary>Se definido, o botão mostra só este ícone (o nome fica no balão de ajuda).</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public string? IconGlyph { get; set; }
+
+    static Font? _iconFont;
+    static Font IconFont => _iconFont ??= Theme.IconFont(11f);
+
     bool _hover, _down;
+
+    /// <summary>Botão quadrado só com ícone. O texto (nome) é usado por leitores de tela.</summary>
+    public static RoundButton IconButton(string glyph, string name, ButtonKind kind) =>
+        new(name, kind) { IconGlyph = glyph, Margin = new Padding(0, 0, Theme.S(6), Theme.S(8)) };
 
     public RoundButton(string text, ButtonKind kind = ButtonKind.Secondary)
     {
@@ -64,6 +76,7 @@ public class RoundButton : Button
 
     public override Size GetPreferredSize(Size proposed)
     {
+        if (IconGlyph != null) return new Size(Theme.S(38), Theme.S(34));
         var s = TextRenderer.MeasureText(Text, Font);
         return new Size(s.Width + Theme.S(28), Math.Max(Theme.S(34), s.Height + Theme.S(14)));
     }
@@ -103,8 +116,8 @@ public class RoundButton : Button
                 g.DrawPath(pen, path);
             }
         }
-        TextRenderer.DrawText(g, Text, Font, ClientRectangle, text,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+        TextRenderer.DrawText(g, IconGlyph ?? Text, IconGlyph != null ? IconFont : Font, ClientRectangle, text,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
     }
 }
 

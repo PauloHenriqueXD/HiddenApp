@@ -123,13 +123,16 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   A thread do clique usa `Native.DpiScope(janela)` para trabalhar na mesma escala de DPI da janela alvo;
   sem isso, cliques erram de lugar em telas com zoom ou em programas sem suporte a DPI.
 - **Auto clique — modos:** "segundo plano" usa `PostMessage` no controle filho embaixo do ponto
-  (`ChildWindowFromPointEx`); "segundo plano (alternativo)" usa `SendMessageTimeout` na janela principal com
-  `WM_ACTIVATE`/`WM_SETCURSOR` antes. Jogos com DirectInput/raw input ignoram ambos (o cursor do jogo até se move,
-  mas o clique não vale). "Real" usa `SetCursorPos` + `SendInput` e **só clica com a janela alvo em primeiro plano**
-  (senão pausa) — não remova essa proteção. "Real com retorno" usa `Native.ForceForeground` (AttachThreadInput),
-  clica e **sempre** devolve cursor e janela anterior no `finally`.
+  (`ChildWindowFromPointEx`); jogos com DirectInput/raw input ignoram (o cursor do jogo até se move, mas o clique
+  não vale). "Real" usa `SetCursorPos` + `SendInput` e **só clica com a janela alvo em primeiro plano** (senão pausa)
+  — não remova essa proteção.
+- **Modos testados e removidos (não funcionaram no WYD):** "segundo plano alternativo" (`SendMessage` + `WM_ACTIVATE`)
+  e "real com retorno" (foco temporário). Os valores continuam no enum `ClickMode` só para macros antigas abrirem;
+  `MacroStore.Normalize` converte para `SegundoPlano`/`Real`. Não reintroduza sem testar no jogo.
 - **Ordem dos modos na interface** é `AutoClickPage.ModeOrder` (índice da lista ≠ valor do enum); ao adicionar um
-  modo, inclua nos dois lugares e no `MacroStore.Sanitize`.
+  modo, inclua nos dois lugares e no `MacroStore.Sanitize`/`Normalize`.
+- **Botões só com ícone:** `RoundButton.IconButton(Theme.Glyph.X, "nome", kind)` usa a fonte de ícones do Windows
+  (Segoe Fluent Icons / MDL2). O nome vai no balão de ajuda. Cores: verde = criar, vermelho = excluir, ciano = duplicar.
 - **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 1, Macros: [...] }`. Ao mudar o formato,
   suba `Versao` e trate versões antigas em `MacroStore.Import` (versões mais novas são recusadas com aviso).
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.

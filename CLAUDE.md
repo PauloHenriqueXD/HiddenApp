@@ -45,7 +45,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `Macro.cs` | Modelos `Macro`/`MacroStep` (posições relativas 0–1) e `MacroStore` (`macros.json`) |
 | `ClickRunner.cs` | Executa macros numa thread: modo segundo plano (`PostMessage`) ou real (`SendInput`), loop, segurar, pausas de segurança; acha a janela alvo e captura a posição do mouse |
 | `HotkeyDialog.cs` | `HotkeyBox` (grava uma tecla) e diálogo para trocar as teclas de iniciar/parar/capturar |
-| `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder) |
+| `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder); link do GitHub Sponsors |
+| `.github/FUNDING.yml` | Faz o GitHub mostrar o botão "Sponsor" no repositório |
 | `SupportDialog.cs` | Janela "Apoiar o projeto": QR, copia e cola, conferência do recebedor e site oficial |
 | `Theme.cs` | Paletas, tema atual, escala de DPI (`Theme.S`), barra de título escura, recursos embutidos |
 | `ThemedControls.cs` | Controles próprios: `RoundButton` (Primary/Secondary/Danger/Success), `Card`, `ToggleSwitch`, `ThemedListView`, `ThinProgress`, `ThemedToolTip`, renderer do menu |

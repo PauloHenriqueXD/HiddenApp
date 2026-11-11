@@ -18,6 +18,9 @@ internal static class Donation
 
     public const string OfficialSite = "github.com/PauloHenriqueXD/HiddenApp";
 
+    /// <summary>Para quem está fora do Brasil (Pix só funciona entre contas brasileiras).</summary>
+    public const string SponsorsUrl = "https://github.com/sponsors/PauloHenriqueXD";
+
     // Campos do BR Code: sem acentos, nome até 25 caracteres e cidade até 15 (regras do Pix)
     const string MerchantName = "PAULO H F MANTUANELI";
     const string MerchantCity = "TIETE";

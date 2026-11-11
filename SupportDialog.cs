@@ -84,6 +84,21 @@ public class SupportDialog : Form
             Text = $"Se o nome for outro, não pague: você pode estar usando uma cópia falsa do programa. " +
                    $"O HiddenApp oficial só é distribuído em {Donation.OfficialSite}."
         };
+        // Fora do Brasil: GitHub Sponsors (cartão de crédito, valor livre, mensal ou uma vez)
+        var abroadTitle = new Label
+        {
+            Text = "Fora do Brasil?", AutoSize = true, Font = new Font("Segoe UI Semibold", 9.5f), ForeColor = p.Text,
+            Margin = new Padding(0, Theme.S(18), 0, Theme.S(2))
+        };
+        var abroadText = new Label
+        {
+            AutoSize = true, MaximumSize = new Size(width, 0), ForeColor = p.Muted, Margin = new Padding(0, 0, 0, Theme.S(6)),
+            Text = "O Pix só funciona com contas brasileiras. De outros países, apoie pelo GitHub Sponsors " +
+                   "(cartão de crédito, valor livre, uma vez ou todo mês)."
+        };
+        var sponsors = new RoundButton("❤ Apoiar pelo GitHub Sponsors") { Margin = new Padding(0) };
+        sponsors.Click += (_, _) => UpdateManager.OpenUrl(Donation.SponsorsUrl);
+
         var link = new LinkLabel
         {
             Text = "Abrir a página oficial", AutoSize = true, Margin = new Padding(0, Theme.S(4), 0, 0),
@@ -102,7 +117,7 @@ public class SupportDialog : Form
         buttons.Controls.Add(close);
 
         var layout = new TableLayoutPanel { AutoSize = true, ColumnCount = 1, Padding = new Padding(Theme.S(22), Theme.S(18), Theme.S(22), Theme.S(18)) };
-        foreach (Control c in new Control[] { title, intro, qr, qrHint, codeLabel, code, copy, check, official, link, buttons })
+        foreach (Control c in new Control[] { title, intro, qr, qrHint, codeLabel, code, copy, check, official, link, abroadTitle, abroadText, sponsors, buttons })
             layout.Controls.Add(c);
         Controls.Add(layout);
     }

@@ -30,7 +30,11 @@ O HiddenApp é gratuito. Se ele te ajuda, você pode apoiar com um Pix de qualqu
 e4631919-5794-44d5-b5ed-5ebe8c9b5ac8
 ```
 
-Antes de confirmar, confira se o recebedor é **Paulo Henrique Ferrari Mantuaneli**. Se o nome for outro,
+**Fora do Brasil?** O Pix só funciona com contas brasileiras — apoie pelo
+**[❤ GitHub Sponsors](https://github.com/sponsors/PauloHenriqueXD)** (cartão de crédito, uma vez ou todo mês).
+*Outside Brazil? Support the project via [GitHub Sponsors](https://github.com/sponsors/PauloHenriqueXD).*
+
+Antes de confirmar o Pix, confira se o recebedor é **Paulo Henrique Ferrari Mantuaneli**. Se o nome for outro,
 você pode estar usando uma cópia falsa do programa: o HiddenApp oficial só é distribuído por este repositório.
 
 ## Auto clique

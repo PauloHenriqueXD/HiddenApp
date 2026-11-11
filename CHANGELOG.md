@@ -30,6 +30,8 @@ Segunda fase do projeto: **auto clique**.
   "✓ Concluir", então dá para marcar vários seguidos), ou posicionando o mouse na janela e apertando a tecla de captura. As posições são relativas à janela: continuam certas se ela mudar de lugar ou de tamanho.
 - **Teclas de atalho globais** (funcionam em qualquer programa): **F7 inicia**, **F8 para**, **F9 captura o ponto**.
   Podem ser trocadas em "Teclas de atalho", com combinações de Ctrl, Alt e Shift.
+- Janela "Apoiar o projeto" com opção para quem está **fora do Brasil**: link para o **GitHub Sponsors**
+  (o repositório também passou a mostrar o botão "Sponsor").
 - **Nome ou descrição em cada ponto** (ex.: "Botão Coletar"), mostrado na lista de pontos.
 - Botões da lista de macros e dos pontos com **ícones coloridos** (verde = criar, vermelho = excluir, ciano = duplicar),
   com o nome e a explicação no balão ao passar o mouse.

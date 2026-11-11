@@ -1,7 +1,10 @@
 # Publica uma versão nova do HiddenApp no GitHub Releases.
 #
-# Como usar:  git tag v1.2.0        &&  git push origin v1.2.0       -> versão estável
-#             git tag v1.2.0-beta.1 &&  git push origin v1.2.0-beta.1 -> versão beta (pré-lançamento)
+# Duas formas de publicar:
+#  1) Pelo site (sem precisar de Git): aba Actions > "Publicar versão" > Run workflow,
+#     digite a versão (ex.: 1.2.0 ou 1.2.0-beta.1). A tag é criada automaticamente.
+#  2) Por tag:  git tag v1.2.0 && git push origin v1.2.0
+#     (sufixo -beta.N = versão beta / pré-lançamento)
 #
 # O GitHub compila no Windows, gera o HiddenApp.exe (arquivo único, com .NET incluso),
 # calcula o SHA-256 e cria a Release com as novidades tiradas do CHANGELOG.md.
@@ -12,6 +15,12 @@ name: Publicar versão
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: 'Versão a publicar, sem o "v" (ex.: 1.2.0 ou 1.2.0-beta.1)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -28,17 +37,31 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Ler a versão da tag
+      - name: Ler a versão
         id: ver
         shell: pwsh
+        env:
+          EVENTO: ${{ github.event_name }}
+          VERSAO_DIGITADA: ${{ inputs.versao }}
+          REF: ${{ github.ref_name }}
         run: |
-          $tag = '${{ github.ref_name }}'
-          $ver = $tag.TrimStart('v')
+          if ($env:EVENTO -eq 'workflow_dispatch') {
+            $ver = $env:VERSAO_DIGITADA.Trim().TrimStart('v', 'V')
+            $tag = "v$ver"
+            if (git ls-remote --tags origin "refs/tags/$tag") {
+              Write-Error "A tag $tag já existe. Use outro número de versão."
+              exit 1
+            }
+          } else {
+            $tag = $env:REF
+            $ver = $tag.TrimStart('v')
+          }
           if ($ver -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
             Write-Error "A tag '$tag' não está no formato v1.2.3 ou v1.2.3-beta.1"
             exit 1
           }
           $pre = if ($ver.Contains('-')) { 'true' } else { 'false' }
+          "tag=$tag"        >> $env:GITHUB_OUTPUT
           "version=$ver"    >> $env:GITHUB_OUTPUT
           "prerelease=$pre" >> $env:GITHUB_OUTPUT
           Write-Host "Versão: $ver  (beta: $pre)"
@@ -76,8 +99,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Pelo botão, a tag é criada aqui, apontando para o commit compilado
           $ghArgs = @(
-            'release', 'create', '${{ github.ref_name }}',
+            'release', 'create', '${{ steps.ver.outputs.tag }}',
+            '--target', '${{ github.sha }}',
             'publish/HiddenApp.exe', 'publish/HiddenApp.exe.sha256',
             '--title', 'HiddenApp ${{ steps.ver.outputs.version }}',
             '--notes-file', 'notes.md'

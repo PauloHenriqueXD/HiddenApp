@@ -130,7 +130,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 - Versionamento **SemVer**: `MAIOR.MENOR.CORREÇÃO`, betas com sufixo (`1.2.0-beta.1`).
 - A versão fica em `<Version>` no `HiddenApp.csproj`. Ao lançar, atualize **juntos** a versão e o
   [CHANGELOG.md](CHANGELOG.md) (seção `## [X.Y.Z] - AAAA-MM-DD` — o workflow usa ela como texto da Release).
-- Para publicar: commit → `git tag vX.Y.Z` → `git push origin vX.Y.Z`. O workflow faz o resto.
+- Para publicar: commit → Actions › "Publicar versão" › Run workflow (digitando `X.Y.Z`), ou
+  `git tag vX.Y.Z` + `git push origin vX.Y.Z`. O workflow faz o resto (cria a tag no modo botão).
   Nunca anexe executáveis à mão sem o `.sha256` correspondente.
 - Teste de atualização: publique uma beta (`vX.Y.Z-beta.1`), ative "Receber versões beta" num
   executável publicado de versão menor e confira o fluxo completo.

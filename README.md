@@ -62,12 +62,12 @@ A publicação é automática pelo GitHub Actions ([.github/workflows/release.ym
 1. Atualize o `<Version>` no `HiddenApp.csproj` e escreva as novidades no `CHANGELOG.md`
    numa seção `## [1.2.0] - AAAA-MM-DD`.
 2. Faça commit e envie para o GitHub.
-3. Crie e envie a tag:
-   ```bash
-   git tag v1.2.0
-   git push origin v1.2.0
-   ```
-   Para uma **beta**, use uma tag com sufixo: `v1.2.0-beta.1`.
+3. Publique de uma das formas:
+   - **Pelo site (mais fácil):** no GitHub, aba **Actions** → **Publicar versão** → **Run workflow**,
+     digite a versão (ex.: `1.2.0`) e confirme.
+   - **Por tag:** `git tag v1.2.0` e `git push origin v1.2.0`.
+
+   Para uma **beta**, use um sufixo: `1.2.0-beta.1`.
 4. Em alguns minutos a Release aparece em **Releases**, com o `HiddenApp.exe` e o `HiddenApp.exe.sha256`.
    Os HiddenApp instalados encontram a versão nova sozinhos (estável para todos; beta só para quem ativou "Receber versões beta").
 

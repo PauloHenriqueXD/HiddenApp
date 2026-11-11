@@ -248,7 +248,7 @@ SemVer: `1.1.0-beta.2 < 1.1.0-beta.11 < 1.1.0-rc.1 < 1.1.0`.
 
 ```mermaid
 flowchart LR
-    T["git push origin v1.2.0"] --> A[GitHub Actions<br/>windows-latest]
+    T["git push origin v1.2.0<br/>ou botão Run workflow"] --> A[GitHub Actions<br/>windows-latest]
     A --> P["dotnet publish<br/>-p:Version=1.2.0"]
     P --> H[SHA-256 do .exe]
     A --> C[Novidades da seção<br/>1.2.0 do CHANGELOG]

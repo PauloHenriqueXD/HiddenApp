@@ -8,6 +8,9 @@ internal class AppSettings
     public bool DarkTheme { get; set; } = true;
     public bool TrayHintShown { get; set; }
 
+    /// <summary>Idioma da interface: "auto" (idioma do Windows), "pt-BR", "en" ou "zh-CN".</summary>
+    public string Language { get; set; } = L.Auto;
+
     // ---------- Auto clique ----------
     /// <summary>Teclas de atalho globais (valor de System.Windows.Forms.Keys, com modificadores).</summary>
     public int HotkeyStart { get; set; } = (int)Keys.F7;

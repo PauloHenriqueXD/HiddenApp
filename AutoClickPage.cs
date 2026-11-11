@@ -197,7 +197,7 @@ public class AutoClickPage : Panel
         {
             if (_current == null) return;
             var copy = _current.Clone();
-            copy.Name = _current.Name + " (cópia)";
+            copy.Name = L.F("{0} (cópia)", _current.Name);
             _macros.Add(copy);
             SaveNow();
             RefreshMacroList(copy);
@@ -205,7 +205,7 @@ public class AutoClickPage : Panel
         _btnDelete.Click += (_, _) =>
         {
             if (_current == null) return;
-            if (MessageBox.Show($"Excluir a macro \"{_current.Name}\"?", "HiddenApp",
+            if (Msg.Show($"Excluir a macro \"{_current.Name}\"?", "HiddenApp",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             int i = _macros.IndexOf(_current);
             _macros.Remove(_current);
@@ -221,6 +221,7 @@ public class AutoClickPage : Panel
             { Enabled = _current != null });
             _exportMenu.Items.Add(new ToolStripMenuItem("Exportar todas as macros...", null, (_, _) => ExportMacros(selectedOnly: false))
             { Enabled = _macros.Count > 0 });
+            L.Apply(_exportMenu.Items);
             _exportMenu.Show(_btnExport, new Point(0, _btnExport.Height));
         };
 
@@ -486,7 +487,7 @@ public class AutoClickPage : Panel
             }
             if (selected == null && _current.TargetExe != null)
             {
-                selected = new TargetItem(null, $"{_current.TargetName}  —  (não está aberto)");
+                selected = new TargetItem(null, $"{_current.TargetName}  —  {L.T("(não está aberto)")}");
                 _target.Items.Insert(0, selected);
             }
             if (selected != null) _target.SelectedItem = selected;
@@ -584,8 +585,8 @@ public class AutoClickPage : Panel
         string suggested = selectedOnly ? SafeFileName(list[0].Name) : "Minhas macros";
         using var dlg = new SaveFileDialog
         {
-            Filter = MacroStore.FileFilter, DefaultExt = MacroStore.FileExtension, AddExtension = true,
-            FileName = suggested + MacroStore.FileExtension, Title = "Exportar macro"
+            Filter = L.T(MacroStore.FileFilter), DefaultExt = MacroStore.FileExtension, AddExtension = true,
+            FileName = suggested + MacroStore.FileExtension, Title = L.T("Exportar macro")
         };
         if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
         try
@@ -595,12 +596,12 @@ public class AutoClickPage : Panel
                 ? $"Macro \"{list[0].Name}\" exportada para {Path.GetFileName(dlg.FileName)}."
                 : $"{list.Count} macros exportadas para {Path.GetFileName(dlg.FileName)}.");
         }
-        catch (Exception ex) { MessageBox.Show("Não foi possível exportar:\n" + ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { Msg.Show($"Não foi possível exportar:\n{ex.Message}", "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
 
     void ImportMacros()
     {
-        using var dlg = new OpenFileDialog { Filter = MacroStore.FileFilter, Multiselect = true, Title = "Importar macros" };
+        using var dlg = new OpenFileDialog { Filter = L.T(MacroStore.FileFilter), Multiselect = true, Title = L.T("Importar macros") };
         if (dlg.ShowDialog(FindForm()) != DialogResult.OK) return;
         var imported = new List<Macro>();
         var errors = new List<string>();
@@ -627,7 +628,7 @@ public class AutoClickPage : Panel
                 : $"{imported.Count} macros importadas. Confira a janela alvo de cada uma antes de iniciar.");
         }
         if (errors.Count > 0)
-            MessageBox.Show("Alguns arquivos não puderam ser importados:\n\n" + string.Join("\n", errors),
+            Msg.Show($"Alguns arquivos não puderam ser importados:\n\n{string.Join("\n", errors)}",
                 "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
@@ -849,13 +850,13 @@ public class AutoClickPage : Panel
         UpdateEmptySteps();
     }
 
-    void SetStatus(string text) => _status.Text = text;
+    void SetStatus(string text) => _status.Text = L.T(text);
 
     void Say(string text, bool notify = false)
     {
         SetStatus(text);
         StatusMessage?.Invoke(text);
-        if (notify && FindForm() is Form f && !f.Visible) Notify?.Invoke("Auto clique", text);
+        if (notify && FindForm() is Form f && !f.Visible) Notify?.Invoke("Auto clique", L.T(text));
     }
 
     void OnUi(Action action)
@@ -879,13 +880,13 @@ public class AutoClickPage : Panel
         int x = e.Bounds.Left + Theme.S(10);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(4)) / 2;
         bool running = _runner.IsRunning && _runner.Current?.Id == m.Id;
-        int pillW = running ? TextRenderer.MeasureText("RODANDO", PillFont).Width + Theme.S(10) : 0;
+        int pillW = running ? TextRenderer.MeasureText(L.T("RODANDO"), PillFont).Width + Theme.S(10) : 0;
         TextRenderer.DrawText(g, m.Name, BoldFont, new Rectangle(x, top, e.Bounds.Width - Theme.S(24) - pillW, BoldFont.Height), p.Text,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
         if (running)
             DrawPill(g, "RODANDO", p.Success, bg, e.Bounds.Right - pillW - Theme.S(8), new Rectangle(0, top, 0, BoldFont.Height));
 
-        string info = $"{m.TargetName} · {m.Steps.Count} ponto(s)";
+        string info = L.F("{0} · {1} ponto(s)", m.TargetName, m.Steps.Count);
         TextRenderer.DrawText(g, info, SmallFont, new Rectangle(x, top + BoldFont.Height + Theme.S(4), e.Bounds.Width - Theme.S(20), SmallFont.Height),
             p.Muted, TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
     }
@@ -910,7 +911,7 @@ public class AutoClickPage : Panel
 
         int x = circle.Right + Theme.S(10);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(2)) / 2;
-        string position = $"Posição {s.RelX:P0} × {s.RelY:P0}";
+        string position = L.F("Posição {0} × {1}", s.RelX.ToString("P0"), s.RelY.ToString("P0"));
         TextRenderer.DrawText(g, s.Label ?? position, BoldFont,
             new Rectangle(x, top, e.Bounds.Right - x - Theme.S(6), BoldFont.Height), p.Text,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
@@ -921,6 +922,7 @@ public class AutoClickPage : Panel
 
     static void DrawPill(Graphics g, string text, Color color, Color bg, int x, Rectangle line)
     {
+        text = L.T(text);
         var size = TextRenderer.MeasureText(text, PillFont);
         float h = Theme.S(20);
         var r = new RectangleF(x, line.Top + (line.Height - h) / 2f, size.Width + Theme.S(10), h);

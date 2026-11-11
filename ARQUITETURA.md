@@ -243,6 +243,22 @@ tarefa para garantir que aponta para o `.exe` atual.
 - **Recursos:** `HiddenApp.ico` e `logo.png` são embutidos no executável (`EmbeddedResource` com
   `LogicalName`) e o `.ico` também é o ícone do `.exe` (`ApplicationIcon`).
 
+## 7.1 Idiomas — `I18n.cs` + `Lang/`
+
+- O código guarda os textos em **português**; a tradução acontece só na hora de exibir. Assim nada precisa
+  de chaves artificiais e, sem tradução, o texto original aparece.
+- `Lang/en.json` e `Lang/zh-CN.json` são dicionários *português → tradução*, embutidos no executável
+  (`lang.en.json`, `lang.zh-CN.json`). `L.Init` carrega o do idioma escolhido em `settings.json`
+  (`Language`; `auto` = idioma do Windows: português → pt-BR, chinês → zh-CN, demais → inglês).
+- Chaves com `{0}`, `{1}`... viram **modelos** (expressão regular): "Internet bloqueada para {0}." traduz
+  "Internet bloqueada para Google Chrome.". As partes variáveis também passam pela tradução.
+  `L.F(modelo, args)` traduz o modelo e preenche.
+- `L.Apply(form)` percorre os controles, traduz o `Text` e se inscreve em `TextChanged` (status e botões que
+  mudam de texto continuam traduzidos). Campos de digitação não são tocados; `ComboBox` só nos itens.
+- O que é desenhado à mão (`Card`, listas owner-draw, prévia), balões (`ThemedToolTip`), menus
+  (`L.Apply(ToolStripItemCollection)`), `Msg.Show` e notificações traduzem por `L.T`.
+- Trocar o idioma salva a preferência e reinicia o app com `--restart` (a nova instância espera o Mutex).
+
 ## 8. Favoritos e balões de ajuda
 
 - **Favoritos** são caminhos de `.exe` (originais ou cópias) guardados em `settings.json`. A lista mostra

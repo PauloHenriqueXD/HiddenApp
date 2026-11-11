@@ -69,7 +69,7 @@ public class SupportDialog : Form
                 await Task.Delay(2000);
                 if (!copy.IsDisposed) copy.Text = "Copiar código Pix";
             }
-            catch { MessageBox.Show(this, "Não foi possível copiar. Selecione o código e copie manualmente.", Text); }
+            catch { Msg.Show(this, "Não foi possível copiar. Selecione o código e copie manualmente.", Text); }
         };
 
         // Aviso de segurança: conferir o recebedor e baixar só do site oficial
@@ -120,6 +120,7 @@ public class SupportDialog : Form
         foreach (Control c in new Control[] { title, intro, qr, qrHint, codeLabel, code, copy, check, official, link, abroadTitle, abroadText, sponsors, buttons })
             layout.Controls.Add(c);
         Controls.Add(layout);
+        L.Apply(this);
     }
 
     protected override void OnHandleCreated(EventArgs e)

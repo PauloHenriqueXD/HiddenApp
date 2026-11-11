@@ -6,6 +6,8 @@
 
 <p align="center">Corte a internet de qualquer janela do Windows com um clique — e automatize cliques com macros.</p>
 
+<p align="center"><b>Português</b> · <a href="README.en.md">English</a></p>
+
 ---
 
 ## O que ele faz
@@ -19,6 +21,7 @@
 - **Bandeja do sistema:** fica rodando perto do relógio; o menu do ícone permite liberar programas, trocar o tema e sair.
 - **Iniciar com o Windows** (abre direto na bandeja, sem prompt do UAC).
 - **Tema escuro** (padrão) e **tema claro**.
+- **Idiomas:** português, inglês e chinês simplificado (简体中文). Por padrão segue o idioma do Windows; troque pelo botão 🌐 no topo.
 - **Atualização automática:** avisa quando há versão nova no GitHub e atualiza com um clique (sempre pergunta antes). Opção de receber versões beta.
 
 ## Apoie o projeto ❤
@@ -41,8 +44,8 @@ você pode estar usando uma cópia falsa do programa: o HiddenApp oficial só é
 
 Na aba **Auto clique** você cria **macros** que clicam sozinhas numa janela:
 
-1. Clique em **Nova** e escolha a **janela alvo**.
-2. Adicione os **pontos**: clique em **+ Adicionar ponto** e depois na prévia da janela — ou posicione o mouse
+1. Clique no **+** verde e escolha a **janela alvo**.
+2. Adicione os **pontos**: clique em **+ Adicionar pontos** e depois na prévia da janela — ou posicione o mouse
    na própria janela e aperte **F9**.
 3. Para cada ponto, escolha o botão, a ação (clique, duplo ou segurar), quantos cliques seguidos, o intervalo
    e a espera antes do próximo ponto.

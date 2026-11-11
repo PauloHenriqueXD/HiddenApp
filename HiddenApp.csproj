@@ -25,6 +25,8 @@
     <!-- Ícone e logo embutidos no .exe (janela, bandeja e cabeçalho) -->
     <EmbeddedResource Include="Assets\HiddenApp.ico" LogicalName="HiddenApp.ico" />
     <EmbeddedResource Include="Assets\logo.png" LogicalName="logo.png" />
+    <EmbeddedResource Include="Lang\en.json" LogicalName="lang.en.json" />
+    <EmbeddedResource Include="Lang\zh-CN.json" LogicalName="lang.zh-CN.json" />
   </ItemGroup>
 
 </Project>

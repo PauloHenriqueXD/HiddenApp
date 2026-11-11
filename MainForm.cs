@@ -55,6 +55,8 @@ public class MainForm : Form
     readonly RoundButton _btnUpdate = new("Atualizar", ButtonKind.Primary) { Visible = false };
     readonly RoundButton _btnUpdatesMenu = new("Atualizações ▾");
     readonly RoundButton _btnSupport = new("❤ Apoiar");
+    readonly RoundButton _btnLanguage = RoundButton.IconButton(Theme.Glyph.Globe, "Idioma", ButtonKind.Secondary);
+    readonly ContextMenuStrip _languageMenu = new();
     readonly ContextMenuStrip _updatesMenu = new();
     readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 }; // a cada 6 horas
 
@@ -140,6 +142,7 @@ public class MainForm : Form
         Activated += (_, _) => { if (!_refreshing && _body.Visible) RefreshAll(); };
         SelectTab(_settings.LastTab);
         RegisterHotkeys(showErrors: false);
+        L.Apply(this); // traduz a interface (se o idioma não for português)
 
         // ---------- Atualizações ----------
         UpdateManager.CleanupOldVersion();
@@ -180,7 +183,11 @@ public class MainForm : Form
         _tips.Set(_btnUpdatesMenu, "Atualizações", "Verificar se há versão nova, escolher receber versões beta e ver a versão atual.");
         _tips.Set(_startupToggle, "Iniciar com o Windows", "Abre o HiddenApp escondido perto do relógio quando você entra no Windows, sem pedir permissão de administrador.");
         _tips.Set(_darkToggle, "Tema escuro", "Alterna entre o tema escuro e o tema claro.");
+        _btnLanguage.Margin = new Padding(0, -Theme.S(2), Theme.S(4), 0);
+        _btnLanguage.Click += (_, _) => ShowLanguageMenu();
+        _tips.Set(_btnLanguage, "Idioma", "Escolhe o idioma do HiddenApp: português, inglês ou chinês. O app reinicia para aplicar.");
         right.Controls.Add(_btnUpdate);
+        right.Controls.Add(_btnLanguage);
         right.Controls.Add(_btnSupport);
         right.Controls.Add(_btnUpdatesMenu);
         right.Controls.Add(_startupToggle);
@@ -277,6 +284,7 @@ public class MainForm : Form
                 : new ToolStripMenuItem("★ Adicionar aos favoritos", null, (_, _) => AddFavorite(path)));
             if (!CloneManager.IsClone(path))
                 menu.Items.Add(new ToolStripMenuItem("Abrir cópia bloqueável deste programa...", null, (_, _) => OpenClone(path)));
+            L.Apply(menu.Items);
         };
         _windows.ContextMenuStrip = menu;
         _windows.MouseDown += (_, e) =>
@@ -332,6 +340,7 @@ public class MainForm : Form
             menu.Items.Add(IsFavorite(path)
                 ? new ToolStripMenuItem("Remover dos favoritos", null, (_, _) => RemoveFavorite(path))
                 : new ToolStripMenuItem("★ Adicionar aos favoritos", null, (_, _) => AddFavorite(path)));
+            L.Apply(menu.Items);
         };
         _blockedList.ContextMenuStrip = menu;
         _blockedList.MouseDown += (_, e) => SelectOnRightClick(_blockedList, e);
@@ -386,6 +395,7 @@ public class MainForm : Form
                 menu.Items.Add(new ToolStripMenuItem("Abrir cópia bloqueável...", null, (_, _) => OpenClone(path)));
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(new ToolStripMenuItem("Remover dos favoritos", null, (_, _) => RemoveFavorite(path)));
+            L.Apply(menu.Items);
         };
         _favoritesList.ContextMenuStrip = menu;
 
@@ -514,9 +524,8 @@ public class MainForm : Form
         _autoClick.SetHotkeyLabels(HotkeyBox.Describe(start), HotkeyBox.Describe(stop), HotkeyBox.Describe(capture));
 
         if (failed.Count == 0) return;
-        string msg = "Estas teclas já estão sendo usadas por outro programa e não funcionarão como atalho: " +
-                     string.Join(", ", failed) + ". Troque em Auto clique → Teclas de atalho.";
-        if (showErrors) MessageBox.Show(msg, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        string msg = $"Estas teclas já estão sendo usadas por outro programa e não funcionarão como atalho: {string.Join(", ", failed)}. Troque em Auto clique → Teclas de atalho.";
+        if (showErrors) Msg.Show(msg, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         else SetStatus(msg);
     }
 
@@ -650,6 +659,7 @@ public class MainForm : Form
         _trayMenu.Items.Add(new ToolStripMenuItem("❤ Apoiar o projeto", null, (_, _) => ShowSupport()));
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add(new ToolStripMenuItem("Sair", null, (_, _) => ExitApp()));
+        L.Apply(_trayMenu.Items);
     }
 
     /// <summary>Impede a janela de aparecer quando o app inicia direto na bandeja.</summary>
@@ -712,14 +722,14 @@ public class MainForm : Form
         catch (Exception ex)
         {
             _startupToggle.SetSilently(!enable);
-            MessageBox.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Msg.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
     void ShowBalloon(string title, string text, bool isUpdate = false)
     {
         _balloonIsUpdate = isUpdate;
-        _tray.ShowBalloonTip(isUpdate ? 10000 : 4000, title, text, ToolTipIcon.Info);
+        _tray.ShowBalloonTip(isUpdate ? 10000 : 4000, L.T(title), L.T(text), ToolTipIcon.Info);
     }
 
     void UpdateTrayText()
@@ -728,6 +738,7 @@ public class MainForm : Form
         string tip = n == 0 ? "HiddenApp" : $"HiddenApp - {n} bloqueado(s)";
         if (_autoClick?.IsRunning == true) tip = $"HiddenApp - auto clique: {_autoClick.RunningName}";
         if (_update != null) tip += $" - nova versão {_update.Version}";
+        tip = L.T(tip);
         _tray.Text = tip.Length > 63 ? tip[..63] : tip;
     }
 
@@ -765,7 +776,7 @@ public class MainForm : Form
                 if (manual)
                 {
                     SetStatus("Você já está usando a versão mais recente.");
-                    MessageBox.Show(this, $"Você já está usando a versão mais recente ({UpdateManager.CurrentVersion}).",
+                    Msg.Show(this, $"Você já está usando a versão mais recente ({UpdateManager.CurrentVersion}).",
                         "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 return;
@@ -792,7 +803,7 @@ public class MainForm : Form
             if (manual)
             {
                 SetStatus("Não foi possível verificar atualizações.");
-                MessageBox.Show(this, "Não foi possível verificar atualizações:\n" + ex.Message,
+                Msg.Show(this, $"Não foi possível verificar atualizações:\n{ex.Message}",
                     "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
@@ -841,6 +852,39 @@ public class MainForm : Form
         finally { _updateDialogOpen = false; }
     }
 
+    // =====================================================================
+    //  Idioma
+    // =====================================================================
+    void ShowLanguageMenu()
+    {
+        _languageMenu.Items.Clear();
+        string current = _settings.Language;
+        _languageMenu.Items.Add(new ToolStripMenuItem("Automático (idioma do Windows)", null, (_, _) => ChangeLanguage(L.Auto))
+        { Checked = current == L.Auto });
+        _languageMenu.Items.Add(new ToolStripSeparator());
+        L.Apply(_languageMenu.Items);
+        foreach (var (code, name) in L.Languages)
+            _languageMenu.Items.Add(new ToolStripMenuItem(name, null, (_, _) => ChangeLanguage(code)) { Checked = current == code });
+        _languageMenu.Show(_btnLanguage, new Point(0, _btnLanguage.Height));
+    }
+
+    void ChangeLanguage(string code)
+    {
+        if (_settings.Language == code) return;
+        _settings.Language = code;
+        _settings.Save();
+        if (Msg.Show("O novo idioma será usado quando o HiddenApp reiniciar. Reiniciar agora?", "HiddenApp",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+        if (_autoClick.IsRunning) _autoClick.StopRunning();
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                Environment.ProcessPath ?? Application.ExecutablePath, Program.RestartArgument) { UseShellExecute = false });
+            ExitApp();
+        }
+        catch (Exception ex) { Msg.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
     void ShowSupport()
     {
         if (!Visible) ShowFromTray();
@@ -868,12 +912,13 @@ public class MainForm : Form
         _updatesMenu.Items.Add(new ToolStripSeparator());
         _updatesMenu.Items.Add(new ToolStripMenuItem($"Versão atual: {UpdateManager.CurrentVersion}") { Enabled = false });
         _updatesMenu.Items.Add(new ToolStripMenuItem("Ver todas as versões no GitHub", null, (_, _) => UpdateManager.OpenUrl(UpdateManager.ReleasesPage)));
+        L.Apply(_updatesMenu.Items);
     }
 
     // =====================================================================
     //  Listas
     // =====================================================================
-    void SetStatus(string text) => _status.Text = text;
+    void SetStatus(string text) => _status.Text = L.T(text);
 
     void RefreshAll()
     {
@@ -942,7 +987,7 @@ public class MainForm : Form
         _preview.SetSource(w?.Handle ?? IntPtr.Zero);
         _previewTitle.Text = w == null ? "Nenhuma janela selecionada" : w.Title;
         _previewSub.Text = w == null ? "Clique numa janela da lista para ver a prévia aqui."
-                                     : $"{w.ProcessName}  ·  PID {w.Pid}" + (CloneManager.IsClone(w.ExePath) ? "  ·  cópia" : "");
+                                     : $"{w.ProcessName}  ·  PID {w.Pid}" + (CloneManager.IsClone(w.ExePath) ? "  ·  " + L.T("cópia") : "");
     }
 
     void SelectWindowInList(IntPtr hWnd)
@@ -1043,6 +1088,7 @@ public class MainForm : Form
 
     static void DrawPill(Graphics g, string text, Color color, Color bg, int x, Rectangle cell)
     {
+        text = L.T(text);
         var size = TextRenderer.MeasureText(text, PillFont);
         float h = Theme.S(20);
         var r = new RectangleF(x, cell.Top + (cell.Height - h) / 2f, size.Width + Theme.S(10), h);
@@ -1098,9 +1144,9 @@ public class MainForm : Form
         // Etiqueta de situação
         bool blocked = FirewallManager.IsBlocked(path);
         bool exists = File.Exists(path);
-        (string pill, Color pillColor) = blocked ? ("SEM INTERNET", p.Danger)
-                                       : exists ? ("COM INTERNET", p.Success)
-                                       : ("NÃO ENCONTRADO", p.Muted);
+        (string pill, Color pillColor) = blocked ? (L.T("SEM INTERNET"), p.Danger)
+                                       : exists ? (L.T("COM INTERNET"), p.Success)
+                                       : (L.T("NÃO ENCONTRADO"), p.Muted);
         int pillW = TextRenderer.MeasureText(pill, PillFont).Width + Theme.S(10);
 
         string name = DisplayName(path);
@@ -1139,7 +1185,7 @@ public class MainForm : Form
     {
         if (w.ExePath == null)
         {
-            MessageBox.Show("Não foi possível descobrir o executável dessa janela.", "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Msg.Show("Não foi possível descobrir o executável dessa janela.", "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
@@ -1148,7 +1194,7 @@ public class MainForm : Form
             .Count(x => x.Handle != w.Handle && string.Equals(x.ExePath, w.ExePath, StringComparison.OrdinalIgnoreCase));
         if (others > 0)
         {
-            var r = MessageBox.Show(
+            var r = Msg.Show(
                 $"O programa \"{w.ProcessName}\" tem mais {others} janela(s) aberta(s).\n" +
                 "O bloqueio de internet vale para o programa inteiro, então todas elas ficarão sem internet.\n\n" +
                 "Dica: use \"Abrir cópia bloqueável...\" para bloquear só uma janela.\n\nContinuar?",
@@ -1169,11 +1215,12 @@ public class MainForm : Form
             FirewallManager.Block(path);
             // Derruba também as conexões que já estavam abertas
             int killed = Native.KillTcpConnections(WindowEnumerator.GetPidsForExes(FirewallManager.TargetsFor(path)));
-            SetStatus($"Internet bloqueada para {name}." + (killed > 0 ? $" ({killed} conexão(ões) aberta(s) derrubada(s))" : ""));
+            SetStatus(L.F("Internet bloqueada para {0}.", name) +
+                      (killed > 0 ? " " + L.F("({0} conexão(ões) aberta(s) derrubada(s))", killed) : ""));
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Msg.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally { Cursor = Cursors.Default; }
         RefreshAll();
@@ -1224,7 +1271,7 @@ public class MainForm : Form
 
     void AddFavoriteBrowse()
     {
-        using var dlg = new OpenFileDialog { Filter = "Programas (*.exe)|*.exe", Title = "Escolha um programa para os favoritos" };
+        using var dlg = new OpenFileDialog { Filter = L.T("Programas (*.exe)|*.exe"), Title = L.T("Escolha um programa para os favoritos") };
         if (dlg.ShowDialog(this) == DialogResult.OK) AddFavorite(dlg.FileName);
     }
 
@@ -1233,7 +1280,7 @@ public class MainForm : Form
     {
         if (!File.Exists(path))
         {
-            MessageBox.Show("O programa não foi encontrado nesse caminho:\n" + path, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Msg.Show($"O programa não foi encontrado nesse caminho:\n{path}", "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
         string args = CloneManager.IsClone(path) ? CloneManager.ArgsOf(path) : "";
@@ -1244,7 +1291,7 @@ public class MainForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Msg.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -1282,7 +1329,7 @@ public class MainForm : Form
             SetStatus("Verificando a pasta do programa...");
             int count = await Task.Run(() => CloneManager.CountFiles(exe));
             if (CloneManager.TooManyFiles(count) &&
-                MessageBox.Show("A pasta desse programa tem muitos arquivos (mais de 30.000). " +
+                Msg.Show("A pasta desse programa tem muitos arquivos (mais de 30.000). " +
                                 "A cópia pode demorar alguns minutos. Continuar?",
                                 "HiddenApp", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             {
@@ -1304,16 +1351,16 @@ public class MainForm : Form
             SetStatus("Abrindo a cópia...");
             CloneManager.Launch(res.CloneExe, args);
 
-            string info = $"{res.Linked} arquivos linkados" +
-                          (res.Copied > 0 ? $", {res.Copied} copiados" : "") +
-                          (res.Failed > 0 ? $", {res.Failed} com erro" : "");
-            SetStatus($"{CloneManager.LabelOf(res.CloneExe)} aberta ({info}). {(startBlocked ? "Ela já está sem internet." : "")}");
+            string info = L.F("{0} arquivos linkados", res.Linked) +
+                          (res.Copied > 0 ? L.F(", {0} copiados", res.Copied) : "") +
+                          (res.Failed > 0 ? L.F(", {0} com erro", res.Failed) : "");
+            SetStatus(L.F("{0} aberta ({1}).", CloneManager.LabelOf(res.CloneExe), info) + (startBlocked ? " " + L.T("Ela já está sem internet.") : ""));
 
             // Confere se o programa abriu mesmo uma instância separada
             await Task.Delay(4000);
             if (WindowEnumerator.GetPidsForExes(FirewallManager.TargetsFor(res.CloneExe)).Count == 0)
             {
-                MessageBox.Show(
+                Msg.Show(
                     "A cópia foi iniciada mas fechou logo em seguida.\n\n" +
                     "Normalmente isso acontece com programas que só permitem uma instância: " +
                     "eles repassam a janela para o programa original (que NÃO está bloqueado).\n\n" +
@@ -1324,7 +1371,7 @@ public class MainForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Msg.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
@@ -1335,7 +1382,7 @@ public class MainForm : Form
 
     void DeleteClones()
     {
-        if (MessageBox.Show("Apagar todas as cópias criadas pelo HiddenApp?\n\n" +
+        if (Msg.Show("Apagar todas as cópias criadas pelo HiddenApp?\n\n" +
                             "Os programas originais NÃO são afetados. Feche as cópias abertas antes.",
                             "HiddenApp", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
@@ -1385,7 +1432,7 @@ public class MainForm : Form
         RefreshAll();
         SelectWindowInList(w.Handle);
 
-        var r = MessageBox.Show($"Bloquear a internet de:\n\n\"{w.Title}\"\n({w.ProcessName})?",
+        var r = Msg.Show($"Bloquear a internet de:\n\n\"{w.Title}\"\n({w.ProcessName})?",
             "HiddenApp", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
         if (r == DialogResult.Yes) Block(w);
         else RefreshAll();

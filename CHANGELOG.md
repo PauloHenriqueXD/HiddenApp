@@ -38,6 +38,9 @@ Segunda fase do projeto: **auto clique**.
 - **Exportar e importar macros** (arquivo `.hiddenmacro`) para compartilhar com outras pessoas. Valores fora do normal
   são corrigidos na importação, e a janela alvo é procurada pelo nome do programa se ele estiver em outra pasta.
 - Tempos padrão de **100 ms** (intervalo, espera e segurar).
+- **Idiomas:** português, **inglês** e **chinês simplificado** (简体中文). Por padrão segue o idioma do Windows;
+  o botão 🌐 no topo troca o idioma (o app reinicia para aplicar).
+- README em inglês ([README.en.md](README.en.md)).
 - Layout em três colunas que cabe na tela sem rolagem: macros e configuração, pontos e ponto selecionado, prévia;
   barra de Iniciar/Parar fixa embaixo, com instruções passo a passo.
 - Botão **"Testar ponto"** para conferir se o clique acerta o lugar e se o modo funciona naquele programa.

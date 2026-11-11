@@ -68,7 +68,7 @@ internal sealed class ClickRunner
         }
         catch (OperationCanceledException) { reason = $"Macro \"{macro.Name}\" parada ({clicks} cliques)."; }
         catch (WindowGoneException) { reason = $"A janela alvo foi fechada. Macro \"{macro.Name}\" parada."; }
-        catch (Exception ex) { reason = "O auto clique parou por um erro: " + ex.Message; }
+        catch (Exception ex) { reason = $"O auto clique parou por um erro: {ex.Message}"; }
         finally
         {
             IsRunning = false;

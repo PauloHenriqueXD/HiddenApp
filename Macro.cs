@@ -50,12 +50,12 @@ public class MacroStep
     {
         string action = Action switch
         {
-            ClickAction.CliqueDuplo => "Duplo",
-            ClickAction.Segurar => $"Segurar {Ms(HoldMs)}",
-            _ => "Clique",
+            ClickAction.CliqueDuplo => L.T("Duplo"),
+            ClickAction.Segurar => L.F("Segurar {0}", Ms(HoldMs)),
+            _ => L.T("Clique"),
         };
-        string times = Repeat > 1 ? $"{Repeat}x a cada {Ms(IntervalMs)}" : "1x";
-        return $"{Button} · {action} · {times} · depois espera {Ms(DelayAfterMs)}";
+        string times = Repeat > 1 ? L.F("{0}x a cada {1}", Repeat, Ms(IntervalMs)) : "1x";
+        return L.F("{0} · {1} · {2} · depois espera {3}", L.T(Button.ToString()), action, times, Ms(DelayAfterMs));
     }
 
     public static string Ms(int ms) => ms >= 1000 && ms % 100 == 0 ? $"{ms / 1000.0:0.#} s" : $"{ms} ms";
@@ -90,7 +90,7 @@ public class Macro
     }
 
     [JsonIgnore]
-    public string TargetName => TargetExe == null ? "nenhuma janela escolhida" : Path.GetFileNameWithoutExtension(TargetExe);
+    public string TargetName => TargetExe == null ? L.T("nenhuma janela escolhida") : Path.GetFileNameWithoutExtension(TargetExe);
 }
 
 /// <summary>Macros salvas em %AppData%\HiddenApp\macros.json.</summary>

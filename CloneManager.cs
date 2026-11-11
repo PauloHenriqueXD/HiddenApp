@@ -120,7 +120,10 @@ internal static class CloneManager
     public static string ArgsOf(string cloneExePath) => ReadMeta(CloneDirOf(cloneExePath)).Args ?? "";
 
     static string LabelFrom(CloneMeta meta, int number) =>
-        string.IsNullOrWhiteSpace(meta.Label) ? $"Cópia {number}" : meta.Label.Trim();
+        string.IsNullOrWhiteSpace(meta.Label) ? DefaultLabel(number) : meta.Label.Trim();
+
+    /// <summary>Nome padrão de uma cópia sem nome ("Cópia 2"), no idioma da interface.</summary>
+    public static string DefaultLabel(int number) => L.F("Cópia {0}", number);
 
     static CloneMeta ReadMeta(string cloneDir)
     {

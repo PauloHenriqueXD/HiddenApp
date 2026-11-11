@@ -65,7 +65,7 @@ internal static class StartupManager
         try
         {
             var (code, output) = SchTasks($"/Create /TN \"{TaskName}\" /XML \"{tmp}\" /F");
-            if (code != 0) throw new InvalidOperationException("Não foi possível criar a tarefa de inicialização:\n" + output);
+            if (code != 0) throw new InvalidOperationException($"Não foi possível criar a tarefa de inicialização:\n{output}");
         }
         finally { try { File.Delete(tmp); } catch { } }
     }

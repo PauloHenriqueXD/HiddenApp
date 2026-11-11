@@ -133,7 +133,7 @@ public class WindowPreview : Panel
             }
             return;
         }
-        TextRenderer.DrawText(e.Graphics, _message, Font, ClientRectangle, Theme.Current.Muted,
+        TextRenderer.DrawText(e.Graphics, L.T(_message), Font, ClientRectangle, Theme.Current.Muted,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
     }
 

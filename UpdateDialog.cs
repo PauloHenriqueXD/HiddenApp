@@ -121,6 +121,7 @@ public class UpdateDialog : Form
         layout.Controls.Add(_progress);
         layout.Controls.Add(buttons);
         Controls.Add(layout);
+        L.Apply(this);
     }
 
     async Task InstallAsync()
@@ -152,7 +153,7 @@ public class UpdateDialog : Form
             _btnUpdate.Enabled = _btnLater.Enabled = true;
             _progress.Visible = false;
             _status.Text = "A atualização não foi concluída.";
-            MessageBox.Show(this, ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Msg.Show(this, ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

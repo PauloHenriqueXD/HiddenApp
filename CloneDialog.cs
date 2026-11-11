@@ -53,7 +53,7 @@ public class CloneDialog : Form
         var browse = new RoundButton("Procurar...") { Margin = new Padding(Theme.S(8), 0, 0, 0) };
         browse.Click += (_, _) =>
         {
-            using var dlg = new OpenFileDialog { Filter = "Programas (*.exe)|*.exe", Title = "Escolha o programa" };
+            using var dlg = new OpenFileDialog { Filter = L.T("Programas (*.exe)|*.exe"), Title = L.T("Escolha o programa") };
             if (dlg.ShowDialog(this) == DialogResult.OK) { _exe.Text = dlg.FileName; ProgramChanged(); }
         };
         _exe.Leave += (_, _) => ProgramChanged();
@@ -67,7 +67,7 @@ public class CloneDialog : Form
             ProgramChanged();
             if (!File.Exists(ExePath))
             {
-                MessageBox.Show(this, "Arquivo não encontrado.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Msg.Show(this, "Arquivo não encontrado.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
             }
         };
@@ -127,6 +127,7 @@ public class CloneDialog : Form
 
         _exe.Text = initialExe ?? "";
         ProgramChanged();
+        L.Apply(this);
     }
 
     /// <summary>Recarrega a lista de cópias quando o programa muda.</summary>
@@ -142,12 +143,13 @@ public class CloneDialog : Form
 
         var existing = CloneManager.ListClones(exe);
         int next = existing.Count == 0 ? 1 : existing.Max(c => c.Number) + 1;
-        _copy.Items.Add(new CopyChoice(next, true, $"Nova cópia (Cópia {next})", "", ""));
+        _copy.Items.Add(new CopyChoice(next, true, L.F("Nova cópia ({0})", CloneManager.DefaultLabel(next)), "", ""));
         foreach (var c in existing)
         {
             string state = c.IsBlocked ? "sem internet" : "com internet";
-            string label = c.Label == $"Cópia {c.Number}" ? c.Label : $"{c.Label} (Cópia {c.Number})";
-            _copy.Items.Add(new CopyChoice(c.Number, false, $"{label}  ·  {state}", c.Label == $"Cópia {c.Number}" ? "" : c.Label, c.Args));
+            bool unnamed = c.Label == CloneManager.DefaultLabel(c.Number);
+            string label = unnamed ? c.Label : $"{c.Label} ({CloneManager.DefaultLabel(c.Number)})";
+            _copy.Items.Add(new CopyChoice(c.Number, false, $"{label}  ·  {L.T(state)}", unnamed ? "" : c.Label, c.Args));
         }
         _copy.SelectedIndex = 0;
     }

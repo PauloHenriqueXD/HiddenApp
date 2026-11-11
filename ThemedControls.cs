@@ -167,11 +167,12 @@ public class Card : Panel
             g.FillRectangle(accent, Theme.S(16), Theme.S(14) + Theme.S(3), Theme.S(3), TitleFont.Height - Theme.S(6));
 
         int tx = Theme.S(25), ty = Theme.S(14);
-        TextRenderer.DrawText(g, Title, TitleFont, new Point(tx, ty), p.Text);
-        if (Subtitle.Length > 0)
+        string title = L.T(Title), subtitle = L.T(Subtitle);
+        TextRenderer.DrawText(g, title, TitleFont, new Point(tx, ty), p.Text);
+        if (subtitle.Length > 0)
         {
-            int w = TextRenderer.MeasureText(Title, TitleFont).Width;
-            TextRenderer.DrawText(g, Subtitle, SubFont,
+            int w = TextRenderer.MeasureText(title, TitleFont).Width;
+            TextRenderer.DrawText(g, subtitle, SubFont,
                 new Rectangle(tx + w + Theme.S(4), ty, Width - tx - w - Theme.S(20), TitleFont.Height), p.Muted,
                 TextFormatFlags.Bottom | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
         }
@@ -207,6 +208,13 @@ public class ToggleSwitch : Control
     }
 
     protected override void OnClick(EventArgs e) { Checked = !Checked; base.OnClick(e); }
+
+    protected override void OnTextChanged(EventArgs e)
+    {
+        base.OnTextChanged(e);
+        Width = TextRenderer.MeasureText(Text, Font).Width + Theme.S(56);
+        Invalidate();
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -364,6 +372,7 @@ public class ThemedToolTip : ToolTip
 
     public void Set(Control control, string title, string body)
     {
+        title = L.T(title); body = L.T(body);
         _tips[control] = (title, body);
         SetToolTip(control, body);
     }
@@ -423,6 +432,13 @@ public class TabButton : Control
 
     protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+
+    protected override void OnTextChanged(EventArgs e)
+    {
+        base.OnTextChanged(e);
+        Width = TextRenderer.MeasureText(Text, TabFont).Width + Theme.S(28);
+        Invalidate();
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {

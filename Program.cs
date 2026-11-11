@@ -4,17 +4,21 @@ internal static class Program
 {
     const string MutexName = "HiddenApp_SingleInstance";
     const string ShowEventName = "HiddenApp_ShowWindow";
+    /// <summary>Reinício pedido pelo próprio app (ex.: troca de idioma): espera a instância anterior fechar.</summary>
+    public const string RestartArgument = "--restart";
 
     [STAThread]
     static void Main(string[] args)
     {
         bool justUpdated = args.Any(a => a.Equals(UpdateManager.UpdatedArgument, StringComparison.OrdinalIgnoreCase));
+        bool restarting = args.Any(a => a.Equals(RestartArgument, StringComparison.OrdinalIgnoreCase));
+        L.Init(AppSettings.Load().Language);
 
         // Só uma cópia do HiddenApp por vez: se já estiver aberto (ex.: na bandeja), só mostra a janela.
         // Logo após uma atualização, espera a versão antiga terminar de fechar.
         var mutex = new Mutex(false, MutexName);
         bool owned;
-        try { owned = mutex.WaitOne(justUpdated ? TimeSpan.FromSeconds(20) : TimeSpan.Zero); }
+        try { owned = mutex.WaitOne(justUpdated || restarting ? TimeSpan.FromSeconds(20) : TimeSpan.Zero); }
         catch (AbandonedMutexException) { owned = true; } // a versão antiga fechou sem liberar
         if (!owned)
         {
@@ -25,7 +29,7 @@ internal static class Program
         var showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
 
         ApplicationConfiguration.Initialize();
-        bool startInTray = !justUpdated && args.Any(a => a.Equals(StartupManager.TrayArgument, StringComparison.OrdinalIgnoreCase));
+        bool startInTray = !justUpdated && !restarting && args.Any(a => a.Equals(StartupManager.TrayArgument, StringComparison.OrdinalIgnoreCase));
         var form = new MainForm(startInTray, justUpdated);
 
         new Thread(() =>

@@ -8,7 +8,7 @@ Leia antes de mudar qualquer coisa. Detalhes de funcionamento estão em [ARQUITE
 App **Windows Forms (.NET 9)** com duas abas: **Internet** (corta a internet de programas escolhidos
 usando regras do **Firewall do Windows**) e **Auto clique** (macros que clicam em pontos de uma janela em loop). Inclui prévia ao vivo da janela, "cópia bloqueável"
 (segunda instância de um programa feita de hard links), ícone na bandeja, iniciar com o Windows
-e temas escuro/claro. Interface e textos em **português (Brasil)**.
+e temas escuro/claro. Código e textos-base em **português (Brasil)**; interface traduzida para inglês e chinês simplificado.
 
 ## Comandos
 
@@ -29,7 +29,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `Program.cs` | Entrada; instância única (Mutex + EventWaitHandle); argumentos `--tray` e `--updated` |
+| `Program.cs` | Entrada; instância única (Mutex + EventWaitHandle); argumentos `--tray`, `--updated` e `--restart` (troca de idioma) |
 | (abas) | `MainForm` tem a barra de abas (`TabButton`) e alterna entre `_body` (Internet) e `_autoClick` |
 | `MainForm.cs` | Janela principal: montagem da UI, listas owner-draw, bandeja, ações |
 | `CloneDialog.cs` | Diálogo "Abrir cópia bloqueável" (nova cópia ou existente, nome, argumentos) |
@@ -48,6 +48,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder); link do GitHub Sponsors |
 | `.github/FUNDING.yml` | Faz o GitHub mostrar o botão "Sponsor" no repositório |
 | `SupportDialog.cs` | Janela "Apoiar o projeto": QR, copia e cola, conferência do recebedor e site oficial |
+| `I18n.cs` | Traduções: `L.T`/`L.F` (dicionário por texto em português, com modelos `{0}`), `L.Apply(controle)`, `Msg.Show` |
+| `Lang/` | `en.json` e `zh-CN.json`: texto em português → tradução (embutidos como `lang.<código>.json`) |
 | `Theme.cs` | Paletas, tema atual, escala de DPI (`Theme.S`), barra de título escura, recursos embutidos |
 | `ThemedControls.cs` | Controles próprios: `RoundButton` (Primary/Secondary/Danger/Success), `Card`, `ToggleSwitch`, `ThemedListView`, `ThinProgress`, `ThemedToolTip`, renderer do menu |
 | `Native.cs` | Todo o P/Invoke (user32, kernel32, dwmapi, iphlpapi, advapi32) |
@@ -69,6 +71,13 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 - **Saída de `netsh`/`schtasks` é localizada** (vem em português no Windows do usuário). Decida
   apenas pelo **código de saída**, nunca pelo texto.
 - **Textos da interface, mensagens e comentários em português.** Nomes de código em inglês.
+- **Idiomas (pt-BR, en, zh-CN):** o código continua com o texto em português; a tradução é feita na exibição.
+  `L.Apply(form)` no fim do construtor traduz os controles (e continua traduzindo quando o `Text` muda);
+  textos desenhados à mão, balões, menus, `MessageBox` (use `Msg.Show`) e notificações passam por `L.T`.
+  Textos montados com partes variáveis usam **modelos**: `L.F("Internet bloqueada para {0}.", nome)` — não monte
+  frases com `$"..."` + condicionais dentro (o modelo não casa). **Todo texto novo entra em `Lang/en.json` e
+  `Lang/zh-CN.json`** com a mesma chave em português (e os mesmos `{0}`). Sem tradução, aparece em português.
+  O idioma é escolhido no início (`L.Init`); trocar exige reiniciar (`--restart`).
 - **Requer administrador** (`app.manifest` → `requireAdministrator`). Tudo que o app abre por conta
   própria (cópias) deve ser iniciado **sem elevação** via `Native.StartUnelevated`.
 - Nullable está ativado; mantenha o build **sem warnings**.
@@ -153,6 +162,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | Favoritos | `%AppData%\HiddenApp\settings.json` (`Favorites`) |
 | Macros | `%AppData%\HiddenApp\macros.json` |
 | Teclas de atalho, aba e última macro | `%AppData%\HiddenApp\settings.json` (`HotkeyStart/Stop/Capture`, `LastTab`, `LastMacroId`) |
+| Idioma | `%AppData%\HiddenApp\settings.json` (`Language`: `auto`, `pt-BR`, `en`, `zh-CN`) |
 | Inicialização | Tarefa agendada `HiddenApp` (argumento `--tray`) |
 
 ## Checklist de teste manual
@@ -179,6 +189,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 14. Auto clique: criar macro, escolher janela, adicionar pontos pela prévia e com F9; "Testar ponto"; iniciar com F7
     com outra janela em foco e parar com F8; modo real pausa ao trocar de janela; trocar as teclas e conferir que
     as novas funcionam; macros continuam salvas após reabrir o app.
+15. Idioma: botão 🌐 → English → reiniciar → janela, balões, menus da bandeja, diálogos e mensagens em inglês;
+    repetir com 简体中文 (sem quadradinhos no lugar dos caracteres) e voltar para Português.
 
 ## Versão, changelog e lançamento
 

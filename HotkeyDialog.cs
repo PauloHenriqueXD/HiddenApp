@@ -43,7 +43,7 @@ public class HotkeyBox : TextBox
             >= Keys.D0 and <= Keys.D9 => ((int)(code - Keys.D0)).ToString(),
             >= Keys.NumPad0 and <= Keys.NumPad9 => "Num " + (int)(code - Keys.NumPad0),
             Keys.Oemcomma => ",", Keys.OemPeriod => ".", Keys.OemMinus => "-", Keys.Oemplus => "=",
-            Keys.Space => "Espaço", Keys.Return => "Enter", Keys.Back => "Backspace", Keys.Delete => "Delete",
+            Keys.Space => L.T("Espaço"), Keys.Return => "Enter", Keys.Back => "Backspace", Keys.Delete => "Delete",
             Keys.Insert => "Insert", Keys.Home => "Home", Keys.End => "End", Keys.PageUp => "Page Up", Keys.PageDown => "Page Down",
             Keys.Pause => "Pause", Keys.Scroll => "Scroll Lock",
             _ => code.ToString(),
@@ -113,7 +113,7 @@ public class HotkeyDialog : Form
             var keys = new[] { _start.Keys, _stop.Keys, _capture.Keys };
             if (keys.Distinct().Count() < 3)
             {
-                MessageBox.Show(this, "Cada ação precisa de uma tecla diferente.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Msg.Show(this, "Cada ação precisa de uma tecla diferente.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
             }
         };
@@ -133,6 +133,7 @@ public class HotkeyDialog : Form
         layout.Controls.Add(form);
         layout.Controls.Add(bottom);
         Controls.Add(layout);
+        L.Apply(this);
     }
 
     protected override void OnHandleCreated(EventArgs e)

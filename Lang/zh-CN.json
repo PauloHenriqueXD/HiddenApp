@@ -484,5 +484,18 @@
  "{0} · iniciando...": "{0} · 正在启动……",
  "■ Parar todas as macros ({0})": "■ 停止所有宏 ({0})",
  "Rodando — clique para parar": "运行中——点击停止",
- "HiddenApp - {0} macros rodando": "HiddenApp - {0} 个宏运行中"
+ "HiddenApp - {0} macros rodando": "HiddenApp - {0} 个宏运行中",
+ "A macro \"{0}\" é favorita. Tire a estrela (favorito) antes de excluir.": "宏“{0}”已收藏。删除前请先取消星标（收藏）。",
+ "Escolha a macro para ver e editar. Clique na estrela para favoritar: as favoritas (★) ficam no topo. A ordem muda com as setas.": "选择要查看和编辑的宏。点击星标即可收藏：收藏的宏（★）在最上方。用箭头调整顺序。",
+ "Ampliar prévia": "放大预览",
+ "Prévia ampliada": "放大预览",
+ "Prévia ampliada — {0}": "放大预览 — {0}",
+ "Escolha a janela alvo da macro para ver a prévia.": "选择宏的目标窗口以查看预览。",
+ "Abre a prévia da janela alvo numa janela grande, que pode ser maximizada. Dá para adicionar e reposicionar pontos nela também, com mais precisão.": "在可最大化的大窗口中打开目标窗口预览。也可以在其中更精确地添加和调整位置。",
+ "Posição (%)": "位置 (%)",
+ "Posição horizontal (%)": "水平位置 (%)",
+ "Posição vertical (%)": "垂直位置 (%)",
+ "Onde o clique acontece da esquerda (0%) para a direita (100%) da janela. Use para ajustar o ponto com precisão.": "点击位置从窗口左侧（0%）到右侧（100%）。用于精确调整位置。",
+ "Onde o clique acontece de cima (0%) para baixo (100%) da janela. Use para ajustar o ponto com precisão.": "点击位置从窗口顶部（0%）到底部（100%）。用于精确调整位置。",
+ "Abre outra janela do favorito selecionado a partir de uma cópia (que não ocupa espaço), com bloqueio próprio. Se o favorito já for uma cópia, escolha o programa original no diálogo.": "从副本（不占用空间）打开所选收藏的另一个窗口，拥有独立的封锁。如果该收藏本身就是副本，请在对话框中选择原程序。"
 }

@@ -19,6 +19,10 @@ public class WindowPreview : Panel
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool ClientAreaOnly { get; set; }
 
+    /// <summary>Deixa a miniatura ficar maior que a janela original (prévia ampliada).</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool AllowUpscale { get; set; }
+
     /// <summary>Texto mostrado quando nenhuma janela foi escolhida.</summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string EmptyMessage { get; set; } = "Selecione uma janela na lista para ver a prévia.";
@@ -94,7 +98,7 @@ public class WindowPreview : Panel
         if (src.x > 0 && src.y > 0)
         {
             double scale = Math.Min((double)area.Width / src.x, (double)area.Height / src.y);
-            scale = Math.Min(scale, 1.0); // não amplia além do tamanho real
+            if (!AllowUpscale) scale = Math.Min(scale, 1.0); // não amplia além do tamanho real
             int w = (int)(src.x * scale), h = (int)(src.y * scale);
             dest = new Rectangle(area.X + (area.Width - w) / 2, area.Y + (area.Height - h) / 2, w, h);
         }

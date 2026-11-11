@@ -370,8 +370,10 @@ public class MainForm : Form
         var btnBlock = RoundButton.IconButton(Theme.Glyph.Lock, "Bloquear", ButtonKind.Danger);
         var btnUnblock = RoundButton.IconButton(Theme.Glyph.Unlock, "Liberar", ButtonKind.Success);
         var btnOpen = RoundButton.IconButton(Theme.Glyph.Play, "Abrir", ButtonKind.Primary);
+        var btnCopy = RoundButton.IconButton(Theme.Glyph.NewWindow, "Abrir cópia bloqueável", ButtonKind.Secondary);
         var btnAdd = RoundButton.IconButton(Theme.Glyph.Add, "Adicionar favorito", ButtonKind.Success);
         var btnRemove = RoundButton.IconButton(Theme.Glyph.Remove, "Remover dos favoritos", ButtonKind.Danger);
+        btnCopy.Click += (_, _) => { if (SelectedFavorite is string f) OpenClone(f); else SetStatus("Selecione um favorito primeiro."); };
         btnBlock.Click += (_, _) => { if (SelectedFavorite is string f) BlockPath(f); else SetStatus("Selecione um favorito primeiro."); };
         btnUnblock.Click += (_, _) => { if (SelectedFavorite is string f) UnblockPath(f); else SetStatus("Selecione um favorito primeiro."); };
         btnOpen.Click += (_, _) => { if (SelectedFavorite is string f) LaunchProgram(f); else SetStatus("Selecione um favorito primeiro."); };
@@ -381,13 +383,16 @@ public class MainForm : Form
         _tips.Set(btnBlock, "Bloquear", "Corta a internet do favorito selecionado, mesmo que ele não esteja aberto agora.\n\nAtalho: duplo clique no favorito.");
         _tips.Set(btnUnblock, "Liberar", "Devolve a internet ao favorito selecionado.");
         _tips.Set(btnOpen, "Abrir programa", "Abre o programa selecionado. Cópias abrem com o mesmo perfil e as mesmas configurações de quando foram criadas.");
+        _tips.Set(btnCopy, "Abrir cópia bloqueável",
+            "Abre outra janela do favorito selecionado a partir de uma cópia (que não ocupa espaço), com bloqueio próprio. " +
+            "Se o favorito já for uma cópia, escolha o programa original no diálogo.");
         _tips.Set(btnAdd, "Adicionar favorito",
             "Escolhe um programa (.exe) do computador para colocar nos favoritos.\n\n" +
             "Dica: também dá para clicar na estrela ao lado de uma janela da lista.");
         _tips.Set(btnRemove, "Remover dos favoritos", "Tira o programa dos favoritos. O bloqueio dele não muda.");
 
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
-        toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, btnOpen, btnAdd, btnRemove });
+        toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, btnOpen, btnCopy, btnAdd, btnRemove });
 
         var menu = new ContextMenuStrip();
         menu.Opening += (_, e) =>

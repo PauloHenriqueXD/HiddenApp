@@ -9,6 +9,21 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [2.3.0] - 2026-11-11
+
+### Adicionado
+
+- **Ajuste fino da posição do clique:** campos "Posição (%)" (horizontal × vertical) no passo selecionado, além do botão
+  de reposicionar pela prévia.
+- **Prévia ampliada:** botão "Ampliar prévia" abre a janela alvo numa janela grande (pode maximizar), onde também dá
+  para adicionar e reposicionar pontos com mais precisão.
+- Favoritos (aba Internet): botão para **abrir cópia bloqueável** do favorito selecionado.
+
+### Alterado
+
+- Favoritar macro igual à lista de janelas: **clique na estrela** dentro da caixa de macros (o botão de estrela saiu).
+- Macro favorita **não pode ser excluída**: é preciso tirar a estrela antes.
+
 ## [2.2.0] - 2026-11-11
 
 ### Adicionado

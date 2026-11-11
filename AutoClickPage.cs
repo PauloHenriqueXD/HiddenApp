@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace HiddenApp;
 
 /// <summary>
@@ -51,13 +53,12 @@ public class AutoClickPage : Panel
     readonly Panel _actionBar = new() { Dock = DockStyle.Bottom, Height = Theme.S(58), Padding = new Padding(Theme.S(7), Theme.S(8), Theme.S(7), 0) };
 
     // Caixa de seleção de macros (ocupa pouco espaço; os itens mostram estrela, nome, alvo e agendamento)
-    readonly ComboBox _macroList = new()
+    readonly MacroComboBox _macroList = new()
     {
         DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Top,
         DrawMode = DrawMode.OwnerDrawVariable, ItemHeight = Theme.S(42), MaxDropDownItems = 12,
         Margin = new Padding(0), IntegralHeight = false
     };
-    readonly RoundButton _btnFavorite = RoundButton.IconButton(Theme.Glyph.Star, "Favoritar macro", ButtonKind.Secondary);
     readonly Label _emptyMacros = new() { Dock = DockStyle.Top, Height = Theme.S(64), TextAlign = ContentAlignment.MiddleCenter, Tag = "muted",
         Text = "Nenhuma macro ainda.\nClique no + verde para criar a primeira\nou importe uma macro recebida." };
 
@@ -82,6 +83,9 @@ public class AutoClickPage : Panel
     readonly Panel _buttonOrKey = new() { Dock = DockStyle.Fill, Margin = new Padding(0) };
     Label? _buttonLabel;
     readonly ComboBox _action = NewCombo("Clique", "Clique duplo", "Segurar");
+    readonly NumericUpDown _posX = NewPos();
+    readonly NumericUpDown _posY = NewPos();
+    readonly FlowLayoutPanel _posPanel = new() { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
     readonly NumericUpDown _hold = NewNum(10, 3_600_000, 100);
     readonly NumericUpDown _repeat = NewNum(1, 1_000_000, 1);
     readonly NumericUpDown _interval = NewNum(1, 3_600_000, 100);
@@ -116,6 +120,8 @@ public class AutoClickPage : Panel
         EmptyMessage = "Escolha a janela alvo em \"Macro selecionada\" (à esquerda)."
     };
     readonly Label _previewHint = new() { Dock = DockStyle.Top, AutoSize = false };
+    readonly RoundButton _btnZoom = RoundButton.IconTextButton(Theme.Glyph.FullScreen, "Ampliar prévia", ButtonKind.Secondary);
+    ZoomPreviewForm? _zoom;
 
     static readonly Font BoldFont = new("Segoe UI Semibold", 9.5f);
     static readonly Font SmallFont = new("Segoe UI", 8.5f);
@@ -206,6 +212,18 @@ public class AutoClickPage : Panel
         return t;
     }
 
+    /// <summary>Campo de posição em % (0–100, uma casa decimal).</summary>
+    static NumericUpDown NewPos()
+    {
+        var n = NewNum(0, 100, 50);
+        n.DecimalPlaces = 1;
+        n.Increment = 0.5m;
+        n.Dock = DockStyle.None;
+        n.Width = Theme.S(62);
+        n.Margin = new Padding(0, Theme.S(1), 0, 0);
+        return n;
+    }
+
     static Label AddField(TableLayoutPanel form, string label, Control field)
     {
         bool secondPair = form.ColumnCount == 4 && form.Controls.Count % 4 == 2;
@@ -233,7 +251,9 @@ public class AutoClickPage : Panel
         _macroList.MeasureItem += (_, e) => e.ItemHeight = Theme.S(42);
         _macroList.DropDownWidth = Theme.S(420);
         _macroList.SelectedIndexChanged += (_, _) => { if (!_loading) LoadMacro(_macroList.SelectedItem as Macro); };
-        _btnFavorite.Click += (_, _) => { if (_current != null) ToggleFavorite(_current); };
+        // Estrela na caixa fechada: clique alterna a favorita (igual à lista de janelas)
+        _macroList.StarWidth = StarAreaWidth + Theme.S(4);
+        _macroList.StarClicked += () => { if (_current != null) ToggleFavorite(_current); };
         _macroMenu.Opening += (_, e) =>
         {
             _macroMenu.Items.Clear();
@@ -265,6 +285,13 @@ public class AutoClickPage : Panel
         _btnDelete.Click += (_, _) =>
         {
             if (_current == null) return;
+            if (_current.Favorite)
+            {
+                // Proteção: favorita não é excluída por engano
+                Msg.Show($"A macro \"{_current.Name}\" é favorita. Tire a estrela (favorito) antes de excluir.", "HiddenApp",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             if (Msg.Show($"Excluir a macro \"{_current.Name}\"?", "HiddenApp",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             var ordered = Ordered();
@@ -335,7 +362,7 @@ public class AutoClickPage : Panel
         _schedRepeat.SelectedIndexChanged += (_, _) => ScheduleChanged();
 
         // Ordem de encaixe: o último adicionado fica mais acima
-        var toolbar = Toolbar(_btnNew, _btnFavorite, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnImport, _btnExport);
+        var toolbar = Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnImport, _btnExport);
         toolbar.Padding = new Padding(0, Theme.S(8), 0, Theme.S(4));
         var line = new Panel { Dock = DockStyle.Top, Height = Theme.S(10) };
         line.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, Theme.S(4), line.Width, Theme.S(4)); };
@@ -380,6 +407,12 @@ public class AutoClickPage : Panel
         AddField(_stepEditor, "Intervalo (ms)", _interval);
         AddField(_stepEditor, "Segurar (ms)", _hold);
         AddField(_stepEditor, "Espera depois (ms)", _delay);
+        // Posição do clique em % da área da janela: ajuste fino sem precisar clicar na prévia
+        var times = new Label { Text = "×", AutoSize = true, Margin = new Padding(Theme.S(3), Theme.S(4), Theme.S(3), 0) };
+        _posPanel.Controls.AddRange(new Control[] { _posX, times, _posY });
+        AddField(_stepEditor, "Posição (%)", _posPanel);
+        _posX.ValueChanged += (_, _) => ChangeStep(s => s.RelX = (double)_posX.Value / 100);
+        _posY.ValueChanged += (_, _) => ChangeStep(s => s.RelY = (double)_posY.Value / 100);
         _kind.SelectedIndexChanged += (_, _) =>
         {
             if (_loading || SelectedStep is not MacroStep s) return;
@@ -461,8 +494,33 @@ public class AutoClickPage : Panel
     {
         _previewHint.Height = Theme.S(64);
         _preview.PointPicked += (rx, ry) => ApplyPoint(rx, ry, false);
+        _btnZoom.Click += (_, _) => OpenZoom();
         _previewCard.Controls.Add(_preview);
         _previewCard.Controls.Add(_previewHint);
+        var bar = Toolbar(_btnZoom);
+        bar.Padding = new Padding(0, 0, 0, Theme.S(4));
+        _previewCard.Controls.Add(bar);
+    }
+
+    /// <summary>Abre (ou traz para a frente) a prévia ampliada, que acompanha a janela alvo e o modo de marcar pontos.</summary>
+    void OpenZoom()
+    {
+        if (_zoom is { IsDisposed: false }) { _zoom.WindowState = FormWindowState.Normal; _zoom.Activate(); return; }
+        _zoom = new ZoomPreviewForm();
+        _zoom.Preview.PointPicked += (rx, ry) => ApplyPoint(rx, ry, false);
+        _zoom.FormClosed += (_, _) => { _zoom?.Dispose(); _zoom = null; };
+        _zoom.Show(FindForm());
+        SyncZoom();
+    }
+
+    void SyncZoom()
+    {
+        if (_zoom is not { IsDisposed: false } z) return;
+        z.Preview.SetSource(_targetHandle != IntPtr.Zero && Native.IsWindow(_targetHandle) ? _targetHandle : IntPtr.Zero);
+        z.Preview.PickMode = _pick != PickKind.None;
+        z.Hint.Text = _previewHint.Text;
+        z.Hint.ForeColor = _previewHint.ForeColor;
+        z.Text = _current?.TargetExe != null ? L.F("Prévia ampliada — {0}", _current.TargetName) : L.T("Prévia ampliada");
     }
 
     void BuildActionBar()
@@ -489,8 +547,8 @@ public class AutoClickPage : Panel
         _tips.Set(_btnStopSel, "Parar a macro selecionada", "Para só a macro selecionada na lista \"Em execução\". As outras continuam rodando.");
         _tips.Set(_btnStopAll, "Parar todas", "Para todas as macros que estão rodando (o mesmo que a tecla de parar).");
         _tips.Set(_runList, "Em execução", "Macros rodando agora, com o progresso de cada uma. Duplo clique abre a macro.");
-        _tips.Set(_btnFavorite, "Favoritar macro", "Marca ou desmarca a macro selecionada como favorita. As favoritas ficam no topo da lista, com estrela.");
-        _tips.Set(_macroList, "Macros", "Escolha a macro para ver e editar. As favoritas (★) ficam no topo; a ordem das demais muda com as setas.");
+        _tips.Set(_macroList, "Macros",
+            "Escolha a macro para ver e editar. Clique na estrela para favoritar: as favoritas (★) ficam no topo. A ordem muda com as setas.");
         _tips.Set(_btnMacroUp, "Subir macro", "Move a macro selecionada para cima na lista. As favoritas (com estrela) ficam sempre no topo.");
         _tips.Set(_btnMacroDown, "Descer macro", "Move a macro selecionada para baixo na lista. As favoritas (com estrela) ficam sempre no topo.");
         _tips.Set(_stepLabel, "Nome do passo", "Um nome ou descrição opcional, para quem ver a macro entender o que cada passo faz.");
@@ -523,6 +581,10 @@ public class AutoClickPage : Panel
         _tips.Set(_repeat, "Vezes", "Quantas vezes seguidas este passo é feito (cliques ou toques na tecla) antes de ir para o próximo.");
         _tips.Set(_interval, "Intervalo", "Tempo entre as repetições deste passo, em milissegundos (1000 ms = 1 segundo).");
         _tips.Set(_hold, "Segurar", "Por quanto tempo o botão ou a tecla fica apertado (só na ação \"Segurar\").");
+        _tips.Set(_posX, "Posição horizontal (%)", "Onde o clique acontece da esquerda (0%) para a direita (100%) da janela. Use para ajustar o ponto com precisão.");
+        _tips.Set(_posY, "Posição vertical (%)", "Onde o clique acontece de cima (0%) para baixo (100%) da janela. Use para ajustar o ponto com precisão.");
+        _tips.Set(_btnZoom, "Ampliar prévia",
+            "Abre a prévia da janela alvo numa janela grande, que pode ser maximizada. Dá para adicionar e reposicionar pontos nela também, com mais precisão.");
         _tips.Set(_delay, "Espera depois", "Tempo de espera depois deste passo, antes de ir para o próximo.");
     }
 
@@ -542,6 +604,7 @@ public class AutoClickPage : Panel
         UpdatePreviewHint();
         Theme.ApplyScrollbars(_stepList);
         Theme.ApplyScrollbars(_runList);
+        if (_zoom is { IsDisposed: false }) { _zoom.ApplyTheme(); SyncZoom(); }
         Invalidate(true);
     }
 
@@ -730,6 +793,9 @@ public class AutoClickPage : Panel
             _action.Items.AddRange(key ? new object[] { L.T("Apertar"), L.T("Segurar") }
                                        : new object[] { L.T("Clique"), L.T("Clique duplo"), L.T("Segurar") });
             _action.SelectedIndex = IndexFromAction(s?.Action ?? ClickAction.Clique, key);
+            _posX.Value = (decimal)Math.Round(Math.Clamp(s?.RelX ?? 0.5, 0, 1) * 100, 1);
+            _posY.Value = (decimal)Math.Round(Math.Clamp(s?.RelY ?? 0.5, 0, 1) * 100, 1);
+            _posPanel.Enabled = !key;
             _hold.Value = Math.Clamp(s?.HoldMs ?? 100, (int)_hold.Minimum, (int)_hold.Maximum);
             _repeat.Value = Math.Clamp(s?.Repeat ?? 1, 1, (int)_repeat.Maximum);
             _interval.Value = Math.Clamp(s?.IntervalMs ?? 100, 1, (int)_interval.Maximum);
@@ -1144,10 +1210,7 @@ public class AutoClickPage : Panel
         _btnStop.Enabled = running;
         _btnTest.Enabled = has && !running && SelectedStep != null;
         _btnDelete.Enabled = has && !running;
-        _btnDuplicate.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = _btnFavorite.Enabled = has;
-        _btnFavorite.IconGlyph = _current?.Favorite == true ? Theme.Glyph.StarFill : Theme.Glyph.Star;
-        _btnFavorite.Kind = _current?.Favorite == true ? ButtonKind.Favorite : ButtonKind.Secondary;
-        _btnFavorite.Invalidate();
+        _btnDuplicate.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = has;
         _btnAddPoint.Enabled = _btnAddKey.Enabled = has && !running;
         _btnRemovePoint.Enabled = _btnUp.Enabled = _btnDown.Enabled = SelectedStep != null && !running;
         _btnMovePoint.Enabled = SelectedStep?.Kind == StepKind.Clique && !running;
@@ -1181,6 +1244,7 @@ public class AutoClickPage : Panel
                                 $"Ou posicione o mouse na própria janela e aperte {_captureKey}.";
             _previewHint.ForeColor = p.Muted;
         }
+        SyncZoom();
     }
 
     public void SetHotkeyLabels(string start, string stop, string capture)
@@ -1327,10 +1391,83 @@ public class AutoClickPage : Panel
         if (disposing)
         {
             StopRunning();
+            _zoom?.Close();
             if (_saveTimer.Enabled) MacroStore.Save(_macros);
             _saveTimer.Dispose();
             _scheduleTimer.Dispose();
         }
         base.Dispose(disposing);
+    }
+}
+
+/// <summary>
+/// Caixa de macros em que a estrela à esquerda (na parte fechada) é clicável, como na lista de janelas:
+/// o clique nela alterna a favorita em vez de abrir a lista.
+/// </summary>
+sealed class MacroComboBox : ComboBox
+{
+    const int WM_LBUTTONDOWN = 0x0201, WM_LBUTTONDBLCLK = 0x0203;
+
+    public event Action? StarClicked;
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int StarWidth { get; set; }
+
+    bool OnStar(Point p) => SelectedIndex >= 0 && p.X >= 0 && p.X < StarWidth && p.Y >= 0 && p.Y < Height;
+
+    protected override void WndProc(ref Message m)
+    {
+        if ((m.Msg == WM_LBUTTONDOWN || m.Msg == WM_LBUTTONDBLCLK) && Enabled)
+        {
+            int lp = unchecked((int)(long)m.LParam);
+            var p = new Point((short)(lp & 0xFFFF), (short)((lp >> 16) & 0xFFFF));
+            if (OnStar(p)) { StarClicked?.Invoke(); return; } // não abre a lista
+        }
+        base.WndProc(ref m);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        Cursor = OnStar(e.Location) ? Cursors.Hand : Cursors.Default;
+    }
+}
+
+/// <summary>
+/// Prévia ampliada da janela alvo, numa janela que pode ser redimensionada ou maximizada. Funciona igual à prévia
+/// da aba: no modo de adicionar/reposicionar, o clique marca o ponto.
+/// </summary>
+sealed class ZoomPreviewForm : Form
+{
+    public WindowPreview Preview { get; } = new() { Dock = DockStyle.Fill, ClientAreaOnly = true, AllowUpscale = true,
+        EmptyMessage = "Escolha a janela alvo da macro para ver a prévia." };
+    public Label Hint { get; } = new() { Dock = DockStyle.Top, AutoSize = false, Height = Theme.S(46),
+        TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(Theme.S(12), 0, Theme.S(12), 0) };
+
+    public ZoomPreviewForm()
+    {
+        Text = "Prévia ampliada";
+        Icon = Theme.AppIcon;
+        StartPosition = FormStartPosition.CenterScreen;
+        ShowInTaskbar = false;
+        Font = new Font("Segoe UI", 9.5f);
+        var area = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1280, 800);
+        Size = new Size(area.Width * 3 / 4, area.Height * 3 / 4);
+        MinimumSize = new Size(Theme.S(420), Theme.S(320));
+        Padding = new Padding(Theme.S(8));
+        Controls.Add(Preview);
+        Controls.Add(Hint);
+        ApplyTheme();
+        L.Apply(this);
+    }
+
+    public void ApplyTheme()
+    {
+        var p = Theme.Current;
+        BackColor = p.Surface;
+        ForeColor = p.Text;
+        Preview.BackColor = p.Back;
+        Theme.ApplyTitleBar(this);
+        Preview.Invalidate();
     }
 }

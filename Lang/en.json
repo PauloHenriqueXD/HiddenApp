@@ -484,5 +484,18 @@
  "{0} · iniciando...": "{0} · starting...",
  "■ Parar todas as macros ({0})": "■ Stop all macros ({0})",
  "Rodando — clique para parar": "Running — click to stop",
- "HiddenApp - {0} macros rodando": "HiddenApp - {0} macros running"
+ "HiddenApp - {0} macros rodando": "HiddenApp - {0} macros running",
+ "A macro \"{0}\" é favorita. Tire a estrela (favorito) antes de excluir.": "The macro \"{0}\" is a favorite. Remove the star (favorite) before deleting it.",
+ "Escolha a macro para ver e editar. Clique na estrela para favoritar: as favoritas (★) ficam no topo. A ordem muda com as setas.": "Choose the macro to view and edit. Click the star to make it a favorite: favorites (★) stay at the top. Use the arrows to change the order.",
+ "Ampliar prévia": "Enlarge preview",
+ "Prévia ampliada": "Enlarged preview",
+ "Prévia ampliada — {0}": "Enlarged preview — {0}",
+ "Escolha a janela alvo da macro para ver a prévia.": "Choose the macro's target window to see the preview.",
+ "Abre a prévia da janela alvo numa janela grande, que pode ser maximizada. Dá para adicionar e reposicionar pontos nela também, com mais precisão.": "Opens the target window preview in a large window that can be maximized. You can add and move points there too, with more precision.",
+ "Posição (%)": "Position (%)",
+ "Posição horizontal (%)": "Horizontal position (%)",
+ "Posição vertical (%)": "Vertical position (%)",
+ "Onde o clique acontece da esquerda (0%) para a direita (100%) da janela. Use para ajustar o ponto com precisão.": "Where the click happens from the left (0%) to the right (100%) of the window. Use it to fine-tune the point.",
+ "Onde o clique acontece de cima (0%) para baixo (100%) da janela. Use para ajustar o ponto com precisão.": "Where the click happens from the top (0%) to the bottom (100%) of the window. Use it to fine-tune the point.",
+ "Abre outra janela do favorito selecionado a partir de uma cópia (que não ocupa espaço), com bloqueio próprio. Se o favorito já for uma cópia, escolha o programa original no diálogo.": "Opens another window of the selected favorite from a copy (that takes no space), with its own block. If the favorite is already a copy, choose the original program in the dialog."
 }

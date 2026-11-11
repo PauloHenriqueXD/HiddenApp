@@ -158,8 +158,12 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   passo também entram na lista (`IsTest`, mesmo `Id` da macro) para respeitar essa regra. F8 para todas; só a macro
   selecionada fica com a edição travada enquanto roda (`CurrentBusy`). Iniciar pela bandeja/agendamento não muda a seleção.
 - **Favoritas e ordem:** a ordem de `_macros` (e do `macros.json`) é a ordem do usuário; a lista mostra `Ordered()`
-  (favoritas primeiro) numa `ComboBox` owner-draw (não dá para clicar na estrela dentro dela: favoritar é pelo botão
-  de estrela ou pelo menu do botão direito). Subir/descer troca de lugar só dentro do mesmo grupo.
+  (favoritas primeiro) numa `MacroComboBox` owner-draw: o clique na estrela da parte fechada alterna a favorita
+  (intercepta `WM_LBUTTONDOWN` no `WndProc` para não abrir a lista); dentro da lista aberta a estrela não é clicável.
+  Macro favorita não pode ser excluída (proteção contra exclusão por engano). Subir/descer troca de lugar só dentro do mesmo grupo.
+- **Prévia ampliada** (`ZoomPreviewForm`): segunda miniatura DWM da mesma janela alvo, com `AllowUpscale`; `SyncZoom`
+  copia alvo, modo de marcar e dica da prévia da aba. Marcadores dos pontos não aparecem sobre a prévia porque a
+  miniatura DWM é desenhada por cima de tudo que o app pinta.
 - **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 2, Macros: [...] }` (versão 2 = passos de tecla). Ao mudar o formato,
   suba `Versao` e trate versões antigas em `MacroStore.Import` (versões mais novas são recusadas com aviso).
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.

@@ -382,3 +382,53 @@ public class ThemedToolTip : ToolTip
         TextRenderer.DrawText(g, t.Body, BodyFont, bodyRect, p.Text, BodyFlags);
     }
 }
+
+/// <summary>Aba do topo (texto com sublinhado na cor de destaque quando selecionada).</summary>
+public class TabButton : Control
+{
+    bool _selected, _hover;
+    static readonly Font TabFont = new("Segoe UI Semibold", 10.5f);
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Selected
+    {
+        get => _selected;
+        set { _selected = value; Invalidate(); }
+    }
+
+    public TabButton(string text)
+    {
+        Text = text;
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        Cursor = Cursors.Hand;
+        Font = TabFont;
+        Width = TextRenderer.MeasureText(text, TabFont).Width + Theme.S(28);
+        Height = Theme.S(42);
+        Margin = new Padding(0, 0, Theme.S(4), 0);
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var p = Theme.Current;
+        var g = e.Graphics;
+        g.Clear(Parent?.BackColor ?? p.Surface);
+        if (_hover && !_selected)
+        {
+            using var hb = new SolidBrush(p.Surface2);
+            g.FillRectangle(hb, 0, Theme.S(4), Width, Height - Theme.S(8));
+        }
+        Color text = _selected ? p.Text : _hover ? p.Text : p.Muted;
+        TextRenderer.DrawText(g, Text, Font, ClientRectangle, text,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+        if (_selected)
+        {
+            using var b = new SolidBrush(p.Accent);
+            int h = Math.Max(2, Theme.S(3));
+            g.FillRectangle(b, Theme.S(10), Height - h, Width - Theme.S(20), h);
+        }
+    }
+}

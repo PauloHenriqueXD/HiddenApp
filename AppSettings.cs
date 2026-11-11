@@ -8,6 +8,15 @@ internal class AppSettings
     public bool DarkTheme { get; set; } = true;
     public bool TrayHintShown { get; set; }
 
+    // ---------- Auto clique ----------
+    /// <summary>Teclas de atalho globais (valor de System.Windows.Forms.Keys, com modificadores).</summary>
+    public int HotkeyStart { get; set; } = (int)Keys.F7;
+    public int HotkeyStop { get; set; } = (int)Keys.F8;
+    public int HotkeyCapture { get; set; } = (int)Keys.F9;
+    public string? LastMacroId { get; set; }
+    /// <summary>Aba aberta por último (0 = Internet, 1 = Auto clique).</summary>
+    public int LastTab { get; set; }
+
     /// <summary>Programas favoritos (caminho completo do .exe, inclusive de cópias).</summary>
     public List<string> Favorites { get; set; } = new();
 

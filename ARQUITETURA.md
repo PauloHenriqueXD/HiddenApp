@@ -266,7 +266,56 @@ Nada é baixado: a chave só muda numa versão nova, que passa pelo GitHub ofici
 A janela de doação mostra o nome completo do recebedor para quem doa conferir no app do banco — a defesa
 contra cópias falsas do programa com outra chave.
 
-## 9. Atualização automática — `UpdateManager` + `UpdateDialog`
+## 9. Auto clique — `AutoClickPage` + `ClickRunner` + `Macro`
+
+### Modelo
+
+Uma **macro** tem a janela alvo (caminho do `.exe` + título, para reencontrá-la), o **modo**, quantas voltas
+(0 = sem parar), a variação aleatória dos tempos e a lista de **pontos**. Cada ponto guarda a posição
+**relativa** (0 a 1) à área interna da janela, o botão, a ação (clique, duplo, segurar + tempo), quantos
+cliques seguidos, o intervalo e a espera antes do próximo. Tudo fica em `%AppData%\HiddenApp\macros.json`.
+
+### Execução
+
+```mermaid
+flowchart TD
+    S[F7 / Iniciar] --> F[Acha a janela alvo<br/>mesmo .exe, de preferência mesmo título]
+    F --> T[Thread de clique<br/>na escala de DPI da janela]
+    T --> L{Para cada volta<br/>e cada ponto}
+    L --> W{Janela pronta?}
+    W -- minimizada / modo real sem foco --> P[Pausa e avisa] --> W
+    W -- fechada --> X[Para]
+    W -- ok --> C[Converte posição relativa<br/>em pixels da janela]
+    C --> M{Modo}
+    M -- segundo plano --> PM[PostMessage no controle<br/>embaixo do ponto]
+    M -- real --> SI[SetCursorPos + SendInput]
+    PM & SI --> D[Intervalo / espera<br/>com variação opcional]
+    D --> L
+    K[F8 / Parar] -. cancela .-> T
+```
+
+- **Segundo plano:** desce até o controle filho exato embaixo do ponto (`ChildWindowFromPointEx`) e envia
+  `WM_MOUSEMOVE` + `WM_xBUTTONDOWN/UP` (e `DBLCLK` no clique duplo). Não usa o mouse do usuário, mas muitos
+  jogos e alguns apps ignoram mensagens que não vêm do hardware.
+- **Real:** move o cursor e usa `SendInput`. Só clica quando a janela alvo está em primeiro plano; se o usuário
+  trocar de janela, a macro pausa até a janela voltar para a frente.
+- **Segurar:** aperta, espera o tempo e solta — o soltar fica num `finally`, então o botão nunca fica preso.
+- **DPI:** a thread adota o contexto de DPI da janela alvo (`SetThreadDpiAwarenessContext` com
+  `GetWindowDpiAwarenessContext`), para que posições de mouse e da janela usem as mesmas coordenadas que ela.
+
+### Marcar pontos
+
+- **Pela prévia:** a prévia do auto clique mostra só a área interna da janela (`fSourceClientAreaOnly`); o clique
+  na miniatura vira uma posição relativa (0–1) diretamente.
+- **Pela tecla de captura (F9):** lê a posição do mouse, descobre a janela embaixo dele (`WindowFromPoint` +
+  `GetAncestor`) e converte para posição relativa na área interna. Se a macro ainda não tem alvo, essa janela vira o alvo.
+
+### Teclas de atalho
+
+`RegisterHotKey` no handle da janela principal, com `MOD_NOREPEAT`. As mensagens `WM_HOTKEY` chegam mesmo com
+o app escondido na bandeja. As teclas são configuráveis (`HotkeyDialog`) e salvas em `settings.json`.
+
+## 10. Atualização automática — `UpdateManager` + `UpdateDialog`
 
 ### Versionamento
 
@@ -348,7 +397,7 @@ e **SHA-256** gerado pelo próprio workflow. Quem controla a conta do GitHub con
 por isso a conta deve ter **autenticação em dois fatores**. Assinar o executável com certificado de
 código seria a próxima camada de proteção.
 
-## 10. Publicação
+## 11. Publicação
 
 O perfil `Properties/PublishProfiles/Portatil.pubxml` gera um **único `HiddenApp.exe`** para
 `win-x64`, **autocontido** (inclui o runtime do .NET), com compressão e sem arquivos de debug.
@@ -368,4 +417,5 @@ O ícone e o manifesto de administrador ficam embutidos no `.exe` final.
 | Conexões TCP | `GetExtendedTcpTable`, `SetTcpEntry` | iphlpapi |
 | Firewall | `netsh advfirewall firewall` | (processo externo) |
 | Inicialização | `schtasks /Create /XML` | (processo externo) |
+| Auto clique | `SendInput`, `SetCursorPos`, `PostMessage`, `ChildWindowFromPointEx`, `ClientToScreen`, `ScreenToClient`, `WindowFromPoint`, `SetThreadDpiAwarenessContext`, `RegisterHotKey` | user32 |
 | Atualizações | GitHub REST API (`/releases`, `/releases/latest`) | `HttpClient` |

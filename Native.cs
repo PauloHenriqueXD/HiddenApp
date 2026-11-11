@@ -143,6 +143,77 @@ internal static class Native
         }
     }
 
+    // ---------- Auto clique: mouse, coordenadas e mensagens ----------
+    [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+
+    [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT pt);
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hWnd, ref POINT pt);
+    [DllImport("user32.dll")] public static extern bool ScreenToClient(IntPtr hWnd, ref POINT pt);
+    [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT pt);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr ChildWindowFromPointEx(IntPtr parent, POINT pt, uint flags);
+    [DllImport("user32.dll")] public static extern int MapWindowPoints(IntPtr from, IntPtr to, ref POINT pt, uint count);
+    [DllImport("user32.dll", SetLastError = true)] public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    public const uint GA_ROOT = 2;
+    public const uint CWP_SKIPINVISIBLE = 0x1, CWP_SKIPDISABLED = 0x2, CWP_SKIPTRANSPARENT = 0x4;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MOUSEINPUT { public int dx, dy; public uint mouseData, dwFlags, time; public IntPtr dwExtraInfo; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct INPUT { public uint type; public MOUSEINPUT mi; }
+
+    [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint count, INPUT[] inputs, int size);
+
+    public const uint INPUT_MOUSE = 0;
+    public const uint MOUSEEVENTF_LEFTDOWN = 0x02, MOUSEEVENTF_LEFTUP = 0x04,
+                      MOUSEEVENTF_RIGHTDOWN = 0x08, MOUSEEVENTF_RIGHTUP = 0x10,
+                      MOUSEEVENTF_MIDDLEDOWN = 0x20, MOUSEEVENTF_MIDDLEUP = 0x40;
+
+    /// <summary>Envia um evento de botão do mouse "de verdade" (na posição atual do cursor).</summary>
+    public static void SendMouseButton(uint flag)
+    {
+        var input = new[] { new INPUT { type = INPUT_MOUSE, mi = new MOUSEINPUT { dwFlags = flag } } };
+        SendInput(1, input, Marshal.SizeOf<INPUT>());
+    }
+
+    public const uint WM_MOUSEMOVE = 0x0200,
+                      WM_LBUTTONDOWN = 0x0201, WM_LBUTTONUP = 0x0202, WM_LBUTTONDBLCLK = 0x0203,
+                      WM_RBUTTONDOWN = 0x0204, WM_RBUTTONUP = 0x0205, WM_RBUTTONDBLCLK = 0x0206,
+                      WM_MBUTTONDOWN = 0x0207, WM_MBUTTONUP = 0x0208, WM_MBUTTONDBLCLK = 0x0209;
+    public const int MK_LBUTTON = 0x1, MK_RBUTTON = 0x2, MK_MBUTTON = 0x10;
+
+    public static IntPtr MakeLParam(int x, int y) => (IntPtr)(((y & 0xFFFF) << 16) | (x & 0xFFFF));
+
+    // ---------- DPI: usar o mesmo "sistema de coordenadas" da janela alvo ----------
+    [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+    [DllImport("user32.dll")] static extern IntPtr GetWindowDpiAwarenessContext(IntPtr hWnd);
+
+    /// <summary>
+    /// Enquanto existir, a thread atual usa a mesma escala de DPI da janela alvo, para que
+    /// posições de mouse e da janela fiquem nas mesmas coordenadas que ela entende.
+    /// </summary>
+    public readonly struct DpiScope : IDisposable
+    {
+        readonly IntPtr _old;
+        public DpiScope(IntPtr targetWindow)
+        {
+            IntPtr ctx = targetWindow != IntPtr.Zero ? GetWindowDpiAwarenessContext(targetWindow) : IntPtr.Zero;
+            _old = ctx != IntPtr.Zero ? SetThreadDpiAwarenessContext(ctx) : IntPtr.Zero;
+        }
+        public void Dispose() { if (_old != IntPtr.Zero) SetThreadDpiAwarenessContext(_old); }
+    }
+
+    // ---------- Teclas de atalho globais ----------
+    [DllImport("user32.dll", SetLastError = true)] public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint vk);
+    [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    public const int WM_HOTKEY = 0x0312;
+    public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_NOREPEAT = 0x4000;
+
     // ---------- Conexões TCP ----------
     [DllImport("iphlpapi.dll", SetLastError = true)]
     public static extern uint GetExtendedTcpTable(IntPtr table, ref int size, bool sort, int af, int tableClass, uint reserved);

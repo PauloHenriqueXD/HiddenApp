@@ -4,7 +4,7 @@
 
 <h1 align="center">HiddenApp</h1>
 
-<p align="center">Corte a internet de qualquer janela do Windows com um clique — e libere quando quiser.</p>
+<p align="center">Corte a internet de qualquer janela do Windows com um clique — e automatize cliques com macros.</p>
 
 ---
 
@@ -32,6 +32,27 @@ e4631919-5794-44d5-b5ed-5ebe8c9b5ac8
 
 Antes de confirmar, confira se o recebedor é **Paulo Henrique Ferrari Mantuaneli**. Se o nome for outro,
 você pode estar usando uma cópia falsa do programa: o HiddenApp oficial só é distribuído por este repositório.
+
+## Auto clique
+
+Na aba **Auto clique** você cria **macros** que clicam sozinhas numa janela:
+
+1. Clique em **Nova** e escolha a **janela alvo**.
+2. Adicione os **pontos**: clique em **+ Adicionar ponto** e depois na prévia da janela — ou posicione o mouse
+   na própria janela e aperte **F9**.
+3. Para cada ponto, escolha o botão, a ação (clique, duplo ou segurar), quantos cliques seguidos, o intervalo
+   e a espera antes do próximo ponto.
+4. Aperte **F7** para iniciar e **F8** para parar — em qualquer programa. As teclas podem ser trocadas.
+
+Os pontos rodam **em loop**, na ordem. Há dois modos:
+
+| Modo | Como funciona | Observação |
+|---|---|---|
+| **Segundo plano** | Envia o clique direto para a janela, sem mexer no mouse | Você continua usando o PC; nem todo programa aceita (muitos jogos ignoram) |
+| **Clique real** | Move o mouse e clica de verdade | Funciona em quase tudo; a janela precisa estar na frente (pausa sozinho se não estiver) |
+
+> ⚠️ Muitos **jogos online** proíbem macros e auto clique nos termos de uso, e sistemas anti-cheat podem
+> **banir a conta**. Confira as regras antes de usar em jogos.
 
 ## Como funciona
 
@@ -95,6 +116,7 @@ Acompanhe a publicação na aba **Actions** do repositório.
 | Regras de firewall | Firewall do Windows, regras que começam com `HiddenApp - ` |
 | Cópias bloqueáveis | `X:\HiddenAppClones\` (no mesmo disco do programa original) |
 | Favoritos | `%AppData%\HiddenApp\settings.json` |
+| Macros de auto clique | `%AppData%\HiddenApp\macros.json` |
 | Inicialização automática | Agendador de Tarefas, tarefa `HiddenApp` |
 
 ## Limitações

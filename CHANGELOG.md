@@ -9,6 +9,30 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [2.0.0] - 2026-11-11
+
+Segunda fase do projeto: **auto clique**.
+
+### Adicionado
+
+- **Abas no topo:** "Internet" (tudo o que já existia) e **"Auto clique"**.
+- **Macros de auto clique:** cada macro tem uma janela alvo e uma lista de **pontos** que rodam em loop, na ordem.
+  - Por ponto: botão (esquerdo, direito ou meio), ação (clique, clique duplo ou **apertar e segurar** por um tempo),
+    **quantos cliques seguidos no mesmo lugar**, intervalo entre eles e espera antes do próximo ponto.
+  - Repetir a sequência **sem parar** ou um **número de vezes**; variação aleatória opcional nos tempos.
+  - Macros salvas automaticamente, com criar, duplicar e excluir.
+- **Dois modos de clique:**
+  - **Segundo plano:** manda o clique direto para a janela, sem mexer no mouse (nem todo programa aceita).
+  - **Clique real:** move o mouse e clica de verdade; **pausa sozinho** se a janela alvo sair da frente,
+    para não clicar em outro programa.
+- **Marcar pontos** clicando na **prévia ao vivo** da janela alvo, ou posicionando o mouse na janela e apertando
+  a tecla de captura. As posições são relativas à janela: continuam certas se ela mudar de lugar ou de tamanho.
+- **Teclas de atalho globais** (funcionam em qualquer programa): **F7 inicia**, **F8 para**, **F9 captura o ponto**.
+  Podem ser trocadas em "Teclas de atalho", com combinações de Ctrl, Alt e Shift.
+- Botão **"Testar ponto"** para conferir se o clique acerta o lugar e se o modo funciona naquele programa.
+- Menu da bandeja: iniciar qualquer macro e **parar o auto clique**; a dica do ícone mostra a macro em execução.
+- Para automaticamente se a janela alvo for fechada; pausa enquanto ela estiver minimizada.
+
 ## [1.3.1] - 2026-11-11
 
 ### Alterado
@@ -104,7 +128,8 @@ Primeira versão.
 - Perfil de publicação **Portatil** e `publicar.bat`: gera um único `HiddenApp.exe` autocontido
   (não precisa instalar o .NET).
 
-[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.3.1...HEAD
+[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v2.0.0
 [1.3.1]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.3.1
 [1.3.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.3.0
 [1.2.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.2.0

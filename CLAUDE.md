@@ -5,8 +5,8 @@ Leia antes de mudar qualquer coisa. Detalhes de funcionamento estão em [ARQUITE
 
 ## O que é
 
-App **Windows Forms (.NET 9)** que corta a internet de programas escolhidos pelo usuário,
-usando regras do **Firewall do Windows**. Inclui prévia ao vivo da janela, "cópia bloqueável"
+App **Windows Forms (.NET 9)** com duas abas: **Internet** (corta a internet de programas escolhidos
+usando regras do **Firewall do Windows**) e **Auto clique** (macros que clicam em pontos de uma janela em loop). Inclui prévia ao vivo da janela, "cópia bloqueável"
 (segunda instância de um programa feita de hard links), ícone na bandeja, iniciar com o Windows
 e temas escuro/claro. Interface e textos em **português (Brasil)**.
 
@@ -30,6 +30,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | Arquivo | Responsabilidade |
 |---|---|
 | `Program.cs` | Entrada; instância única (Mutex + EventWaitHandle); argumentos `--tray` e `--updated` |
+| (abas) | `MainForm` tem a barra de abas (`TabButton`) e alterna entre `_body` (Internet) e `_autoClick` |
 | `MainForm.cs` | Janela principal: montagem da UI, listas owner-draw, bandeja, ações |
 | `CloneDialog.cs` | Diálogo "Abrir cópia bloqueável" (nova cópia ou existente, nome, argumentos) |
 | `FirewallManager.cs` | Cria/remove regras via `netsh`; guarda a lista de bloqueados |
@@ -40,6 +41,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` (tema, favoritos, betas, última versão perguntada) |
 | `UpdateManager.cs` | `SemVer`; consulta ao GitHub Releases, download, verificação SHA-256 e troca do .exe |
 | `UpdateDialog.cs` | Diálogo "Nova versão disponível" com novidades e progresso do download |
+| `AutoClickPage.cs` | Aba "Auto clique": lista de macros, configuração (alvo, modo, loop, pontos), prévia clicável |
+| `Macro.cs` | Modelos `Macro`/`MacroStep` (posições relativas 0–1) e `MacroStore` (`macros.json`) |
+| `ClickRunner.cs` | Executa macros numa thread: modo segundo plano (`PostMessage`) ou real (`SendInput`), loop, segurar, pausas de segurança; acha a janela alvo e captura a posição do mouse |
+| `HotkeyDialog.cs` | `HotkeyBox` (grava uma tecla) e diálogo para trocar as teclas de iniciar/parar/capturar |
 | `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder) |
 | `SupportDialog.cs` | Janela "Apoiar o projeto": QR, copia e cola, conferência do recebedor e site oficial |
 | `Theme.cs` | Paletas, tema atual, escala de DPI (`Theme.S`), barra de título escura, recursos embutidos |
@@ -114,6 +119,15 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   comprometido trocaria a chave). Usar só chave **aleatória** (não CPF/telefone/e-mail). Regras do BR Code:
   nome até 25 caracteres e cidade até 15, sem acentos; o QR é sempre preto no branco. Ao mudar a chave,
   confira o código num app de banco antes de publicar.
+- **Auto clique — coordenadas:** pontos são guardados **relativos** à área interna da janela (0–1).
+  A thread do clique usa `Native.DpiScope(janela)` para trabalhar na mesma escala de DPI da janela alvo;
+  sem isso, cliques erram de lugar em telas com zoom ou em programas sem suporte a DPI.
+- **Auto clique — modos:** "segundo plano" usa `PostMessage` no controle filho embaixo do ponto
+  (`ChildWindowFromPointEx`); muitos jogos (DirectX/raw input) ignoram. "Real" usa `SetCursorPos` + `SendInput`
+  e **só clica com a janela alvo em primeiro plano** (senão pausa) — não remova essa proteção.
+  Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.
+- **Teclas de atalho globais** usam `RegisterHotKey` no handle do `MainForm` (ids 1–3, tratadas no `WndProc`).
+  Se outra aplicação já usa a tecla, o registro falha e o usuário é avisado.
 - **Visual Studio com arquivos abertos** pode salvar a versão antiga por cima de edições feitas fora
   dele. Ao editar arquivos externamente, recarregue no VS ("Sim para Todos").
 
@@ -126,6 +140,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | Regras de firewall | Nome `HiddenApp - <caminho do exe>`, uma de entrada e uma de saída |
 | Cópias | `X:\HiddenAppClones\<Programa>_<hash8>[_N]\` (+ `_HiddenApp.json` com nome e argumentos) |
 | Favoritos | `%AppData%\HiddenApp\settings.json` (`Favorites`) |
+| Macros | `%AppData%\HiddenApp\macros.json` |
+| Teclas de atalho, aba e última macro | `%AppData%\HiddenApp\settings.json` (`HotkeyStart/Stop/Capture`, `LastTab`, `LastMacroId`) |
 | Inicialização | Tarefa agendada `HiddenApp` (argumento `--tray`) |
 
 ## Checklist de teste manual
@@ -149,6 +165,9 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 12. Passar o mouse nos botões → balão de ajuda com as cores do tema.
 13. "❤ Apoiar" → QR legível pelo app do banco nos dois temas; "Copiar código Pix" funciona; o banco mostra
     o recebedor "Paulo Henrique Ferrari Mantuaneli".
+14. Auto clique: criar macro, escolher janela, adicionar pontos pela prévia e com F9; "Testar ponto"; iniciar com F7
+    com outra janela em foco e parar com F8; modo real pausa ao trocar de janela; trocar as teclas e conferir que
+    as novas funcionam; macros continuam salvas após reabrir o app.
 
 ## Versão, changelog e lançamento
 

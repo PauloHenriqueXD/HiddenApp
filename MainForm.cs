@@ -58,6 +58,13 @@ public class MainForm : Form
     readonly ContextMenuStrip _updatesMenu = new();
     readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 }; // a cada 6 horas
 
+    // ---------- Abas e auto clique ----------
+    readonly Panel _tabBar = new() { Dock = DockStyle.Top, Height = Theme.S(44) };
+    readonly TabButton _tabInternet = new("Internet");
+    readonly TabButton _tabClicker = new("Auto clique");
+    AutoClickPage _autoClick = null!;
+    const int HotkeyIdStart = 1, HotkeyIdStop = 2, HotkeyIdCapture = 3;
+
     readonly NotifyIcon _tray = new();
     readonly ContextMenuStrip _trayMenu = new();
 
@@ -72,6 +79,7 @@ public class MainForm : Form
     public MainForm(bool startInTray = false, bool justUpdated = false)
     {
         _allowShow = !startInTray;
+        _autoClick = new AutoClickPage(_settings, _tips) { Visible = false };
         _justUpdated = justUpdated;
 
         Text = "HiddenApp";
@@ -109,8 +117,11 @@ public class MainForm : Form
         _statusBar.Controls.Add(_statusCount);
         _statusBar.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, 0, _statusBar.Width, 0); };
 
+        BuildTabs();
         Controls.Add(_body);
+        Controls.Add(_autoClick);
         Controls.Add(_statusBar);
+        Controls.Add(_tabBar);
         Controls.Add(_header);
 
         // ---------- Inicialização ----------
@@ -126,7 +137,9 @@ public class MainForm : Form
         RefreshAll();
         SetStatus("Selecione uma janela e clique em \"Bloquear internet\". Passe o mouse nos botões para ver o que cada um faz.");
 
-        Activated += (_, _) => { if (!_refreshing) RefreshAll(); };
+        Activated += (_, _) => { if (!_refreshing && _body.Visible) RefreshAll(); };
+        SelectTab(_settings.LastTab);
+        RegisterHotkeys(showErrors: false);
 
         // ---------- Atualizações ----------
         UpdateManager.CleanupOldVersion();
@@ -398,6 +411,8 @@ public class MainForm : Form
         ForeColor = p.Text;
 
         _header.BackColor = p.Surface;
+        _tabBar.BackColor = p.Surface;
+        _autoClick.ApplyTheme();
         _appTitle.ForeColor = p.Text;
         _appSubtitle.ForeColor = p.Muted;
         _versionLabel.ForeColor = p.Muted;
@@ -437,6 +452,110 @@ public class MainForm : Form
         Theme.ApplyTitleBar(this);
     }
 
+    // =====================================================================
+    //  Abas
+    // =====================================================================
+    void BuildTabs()
+    {
+        var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(Theme.S(14), Theme.S(2), 0, 0) };
+        flow.Controls.Add(_tabInternet);
+        flow.Controls.Add(_tabClicker);
+        _tabBar.Controls.Add(flow);
+        _tabBar.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, _tabBar.Height - 1, _tabBar.Width, _tabBar.Height - 1); };
+        _tabBar.Padding = new Padding(0, 0, 0, 1);
+        _tabInternet.Click += (_, _) => SelectTab(0);
+        _tabClicker.Click += (_, _) => SelectTab(1);
+        _tips.Set(_tabInternet, "Internet", "Bloquear e liberar a internet de programas, cópias bloqueáveis e favoritos.");
+        _tips.Set(_tabClicker, "Auto clique",
+            "Macros que clicam sozinhas em pontos de uma janela, em loop. Iniciar, parar e capturar ponto têm teclas de atalho.");
+
+        _autoClick.StatusMessage += SetStatus;
+        _autoClick.Notify += (title, text) => ShowBalloon(title, text);
+        _autoClick.RunningChanged += UpdateTrayText;
+        _autoClick.HotkeysRequested += EditHotkeys;
+    }
+
+    void SelectTab(int index)
+    {
+        index = index == 1 ? 1 : 0;
+        _tabInternet.Selected = index == 0;
+        _tabClicker.Selected = index == 1;
+        _body.Visible = index == 0;
+        _autoClick.Visible = index == 1;
+        if (_settings.LastTab != index) { _settings.LastTab = index; _settings.Save(); }
+        if (index == 0) { RefreshAll(); }
+        SetStatus(index == 0
+            ? "Selecione uma janela e clique em \"Bloquear internet\". Passe o mouse nos botões para ver o que cada um faz."
+            : $"Auto clique: crie uma macro, escolha a janela alvo e adicione os pontos. {HotkeyBox.Describe((Keys)_settings.HotkeyStart)} inicia, {HotkeyBox.Describe((Keys)_settings.HotkeyStop)} para.");
+    }
+
+    // =====================================================================
+    //  Teclas de atalho globais (funcionam em qualquer programa)
+    // =====================================================================
+    bool RegisterOne(int id, Keys keys)
+    {
+        Native.UnregisterHotKey(Handle, id);
+        uint mods = Native.MOD_NOREPEAT;
+        if (keys.HasFlag(Keys.Control)) mods |= Native.MOD_CONTROL;
+        if (keys.HasFlag(Keys.Alt)) mods |= Native.MOD_ALT;
+        if (keys.HasFlag(Keys.Shift)) mods |= Native.MOD_SHIFT;
+        return Native.RegisterHotKey(Handle, id, mods, (uint)(keys & Keys.KeyCode));
+    }
+
+    void RegisterHotkeys(bool showErrors)
+    {
+        var failed = new List<string>();
+        var start = (Keys)_settings.HotkeyStart;
+        var stop = (Keys)_settings.HotkeyStop;
+        var capture = (Keys)_settings.HotkeyCapture;
+        if (!RegisterOne(HotkeyIdStart, start)) failed.Add($"{HotkeyBox.Describe(start)} (iniciar)");
+        if (!RegisterOne(HotkeyIdStop, stop)) failed.Add($"{HotkeyBox.Describe(stop)} (parar)");
+        if (!RegisterOne(HotkeyIdCapture, capture)) failed.Add($"{HotkeyBox.Describe(capture)} (capturar ponto)");
+        _autoClick.SetHotkeyLabels(HotkeyBox.Describe(start), HotkeyBox.Describe(stop), HotkeyBox.Describe(capture));
+
+        if (failed.Count == 0) return;
+        string msg = "Estas teclas já estão sendo usadas por outro programa e não funcionarão como atalho: " +
+                     string.Join(", ", failed) + ". Troque em Auto clique → Teclas de atalho.";
+        if (showErrors) MessageBox.Show(msg, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        else SetStatus(msg);
+    }
+
+    void UnregisterHotkeys()
+    {
+        if (!IsHandleCreated) return;
+        Native.UnregisterHotKey(Handle, HotkeyIdStart);
+        Native.UnregisterHotKey(Handle, HotkeyIdStop);
+        Native.UnregisterHotKey(Handle, HotkeyIdCapture);
+    }
+
+    void EditHotkeys()
+    {
+        using var dlg = new HotkeyDialog((Keys)_settings.HotkeyStart, (Keys)_settings.HotkeyStop, (Keys)_settings.HotkeyCapture);
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        _settings.HotkeyStart = (int)dlg.StartKey;
+        _settings.HotkeyStop = (int)dlg.StopKey;
+        _settings.HotkeyCapture = (int)dlg.CaptureKey;
+        _settings.Save();
+        RegisterHotkeys(showErrors: true);
+        SetStatus($"Teclas de atalho: iniciar {HotkeyBox.Describe(dlg.StartKey)}, parar {HotkeyBox.Describe(dlg.StopKey)}, " +
+                  $"capturar ponto {HotkeyBox.Describe(dlg.CaptureKey)}.");
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == Native.WM_HOTKEY && _autoClick != null)
+        {
+            switch ((int)m.WParam)
+            {
+                case HotkeyIdStart: _autoClick.StartSelected(); break;
+                case HotkeyIdStop: _autoClick.StopRunning(); break;
+                case HotkeyIdCapture: _autoClick.CaptureFromCursor(); break;
+            }
+            return;
+        }
+        base.WndProc(ref m);
+    }
+
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
@@ -462,6 +581,22 @@ public class MainForm : Form
     {
         _trayMenu.Items.Clear();
         _trayMenu.Items.Add(new ToolStripMenuItem("Abrir HiddenApp", null, (_, _) => ShowFromTray()) { Font = BoldFont });
+        if (_autoClick.IsRunning)
+            _trayMenu.Items.Add(new ToolStripMenuItem($"■ Parar auto clique ({HotkeyBox.Describe((Keys)_settings.HotkeyStop)})", null,
+                (_, _) => _autoClick.StopRunning()) { Font = BoldFont, ForeColor = Theme.Current.Danger });
+        else if (_autoClick.Macros.Count > 0)
+        {
+            var clickMenu = new ToolStripMenuItem("Auto clique");
+            foreach (var macro in _autoClick.Macros)
+            {
+                var mm = macro;
+                clickMenu.DropDownItems.Add(new ToolStripMenuItem($"▶ {mm.Name}", null, (_, _) => _autoClick.StartMacro(mm))
+                { ToolTipText = $"{mm.TargetName} · {mm.Steps.Count} ponto(s)" });
+            }
+            clickMenu.DropDownItems.Add(new ToolStripSeparator());
+            clickMenu.DropDownItems.Add(new ToolStripMenuItem("Abrir a aba Auto clique", null, (_, _) => { ShowFromTray(); SelectTab(1); }));
+            _trayMenu.Items.Add(clickMenu);
+        }
         if (_update != null)
             _trayMenu.Items.Add(new ToolStripMenuItem($"Atualizar para a versão {_update.Version}", null, (_, _) => ShowUpdateDialog())
             { Font = BoldFont, ForeColor = Theme.Current.Accent });
@@ -559,6 +694,8 @@ public class MainForm : Form
 
     void ExitApp()
     {
+        _autoClick.StopRunning();
+        UnregisterHotkeys();
         _exiting = true;
         _tray.Visible = false;
         Close();
@@ -589,6 +726,7 @@ public class MainForm : Form
     {
         int n = FirewallManager.Blocked.Count;
         string tip = n == 0 ? "HiddenApp" : $"HiddenApp - {n} bloqueado(s)";
+        if (_autoClick?.IsRunning == true) tip = $"HiddenApp - auto clique: {_autoClick.RunningName}";
         if (_update != null) tip += $" - nova versão {_update.Version}";
         _tray.Text = tip.Length > 63 ? tip[..63] : tip;
     }

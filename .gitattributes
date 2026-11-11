@@ -8,3 +8,4 @@
 *.bat text eol=crlf
 *.pubxml text eol=crlf
 *.md text eol=crlf
+*.yml text eol=lf

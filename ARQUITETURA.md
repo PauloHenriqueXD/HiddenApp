@@ -31,7 +31,8 @@ flowchart LR
         NET[Tabela TCP<br/>iphlpapi]
     end
 
-    MF --> WE & FM & CM & SM & AS
+    MF --> WE & FM & CM & SM & AS & UM[UpdateManager]
+    UM --> GHR[(GitHub Releases<br/>api.github.com)]
     MF --> WP --> DWM
     CD --> CM
     FM --> FW
@@ -235,7 +236,89 @@ tarefa para garantir que aponta para o `.exe` atual.
 - **Recursos:** `HiddenApp.ico` e `logo.png` são embutidos no executável (`EmbeddedResource` com
   `LogicalName`) e o `.ico` também é o ícone do `.exe` (`ApplicationIcon`).
 
-## 8. Publicação
+## 8. Atualização automática — `UpdateManager` + `UpdateDialog`
+
+### Versionamento
+
+Versões seguem **SemVer** (`1.2.3`, betas com sufixo: `1.2.3-beta.1`). A versão do app em execução
+vem do `AssemblyInformationalVersion` (o `<Version>` do projeto). A comparação segue as regras do
+SemVer: `1.1.0-beta.2 < 1.1.0-beta.11 < 1.1.0-rc.1 < 1.1.0`.
+
+### Publicação (GitHub Actions)
+
+```mermaid
+flowchart LR
+    T["git push origin v1.2.0"] --> A[GitHub Actions<br/>windows-latest]
+    A --> P["dotnet publish<br/>-p:Version=1.2.0"]
+    P --> H[SHA-256 do .exe]
+    A --> C[Novidades da seção<br/>1.2.0 do CHANGELOG]
+    H & C --> R["Release v1.2.0<br/>HiddenApp.exe<br/>HiddenApp.exe.sha256"]
+```
+
+Tags com sufixo (`v1.2.0-beta.1`) viram **pré-lançamento** (beta).
+
+### Verificação
+
+- Ao abrir (8 s depois, para não atrasar) e a cada **6 horas**.
+- Só versões estáveis: `GET /repos/{dono}/{repo}/releases/latest` (o GitHub já ignora betas e rascunhos;
+  `404` = nenhuma versão publicada).
+- Com "Receber versões beta": `GET /releases?per_page=30` e escolhe a maior versão.
+- Só considera releases que têm o asset `HiddenApp.exe`. Sem login: limite de 60 consultas/hora por rede.
+- Falhas (sem internet, GitHub fora do ar) são silenciosas na verificação automática.
+
+### Quando perguntar
+
+```mermaid
+flowchart TD
+    C[Verificação encontrou versão nova] --> I[Indicadores permanentes:<br/>botão 'Nova versão' no topo,<br/>item na bandeja, dica do ícone]
+    I --> M{Verificação manual?}
+    M -- sim --> D[Abre o diálogo]
+    M -- não --> J{Já perguntou desta versão<br/>nas últimas 24h?}
+    J -- sim --> F[Fica só nos indicadores]
+    J -- não --> V{Janela visível?}
+    V -- sim --> D
+    V -- não --> B[Notificação da bandeja<br/>clique abre o diálogo]
+    D --> U{Usuário}
+    U -- Depois --> F
+    U -- Atualizar agora --> X[Instalação]
+```
+
+### Instalação
+
+```mermaid
+sequenceDiagram
+    participant Old as HiddenApp (versão atual)
+    participant GH as GitHub Releases
+    participant New as HiddenApp (versão nova)
+
+    Old->>GH: baixa HiddenApp.exe.sha256
+    Old->>GH: baixa HiddenApp.exe (para %TEMP%)
+    Old->>Old: SHA-256 confere? (se não, cancela sem mexer em nada)
+    Old->>Old: renomeia HiddenApp.exe → HiddenApp.exe.old
+    Old->>Old: copia o novo para HiddenApp.exe (se falhar, desfaz)
+    Old->>New: inicia "HiddenApp.exe --updated"
+    Old->>Old: encerra (libera o Mutex)
+    New->>New: espera o Mutex (até 20 s)
+    New->>New: apaga HiddenApp.exe.old, mostra "atualizado"
+```
+
+- O Windows não permite **sobrescrever** um `.exe` em execução, mas permite **renomeá-lo**.
+- O caminho do executável não muda: regras de firewall, tarefa de "Iniciar com o Windows" e
+  configurações continuam válidas.
+- O app roda como administrador, então a versão nova também abre elevada (sem novo prompt).
+- O arquivo é baixado pelo próprio app (sem a "marca da web"), por isso o SmartScreen normalmente
+  não reaparece a cada atualização.
+- Rodando pelo Visual Studio (`HiddenApp.dll` ao lado do `.exe`), a troca é desativada e o diálogo
+  oferece só abrir a página da versão.
+
+### Segurança
+
+A integridade vem de: download só por **HTTPS**, só do repositório configurado em `UpdateManager`,
+e **SHA-256** gerado pelo próprio workflow. Quem controla a conta do GitHub controla as atualizações,
+por isso a conta deve ter **autenticação em dois fatores**. Assinar o executável com certificado de
+código seria a próxima camada de proteção.
+
+## 9. Publicação
 
 O perfil `Properties/PublishProfiles/Portatil.pubxml` gera um **único `HiddenApp.exe`** para
 `win-x64`, **autocontido** (inclui o runtime do .NET), com compressão e sem arquivos de debug.
@@ -255,3 +338,4 @@ O ícone e o manifesto de administrador ficam embutidos no `.exe` final.
 | Conexões TCP | `GetExtendedTcpTable`, `SetTcpEntry` | iphlpapi |
 | Firewall | `netsh advfirewall firewall` | (processo externo) |
 | Inicialização | `schtasks /Create /XML` | (processo externo) |
+| Atualizações | GitHub REST API (`/releases`, `/releases/latest`) | `HttpClient` |

@@ -260,3 +260,43 @@ public class ThemedMenuRenderer : ToolStripProfessionalRenderer
         public override Color CheckPressedBackground => P.Accent;
     }
 }
+
+/// <summary>Barra de progresso fina e arredondada que segue o tema.</summary>
+public class ThinProgress : Control
+{
+    int _value;
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int Value
+    {
+        get => _value;
+        set { _value = Math.Clamp(value, 0, 100); Invalidate(); }
+    }
+
+    public ThinProgress()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        Height = Theme.S(8);
+        Margin = new Padding(0);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var p = Theme.Current;
+        var g = e.Graphics;
+        g.Clear(Parent?.BackColor ?? p.Surface);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        float r = Height / 2f;
+        using (var track = Gfx.RoundRect(new RectangleF(0, 0, Width - 1, Height - 1), r))
+        using (var b = new SolidBrush(p.Surface2))
+            g.FillPath(b, track);
+        float w = (Width - 1) * _value / 100f;
+        if (w >= Height)
+        {
+            using var fill = Gfx.RoundRect(new RectangleF(0, 0, w, Height - 1), r);
+            using var b = new SolidBrush(p.Accent);
+            g.FillPath(b, fill);
+        }
+    }
+}

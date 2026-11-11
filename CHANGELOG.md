@@ -9,6 +9,24 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [1.1.0] - 2026-11-10
+
+### Adicionado
+
+- **Atualização automática pelo GitHub Releases.** O HiddenApp verifica se há versão nova ao abrir
+  e a cada 6 horas, mostra as novidades e **sempre pergunta** antes de atualizar.
+  - Se o usuário escolher "Depois", a versão nova continua indicada no topo da janela,
+    no menu e na dica do ícone da bandeja.
+  - Com a janela escondida, o aviso aparece como notificação da bandeja.
+  - O arquivo baixado é conferido por **SHA-256** antes de substituir o executável.
+  - O app reinicia sozinho na versão nova; bloqueios, configurações e "Iniciar com o Windows" são mantidos.
+- **Versões beta (pré-lançamento):** opção "Receber versões beta" no menu "Atualizações".
+- Menu **"Atualizações"** no cabeçalho: verificar agora, versões beta, versão atual e link para todas as versões.
+- Item **"Verificar atualizações"** no menu da bandeja.
+- Número da versão exibido ao lado do nome do app.
+- **Publicação automática:** ao enviar uma tag `vX.Y.Z` (ou `vX.Y.Z-beta.N`), o GitHub Actions compila,
+  gera o executável e o `.sha256` e cria a Release com as novidades do CHANGELOG.
+
 ## [1.0.0] - 2026-11-10
 
 Primeira versão.
@@ -39,5 +57,6 @@ Primeira versão.
 - Perfil de publicação **Portatil** e `publicar.bat`: gera um único `HiddenApp.exe` autocontido
   (não precisa instalar o .NET).
 
-[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.0.0...HEAD
+[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.1.0
 [1.0.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.0.0

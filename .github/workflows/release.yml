@@ -1,0 +1,86 @@
+# Publica uma versão nova do HiddenApp no GitHub Releases.
+#
+# Como usar:  git tag v1.2.0        &&  git push origin v1.2.0       -> versão estável
+#             git tag v1.2.0-beta.1 &&  git push origin v1.2.0-beta.1 -> versão beta (pré-lançamento)
+#
+# O GitHub compila no Windows, gera o HiddenApp.exe (arquivo único, com .NET incluso),
+# calcula o SHA-256 e cria a Release com as novidades tiradas do CHANGELOG.md.
+# O HiddenApp instalado nos PCs encontra a versão nova e pergunta se o usuário quer atualizar.
+
+name: Publicar versão
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Ler a versão da tag
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $ver = $tag.TrimStart('v')
+          if ($ver -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            Write-Error "A tag '$tag' não está no formato v1.2.3 ou v1.2.3-beta.1"
+            exit 1
+          }
+          $pre = if ($ver.Contains('-')) { 'true' } else { 'false' }
+          "version=$ver"    >> $env:GITHUB_OUTPUT
+          "prerelease=$pre" >> $env:GITHUB_OUTPUT
+          Write-Host "Versão: $ver  (beta: $pre)"
+
+      - name: Gerar o executável
+        run: dotnet publish HiddenApp.csproj -p:PublishProfile=Portatil -p:Version=${{ steps.ver.outputs.version }}
+
+      - name: Calcular SHA-256
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash publish/HiddenApp.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  HiddenApp.exe" | Out-File -FilePath publish/HiddenApp.exe.sha256 -Encoding ascii -NoNewline
+          Write-Host "SHA-256: $hash"
+
+      - name: Montar as novidades (CHANGELOG.md)
+        shell: pwsh
+        run: |
+          $ver = '${{ steps.ver.outputs.version }}'
+          $header = '^## \[' + [regex]::Escape($ver) + '\]'
+          $out = @(); $inside = $false
+          foreach ($line in Get-Content CHANGELOG.md -Encoding utf8) {
+            if ($line -match '^## \[') {
+              if ($inside) { break }
+              if ($line -match $header) { $inside = $true }
+              continue
+            }
+            if ($inside -and $line -notmatch '^\[[^\]]+\]: ') { $out += $line }
+          }
+          $text = ($out -join "`n").Trim()
+          if (-not $text) { $text = "Versão $ver." }
+          $text | Out-File -FilePath notes.md -Encoding utf8
+
+      - name: Criar a Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ghArgs = @(
+            'release', 'create', '${{ github.ref_name }}',
+            'publish/HiddenApp.exe', 'publish/HiddenApp.exe.sha256',
+            '--title', 'HiddenApp ${{ steps.ver.outputs.version }}',
+            '--notes-file', 'notes.md'
+          )
+          if ('${{ steps.ver.outputs.prerelease }}' -eq 'true') { $ghArgs += '--prerelease' }
+          gh @ghArgs

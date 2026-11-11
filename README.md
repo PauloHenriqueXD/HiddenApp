@@ -17,6 +17,7 @@
 - **Bandeja do sistema:** fica rodando perto do relógio; o menu do ícone permite liberar programas, trocar o tema e sair.
 - **Iniciar com o Windows** (abre direto na bandeja, sem prompt do UAC).
 - **Tema escuro** (padrão) e **tema claro**.
+- **Atualização automática:** avisa quando há versão nova no GitHub e atualiza com um clique (sempre pergunta antes). Opção de receber versões beta.
 
 ## Como funciona
 
@@ -53,6 +54,24 @@ dotnet publish -p:PublishProfile=Portatil
 ```
 
 > Ative **"Iniciar com o Windows"** pelo executável final (da pasta `publish`), pois a tarefa de inicialização aponta para o `.exe` que está rodando.
+
+## Lançar uma versão nova
+
+A publicação é automática pelo GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)):
+
+1. Atualize o `<Version>` no `HiddenApp.csproj` e escreva as novidades no `CHANGELOG.md`
+   numa seção `## [1.2.0] - AAAA-MM-DD`.
+2. Faça commit e envie para o GitHub.
+3. Crie e envie a tag:
+   ```bash
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+   Para uma **beta**, use uma tag com sufixo: `v1.2.0-beta.1`.
+4. Em alguns minutos a Release aparece em **Releases**, com o `HiddenApp.exe` e o `HiddenApp.exe.sha256`.
+   Os HiddenApp instalados encontram a versão nova sozinhos (estável para todos; beta só para quem ativou "Receber versões beta").
+
+Acompanhe a publicação na aba **Actions** do repositório.
 
 ## Onde ficam os dados
 

@@ -29,7 +29,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `Program.cs` | Entrada; instância única (Mutex + EventWaitHandle); argumento `--tray` |
+| `Program.cs` | Entrada; instância única (Mutex + EventWaitHandle); argumentos `--tray` e `--updated` |
 | `MainForm.cs` | Janela principal: montagem da UI, listas owner-draw, bandeja, ações |
 | `CloneDialog.cs` | Diálogo "Abrir cópia bloqueável" |
 | `FirewallManager.cs` | Cria/remove regras via `netsh`; guarda a lista de bloqueados |
@@ -37,12 +37,15 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `WindowEnumerator.cs` | Lista janelas (estilo Alt+Tab), resolve processo/caminho, PIDs por .exe |
 | `WindowPreview.cs` | Miniatura ao vivo via DWM Thumbnails |
 | `StartupManager.cs` | "Iniciar com o Windows" via Tarefa Agendada (`schtasks /XML`) |
-| `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` |
+| `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` (tema, betas, última versão perguntada) |
+| `UpdateManager.cs` | `SemVer`; consulta ao GitHub Releases, download, verificação SHA-256 e troca do .exe |
+| `UpdateDialog.cs` | Diálogo "Nova versão disponível" com novidades e progresso do download |
 | `Theme.cs` | Paletas, tema atual, escala de DPI (`Theme.S`), barra de título escura, recursos embutidos |
 | `ThemedControls.cs` | Controles próprios: `RoundButton`, `Card`, `ToggleSwitch`, `ThemedListView`, renderer do menu |
 | `Native.cs` | Todo o P/Invoke (user32, kernel32, dwmapi, iphlpapi, advapi32) |
 | `Assets/` | `HiddenApp.ico` (ícone do exe/bandeja) e `logo.png` (cabeçalho), embutidos como recurso |
 | `Properties/PublishProfiles/Portatil.pubxml` | Publicação single-file self-contained win-x64 |
+| `.github/workflows/release.yml` | Ao enviar tag `v*`: compila no Windows, gera `.exe` + `.sha256` e cria a Release |
 
 ## Regras e convenções
 
@@ -83,6 +86,16 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   converte o retângulo e atualiza num timer.
 - **Derrubar conexões abertas** (`KillTcpConnections`) só funciona para TCP IPv4. Conexões IPv6/UDP
   já abertas podem durar até o programa reconectar; as novas são bloqueadas pela regra.
+- **Atualização troca o próprio .exe:** o executável em uso é *renomeado* para `.old` (o Windows não
+  deixa sobrescrever) e o novo é copiado no mesmo caminho. A versão nova é aberta com `--updated` e
+  **espera o Mutex** da antiga (até 20 s) em vez de sair como "segunda instância". O `.old` é apagado
+  depois. O caminho não muda, então a tarefa de inicialização e as regras de firewall continuam válidas.
+- **Só o executável publicado se atualiza** (`UpdateManager.CanSelfUpdate`): rodando pelo Visual Studio
+  existe um `HiddenApp.dll` ao lado do `.exe`, e o app só oferece abrir a página do GitHub.
+- **Uma Release sem `HiddenApp.exe.sha256` não é instalada** automaticamente (por segurança).
+- **A versão do app vem do `AssemblyInformationalVersion`** (o `<Version>` do csproj, ou o
+  `-p:Version` passado pelo workflow a partir da tag). Sufixo `-algo` = beta.
+- **Links abertos pelo app** usam `UpdateManager.OpenUrl` (navegador sem privilégio de administrador).
 - **Visual Studio com arquivos abertos** pode salvar a versão antiga por cima de edições feitas fora
   dele. Ao editar arquivos externamente, recarregue no VS ("Sim para Todos").
 
@@ -108,8 +121,16 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 7. Ativar "Iniciar com o Windows" → reiniciar/fazer logon → app abre só na bandeja, sem UAC.
 8. Abrir o app de novo com ele na bandeja → a janela existente aparece (sem segunda instância).
 9. Testar em zoom de tela 125%/150%.
+10. Atualização: com um `.exe` publicado de versão menor, "Atualizações → Verificar agora" mostra a
+    versão nova; "Depois" mantém o botão "Nova versão" no topo e o item na bandeja; "Atualizar agora"
+    baixa, reinicia na versão nova e mantém bloqueios/configurações.
 
-## Versão e changelog
+## Versão, changelog e lançamento
 
-A versão fica em `<Version>` no `HiddenApp.csproj`. Ao lançar mudanças, atualize o
-[CHANGELOG.md](CHANGELOG.md) e a versão juntos.
+- Versionamento **SemVer**: `MAIOR.MENOR.CORREÇÃO`, betas com sufixo (`1.2.0-beta.1`).
+- A versão fica em `<Version>` no `HiddenApp.csproj`. Ao lançar, atualize **juntos** a versão e o
+  [CHANGELOG.md](CHANGELOG.md) (seção `## [X.Y.Z] - AAAA-MM-DD` — o workflow usa ela como texto da Release).
+- Para publicar: commit → `git tag vX.Y.Z` → `git push origin vX.Y.Z`. O workflow faz o resto.
+  Nunca anexe executáveis à mão sem o `.sha256` correspondente.
+- Teste de atualização: publique uma beta (`vX.Y.Z-beta.1`), ative "Receber versões beta" num
+  executável publicado de versão menor e confira o fluxo completo.

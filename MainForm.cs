@@ -13,6 +13,7 @@ public class MainForm : Form
     readonly Panel _header = new() { Dock = DockStyle.Top, Height = Theme.S(72) };
     readonly Label _appTitle = new() { Text = "HiddenApp", AutoSize = true, Font = new Font("Segoe UI Semibold", 15f) };
     readonly Label _appSubtitle = new() { Text = "Corte a internet de qualquer janela com um clique", AutoSize = true };
+    readonly Label _versionLabel = new() { AutoSize = true, Font = new Font("Segoe UI", 9f) };
     readonly ToggleSwitch _darkToggle = new("Tema escuro");
     readonly ToggleSwitch _startupToggle = new("Iniciar com o Windows");
 
@@ -37,6 +38,15 @@ public class MainForm : Form
     readonly System.Windows.Forms.Timer _pickTimer = new() { Interval = 1000 };
     int _countdown;
 
+    // ---------- Atualizações ----------
+    readonly bool _justUpdated;
+    UpdateInfo? _update;                 // versão nova disponível (null = está atualizado)
+    bool _checkingUpdates, _updateDialogOpen, _balloonIsUpdate;
+    readonly RoundButton _btnUpdate = new("Atualizar", ButtonKind.Primary) { Visible = false };
+    readonly RoundButton _btnUpdatesMenu = new("Atualizações ▾");
+    readonly ContextMenuStrip _updatesMenu = new();
+    readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 }; // a cada 6 horas
+
     readonly NotifyIcon _tray = new();
     readonly ContextMenuStrip _trayMenu = new();
 
@@ -48,14 +58,15 @@ public class MainForm : Form
 
     record RowData(WindowInfo Window, string Status, bool IsClone);
 
-    public MainForm(bool startInTray = false)
+    public MainForm(bool startInTray = false, bool justUpdated = false)
     {
         _allowShow = !startInTray;
+        _justUpdated = justUpdated;
 
         Text = "HiddenApp";
         Icon = Theme.AppIcon;
         Width = Theme.S(1280); Height = Theme.S(760);
-        MinimumSize = new Size(Theme.S(980), Theme.S(600));
+        MinimumSize = new Size(Theme.S(1120), Theme.S(600));
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9.5f);
         ToolStripManager.Renderer = new ThemedMenuRenderer();
@@ -97,6 +108,12 @@ public class MainForm : Form
         SetStatus("Selecione uma janela e clique em \"Cortar internet\".");
 
         Activated += (_, _) => { if (!_refreshing) RefreshAll(); };
+
+        // ---------- Atualizações ----------
+        UpdateManager.CleanupOldVersion();
+        _updateTimer.Tick += async (_, _) => await CheckForUpdatesAsync(manual: false);
+        _updateTimer.Start();
+        _ = StartupUpdateCheckAsync();
     }
 
     // =====================================================================
@@ -111,8 +128,21 @@ public class MainForm : Form
         int titleH = _appTitle.PreferredHeight, subH = _appSubtitle.PreferredHeight;
         _appTitle.Location = new Point(textX, (_header.Height - titleH - subH) / 2);
         _appSubtitle.Location = new Point(textX + Theme.S(2), _appTitle.Top + titleH);
+        _versionLabel.Text = "v" + UpdateManager.CurrentVersion;
+        _versionLabel.Location = new Point(_appTitle.Left + _appTitle.PreferredWidth + Theme.S(4),
+                                           _appTitle.Top + titleH - _versionLabel.PreferredHeight - Theme.S(4));
 
         var right = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, (_header.Height - Theme.S(30)) / 2, Theme.S(18), 0) };
+        _btnUpdate.Margin = new Padding(0, -Theme.S(2), Theme.S(8), 0);
+        _btnUpdatesMenu.Margin = new Padding(0, -Theme.S(2), Theme.S(4), 0);
+        _btnUpdate.Click += (_, _) => ShowUpdateDialog();
+        _btnUpdatesMenu.Click += (_, _) =>
+        {
+            BuildUpdatesMenu();
+            _updatesMenu.Show(_btnUpdatesMenu, new Point(0, _btnUpdatesMenu.Height));
+        };
+        right.Controls.Add(_btnUpdate);
+        right.Controls.Add(_btnUpdatesMenu);
         right.Controls.Add(_startupToggle);
         right.Controls.Add(_darkToggle);
 
@@ -127,6 +157,7 @@ public class MainForm : Form
         _header.Controls.Add(logo);
         _header.Controls.Add(_appTitle);
         _header.Controls.Add(_appSubtitle);
+        _header.Controls.Add(_versionLabel);
         _header.Controls.Add(right);
         _header.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, _header.Height - 1, _header.Width, _header.Height - 1); };
     }
@@ -210,6 +241,7 @@ public class MainForm : Form
         _header.BackColor = p.Surface;
         _appTitle.ForeColor = p.Text;
         _appSubtitle.ForeColor = p.Muted;
+        _versionLabel.ForeColor = p.Muted;
 
         _statusBar.BackColor = p.Surface;
         _status.ForeColor = p.Muted;
@@ -259,12 +291,16 @@ public class MainForm : Form
         _tray.Visible = true;
         _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ShowFromTray(); };
         _trayMenu.Opening += (_, _) => BuildTrayMenu();
+        _tray.BalloonTipClicked += (_, _) => { if (_balloonIsUpdate && _update != null) ShowUpdateDialog(); };
     }
 
     void BuildTrayMenu()
     {
         _trayMenu.Items.Clear();
         _trayMenu.Items.Add(new ToolStripMenuItem("Abrir HiddenApp", null, (_, _) => ShowFromTray()) { Font = BoldFont });
+        if (_update != null)
+            _trayMenu.Items.Add(new ToolStripMenuItem($"Atualizar para a versão {_update.Version}", null, (_, _) => ShowUpdateDialog())
+            { Font = BoldFont, ForeColor = Theme.Current.Accent });
         _trayMenu.Items.Add(new ToolStripSeparator());
 
         var blocked = FirewallManager.Blocked.OrderBy(Path.GetFileName).ToList();
@@ -282,7 +318,7 @@ public class MainForm : Form
                 {
                     FirewallManager.Unblock(path);
                     RefreshAll();
-                    _tray.ShowBalloonTip(2500, "Internet liberada", label, ToolTipIcon.Info);
+                    ShowBalloon("Internet liberada", label);
                 }));
             }
             _trayMenu.Items.Add(sub);
@@ -292,6 +328,7 @@ public class MainForm : Form
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add(new ToolStripMenuItem("Tema escuro", null, (_, _) => _darkToggle.Checked = !_darkToggle.Checked) { Checked = _darkToggle.Checked });
         _trayMenu.Items.Add(new ToolStripMenuItem("Iniciar com o Windows", null, (_, _) => _startupToggle.Checked = !_startupToggle.Checked) { Checked = _startupToggle.Checked });
+        _trayMenu.Items.Add(new ToolStripMenuItem("Verificar atualizações", null, async (_, _) => await CheckForUpdatesAsync(manual: true)));
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add(new ToolStripMenuItem("Sair", null, (_, _) => ExitApp()));
     }
@@ -325,8 +362,8 @@ public class MainForm : Form
             Hide();
             if (!_settings.TrayHintShown)
             {
-                _tray.ShowBalloonTip(5000, "O HiddenApp continua rodando",
-                    "Ele fica aqui perto do relógio. Clique com o botão direito no ícone para sair.", ToolTipIcon.Info);
+                ShowBalloon("O HiddenApp continua rodando",
+                    "Ele fica aqui perto do relógio. Clique com o botão direito no ícone para sair.");
                 _settings.TrayHintShown = true;
                 _settings.Save();
             }
@@ -356,6 +393,152 @@ public class MainForm : Form
             _startupToggle.SetSilently(!enable);
             MessageBox.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    void ShowBalloon(string title, string text, bool isUpdate = false)
+    {
+        _balloonIsUpdate = isUpdate;
+        _tray.ShowBalloonTip(isUpdate ? 10000 : 4000, title, text, ToolTipIcon.Info);
+    }
+
+    void UpdateTrayText()
+    {
+        int n = FirewallManager.Blocked.Count;
+        string tip = n == 0 ? "HiddenApp" : $"HiddenApp - {n} bloqueado(s)";
+        if (_update != null) tip += $" - nova versão {_update.Version}";
+        _tray.Text = tip.Length > 63 ? tip[..63] : tip;
+    }
+
+    // =====================================================================
+    //  Atualizações
+    // =====================================================================
+    async Task StartupUpdateCheckAsync()
+    {
+        if (_justUpdated)
+        {
+            await Task.Delay(1500);
+            ShowBalloon("HiddenApp atualizado", $"Você está usando a versão {UpdateManager.CurrentVersion}.");
+            SetStatus($"HiddenApp atualizado para a versão {UpdateManager.CurrentVersion}.");
+        }
+        await Task.Delay(TimeSpan.FromSeconds(8)); // não atrasa a abertura do app
+        await CheckForUpdatesAsync(manual: false);
+    }
+
+    /// <summary>
+    /// Consulta o GitHub. Automático: só pergunta uma vez por versão a cada 24h (e, se a janela
+    /// estiver escondida, avisa pela bandeja). Manual: sempre mostra o resultado.
+    /// </summary>
+    async Task CheckForUpdatesAsync(bool manual)
+    {
+        if (_checkingUpdates) return;
+        _checkingUpdates = true;
+        try
+        {
+            if (manual) SetStatus("Verificando atualizações...");
+            var update = await UpdateManager.CheckAsync(_settings.IncludePrereleases);
+            SetAvailableUpdate(update);
+
+            if (update == null)
+            {
+                if (manual)
+                {
+                    SetStatus("Você já está usando a versão mais recente.");
+                    MessageBox.Show(this, $"Você já está usando a versão mais recente ({UpdateManager.CurrentVersion}).",
+                        "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                return;
+            }
+
+            if (manual) { ShowUpdateDialog(); return; }
+
+            bool alreadyAsked = _settings.LastPromptedVersion == update.Version.ToString() &&
+                                DateTime.UtcNow - _settings.LastPromptedUtc < TimeSpan.FromHours(24);
+            if (alreadyAsked) return;
+
+            if (Visible && WindowState != FormWindowState.Minimized)
+                ShowUpdateDialog();
+            else
+            {
+                MarkPrompted(update);
+                ShowBalloon($"Nova versão do HiddenApp: {update.Version}",
+                    "Clique aqui para ver as novidades e atualizar.", isUpdate: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Sem internet / GitHub fora do ar: no automático fica em silêncio
+            if (manual)
+            {
+                SetStatus("Não foi possível verificar atualizações.");
+                MessageBox.Show(this, "Não foi possível verificar atualizações:\n" + ex.Message,
+                    "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        finally { _checkingUpdates = false; }
+    }
+
+    /// <summary>Mostra/esconde os avisos permanentes de versão nova (cabeçalho, bandeja, status).</summary>
+    void SetAvailableUpdate(UpdateInfo? update)
+    {
+        _update = update;
+        _btnUpdate.Visible = update != null;
+        if (update != null)
+        {
+            _btnUpdate.Text = update.IsPrerelease ? $"Nova versão beta {update.Version}" : $"Nova versão {update.Version}";
+            _versionLabel.Text = $"v{UpdateManager.CurrentVersion}  ·  atualização disponível";
+        }
+        else _versionLabel.Text = "v" + UpdateManager.CurrentVersion;
+        _header.PerformLayout();
+        UpdateTrayText();
+    }
+
+    void MarkPrompted(UpdateInfo update)
+    {
+        _settings.LastPromptedVersion = update.Version.ToString();
+        _settings.LastPromptedUtc = DateTime.UtcNow;
+        _settings.Save();
+    }
+
+    void ShowUpdateDialog()
+    {
+        if (_update == null || _updateDialogOpen) return;
+        _updateDialogOpen = true;
+        try
+        {
+            if (!Visible) ShowFromTray();
+            MarkPrompted(_update);
+            using var dlg = new UpdateDialog(_update);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                ExitApp(); // a versão nova já foi aberta e assume em seguida
+                return;
+            }
+            // "Depois": os avisos continuam no cabeçalho e na bandeja
+            SetStatus($"Versão {_update.Version} disponível. Clique em \"Nova versão\" no topo quando quiser atualizar.");
+        }
+        finally { _updateDialogOpen = false; }
+    }
+
+    void BuildUpdatesMenu()
+    {
+        _updatesMenu.Items.Clear();
+        if (_update != null)
+            _updatesMenu.Items.Add(new ToolStripMenuItem($"Atualizar para a versão {_update.Version}", null, (_, _) => ShowUpdateDialog())
+            { Font = BoldFont });
+        _updatesMenu.Items.Add(new ToolStripMenuItem("Verificar atualizações agora", null, async (_, _) => await CheckForUpdatesAsync(manual: true)));
+        _updatesMenu.Items.Add(new ToolStripMenuItem("Receber versões beta (pré-lançamento)", null, async (_, _) =>
+        {
+            _settings.IncludePrereleases = !_settings.IncludePrereleases;
+            _settings.LastPromptedVersion = null; // reavalia com a nova opção
+            _settings.Save();
+            SetStatus(_settings.IncludePrereleases
+                ? "Você vai receber também as versões beta."
+                : "Você vai receber só as versões estáveis.");
+            await CheckForUpdatesAsync(manual: false);
+        }) { Checked = _settings.IncludePrereleases });
+        _updatesMenu.Items.Add(new ToolStripSeparator());
+        _updatesMenu.Items.Add(new ToolStripMenuItem($"Versão atual: {UpdateManager.CurrentVersion}") { Enabled = false });
+        _updatesMenu.Items.Add(new ToolStripMenuItem("Ver todas as versões no GitHub", null, (_, _) => UpdateManager.OpenUrl(UpdateManager.ReleasesPage)));
     }
 
     // =====================================================================
@@ -396,8 +579,7 @@ public class MainForm : Form
 
             int n = FirewallManager.Blocked.Count;
             _statusCount.Text = n == 0 ? "Nenhum programa bloqueado" : $"{n} programa(s) sem internet";
-            string tip = n == 0 ? "HiddenApp" : $"HiddenApp - {n} programa(s) bloqueado(s)";
-            _tray.Text = tip.Length > 63 ? tip[..63] : tip;
+            UpdateTrayText();
         }
         finally { _refreshing = false; }
 

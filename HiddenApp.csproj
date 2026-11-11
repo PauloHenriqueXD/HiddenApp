@@ -11,10 +11,15 @@
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <!-- Ícone do .exe (Explorer / barra de tarefas) -->
     <ApplicationIcon>Assets\HiddenApp.ico</ApplicationIcon>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <AssemblyTitle>HiddenApp</AssemblyTitle>
     <Product>HiddenApp</Product>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Gera o QR code do Pix (licença MIT, sem dependências) -->
+    <PackageReference Include="QRCoder" Version="1.8.1" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Ícone e logo embutidos no .exe (janela, bandeja e cabeçalho) -->

@@ -54,6 +54,7 @@ public class MainForm : Form
     bool _checkingUpdates, _updateDialogOpen, _balloonIsUpdate;
     readonly RoundButton _btnUpdate = new("Atualizar", ButtonKind.Primary) { Visible = false };
     readonly RoundButton _btnUpdatesMenu = new("Atualizações ▾");
+    readonly RoundButton _btnSupport = new("❤ Apoiar");
     readonly ContextMenuStrip _updatesMenu = new();
     readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 }; // a cada 6 horas
 
@@ -158,10 +159,14 @@ public class MainForm : Form
             _updatesMenu.Show(_btnUpdatesMenu, new Point(0, _btnUpdatesMenu.Height));
         };
         _tips.Set(_btnUpdate, "Nova versão disponível", "Há uma versão nova do HiddenApp. Clique para ver as novidades e atualizar.");
+        _btnSupport.Margin = new Padding(0, -Theme.S(2), Theme.S(4), 0);
+        _btnSupport.Click += (_, _) => ShowSupport();
+        _tips.Set(_btnSupport, "Apoiar o projeto", "O HiddenApp é gratuito. Se ele te ajuda, você pode fazer uma doação por Pix (QR code ou copia e cola).");
         _tips.Set(_btnUpdatesMenu, "Atualizações", "Verificar se há versão nova, escolher receber versões beta e ver a versão atual.");
         _tips.Set(_startupToggle, "Iniciar com o Windows", "Abre o HiddenApp escondido perto do relógio quando você entra no Windows, sem pedir permissão de administrador.");
         _tips.Set(_darkToggle, "Tema escuro", "Alterna entre o tema escuro e o tema claro.");
         right.Controls.Add(_btnUpdate);
+        right.Controls.Add(_btnSupport);
         right.Controls.Add(_btnUpdatesMenu);
         right.Controls.Add(_startupToggle);
         right.Controls.Add(_darkToggle);
@@ -498,6 +503,7 @@ public class MainForm : Form
         _trayMenu.Items.Add(new ToolStripMenuItem("Tema escuro", null, (_, _) => _darkToggle.Checked = !_darkToggle.Checked) { Checked = _darkToggle.Checked });
         _trayMenu.Items.Add(new ToolStripMenuItem("Iniciar com o Windows", null, (_, _) => _startupToggle.Checked = !_startupToggle.Checked) { Checked = _startupToggle.Checked });
         _trayMenu.Items.Add(new ToolStripMenuItem("Verificar atualizações", null, async (_, _) => await CheckForUpdatesAsync(manual: true)));
+        _trayMenu.Items.Add(new ToolStripMenuItem("❤ Apoiar o projeto", null, (_, _) => ShowSupport()));
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add(new ToolStripMenuItem("Sair", null, (_, _) => ExitApp()));
     }
@@ -686,6 +692,13 @@ public class MainForm : Form
             SetStatus($"Versão {_update.Version} disponível. Clique em \"Nova versão\" no topo quando quiser atualizar.");
         }
         finally { _updateDialogOpen = false; }
+    }
+
+    void ShowSupport()
+    {
+        if (!Visible) ShowFromTray();
+        using var dlg = new SupportDialog();
+        dlg.ShowDialog(this);
     }
 
     void BuildUpdatesMenu()

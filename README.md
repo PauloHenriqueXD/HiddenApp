@@ -21,6 +21,18 @@
 - **Tema escuro** (padrão) e **tema claro**.
 - **Atualização automática:** avisa quando há versão nova no GitHub e atualiza com um clique (sempre pergunta antes). Opção de receber versões beta.
 
+## Apoie o projeto ❤
+
+O HiddenApp é gratuito. Se ele te ajuda, você pode apoiar com um Pix de qualquer valor — pelo botão
+**"❤ Apoiar"** dentro do programa ou pela chave aleatória:
+
+```
+e4631919-5794-44d5-b5ed-5ebe8c9b5ac8
+```
+
+Antes de confirmar, confira se o recebedor é **Paulo Henrique Ferrari Mantuaneli**. Se o nome for outro,
+você pode estar usando uma cópia falsa do programa: o HiddenApp oficial só é distribuído por este repositório.
+
 ## Como funciona
 
 O bloqueio é feito com regras do **Firewall do Windows** (entrada e saída) para o executável escolhido. As regras ficam salvas no Windows, então o programa continua bloqueado mesmo com o HiddenApp fechado ou após reiniciar o PC — até ser liberado.

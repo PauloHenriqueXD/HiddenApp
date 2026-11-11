@@ -9,6 +9,16 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [1.3.0] - 2026-11-11
+
+### Adicionado
+
+- **Apoiar o projeto:** botão "❤ Apoiar" no topo e item no menu da bandeja abrem uma janela com
+  QR code do Pix e o código "Pix Copia e Cola" (com botão para copiar), para doações de qualquer valor.
+  - O código Pix é gerado dentro do programa (nunca baixado da internet).
+  - A janela mostra o nome do recebedor para conferência no app do banco e o endereço do site oficial,
+    para proteger contra cópias falsas do programa.
+
 ## [1.2.0] - 2026-11-10
 
 ### Adicionado
@@ -80,7 +90,8 @@ Primeira versão.
 - Perfil de publicação **Portatil** e `publicar.bat`: gera um único `HiddenApp.exe` autocontido
   (não precisa instalar o .NET).
 
-[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.2.0...HEAD
+[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.3.0
 [1.2.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.2.0
 [1.1.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.1.0
 [1.0.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.0.0

@@ -254,6 +254,15 @@ tarefa para garantir que aponta para o `.exe` atual.
 - **Balões de ajuda** (`ThemedToolTip`): tooltip desenhado à mão (título em ciano + explicação) com as
   cores do tema, ligado a cada botão por `_tips.Set(...)`.
 
+### Doações (Pix)
+
+`Donation` monta o **BR Code** estático (padrão EMV do Banco Central): conta Pix com a chave aleatória,
+moeda 986 (real), país BR, nome e cidade do recebedor, identificador `***` (valor livre) e o CRC16-CCITT
+no final. O QR é gerado em tempo de execução com a biblioteca **QRCoder** (MIT), sempre preto no branco.
+Nada é baixado: a chave só muda numa versão nova, que passa pelo GitHub oficial e pela verificação SHA-256.
+A janela de doação mostra o nome completo do recebedor para quem doa conferir no app do banco — a defesa
+contra cópias falsas do programa com outra chave.
+
 ## 9. Atualização automática — `UpdateManager` + `UpdateDialog`
 
 ### Versionamento

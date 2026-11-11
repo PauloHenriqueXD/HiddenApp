@@ -40,6 +40,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` (tema, favoritos, betas, última versão perguntada) |
 | `UpdateManager.cs` | `SemVer`; consulta ao GitHub Releases, download, verificação SHA-256 e troca do .exe |
 | `UpdateDialog.cs` | Diálogo "Nova versão disponível" com novidades e progresso do download |
+| `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder) |
+| `SupportDialog.cs` | Janela "Apoiar o projeto": QR, copia e cola, conferência do recebedor e site oficial |
 | `Theme.cs` | Paletas, tema atual, escala de DPI (`Theme.S`), barra de título escura, recursos embutidos |
 | `ThemedControls.cs` | Controles próprios: `RoundButton` (Primary/Secondary/Danger/Success), `Card`, `ToggleSwitch`, `ThemedListView`, `ThinProgress`, `ThemedToolTip`, renderer do menu |
 | `Native.cs` | Todo o P/Invoke (user32, kernel32, dwmapi, iphlpapi, advapi32) |
@@ -104,6 +106,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 - **A versão do app vem do `AssemblyInformationalVersion`** (o `<Version>` do csproj, ou o
   `-p:Version` passado pelo workflow a partir da tag). Sufixo `-algo` = beta.
 - **Links abertos pelo app** usam `UpdateManager.OpenUrl` (navegador sem privilégio de administrador).
+- **Pix de doação:** o código é montado em `Donation.cs` e **nunca** deve vir da internet (um site
+  comprometido trocaria a chave). Usar só chave **aleatória** (não CPF/telefone/e-mail). Regras do BR Code:
+  nome até 25 caracteres e cidade até 15, sem acentos; o QR é sempre preto no branco. Ao mudar a chave,
+  confira o código num app de banco antes de publicar.
 - **Visual Studio com arquivos abertos** pode salvar a versão antiga por cima de edições feitas fora
   dele. Ao editar arquivos externamente, recarregue no VS ("Sim para Todos").
 
@@ -137,6 +143,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 11. Favoritos: adicionar pelo "★ Favoritar" e pelo botão direito; bloquear/liberar/abrir pela lista
     e pelo menu da bandeja; abrir uma cópia favorita reabre com o mesmo perfil.
 12. Passar o mouse nos botões → balão de ajuda com as cores do tema.
+13. "❤ Apoiar" → QR legível pelo app do banco nos dois temas; "Copiar código Pix" funciona; o banco mostra
+    o recebedor "Paulo Henrique Ferrari Mantuaneli".
 
 ## Versão, changelog e lançamento
 

@@ -335,6 +335,13 @@ flowchart TD
 - **Pela tecla de captura (F9):** lê a posição do mouse, descobre a janela embaixo dele (`WindowFromPoint` +
   `GetAncestor`) e converte para posição relativa na área interna. Se a macro ainda não tem alvo, essa janela vira o alvo.
 
+### Várias macros ao mesmo tempo
+
+Cada execução tem seu próprio `ClickRunner` (thread) e entra na lista `_running`, mostrada no cartão "Em execução" com o
+último progresso de cada uma. Macros em segundo plano podem rodar juntas sem limite. No modo real só uma por vez:
+ela move o cursor e exige a janela alvo em primeiro plano, então duas macros reais disputariam o mesmo mouse e a mesma
+janela ativa (e a proteção de "pausar se a janela não estiver na frente" deixaria uma delas sempre parada).
+
 ### Agendamento
 
 Um timer de 10 s confere as macros com agendamento ligado. A macro inicia se o horário de hoje chegou há no máximo

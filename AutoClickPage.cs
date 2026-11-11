@@ -11,7 +11,18 @@ public class AutoClickPage : Panel
     readonly AppSettings _settings;
     readonly ThemedToolTip _tips;
     readonly List<Macro> _macros = MacroStore.Load();
-    readonly ClickRunner _runner = new();
+    /// <summary>Uma macro rodando (ou um teste de passo).</summary>
+    sealed class RunState
+    {
+        public required Macro Macro { get; init; }
+        public required ClickRunner Runner { get; init; }
+        public bool IsTest { get; init; }
+        public string Text { get; set; } = "";
+        public bool Paused => Text.StartsWith("Pausado", StringComparison.Ordinal);
+    }
+
+    /// <summary>Macros rodando agora. Várias em segundo plano ao mesmo tempo; no modo real, só uma.</summary>
+    readonly List<RunState> _running = new();
     readonly System.Windows.Forms.Timer _saveTimer = new() { Interval = 600 };
     readonly System.Windows.Forms.Timer _scheduleTimer = new() { Interval = 10_000 };
 
@@ -30,6 +41,13 @@ public class AutoClickPage : Panel
     readonly Card _settingsCard = new("Macro");
     readonly Card _pointsCard = new("Passos", "rodam em loop, na ordem");
     readonly Card _previewCard = new("Janela alvo");
+    readonly Card _runCard = new("Em execução");
+    readonly TableLayoutPanel _rightColumn = new() { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
+    readonly ListBox _runList = NewList(46);
+    readonly Label _emptyRun = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted",
+        Text = "Nenhuma macro rodando.\nDá para rodar várias ao mesmo tempo\n(no modo real, só uma por vez)." };
+    readonly RoundButton _btnStopSel = RoundButton.IconButton(Theme.Glyph.Stop, "Parar a macro selecionada", ButtonKind.Danger);
+    readonly RoundButton _btnStopAll = RoundButton.IconTextButton(Theme.Glyph.Stop, "Parar todas", ButtonKind.Secondary);
     readonly Panel _actionBar = new() { Dock = DockStyle.Bottom, Height = Theme.S(58), Padding = new Padding(Theme.S(7), Theme.S(8), Theme.S(7), 0) };
 
     // Caixa de seleção de macros (ocupa pouco espaço; os itens mostram estrela, nome, alvo e agendamento)
@@ -46,7 +64,7 @@ public class AutoClickPage : Panel
     readonly TableLayoutPanel _settingsForm = NewForm(2);
     readonly TextBox _name = new() { BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
     readonly ComboBox _target = NewCombo();
-    readonly ComboBox _mode = NewCombo("Segundo plano (não mexe no mouse)", "Real (mouse e teclado de verdade)");
+    readonly ComboBox _mode = NewCombo("Segundo plano", "Real");
     readonly ComboBox _loopKind = NewCombo("Sem parar", "Número de vezes");
     readonly NumericUpDown _loops = NewNum(1, 1_000_000, 10);
     readonly NumericUpDown _jitter = NewNum(0, 50, 0);
@@ -58,7 +76,7 @@ public class AutoClickPage : Panel
     readonly ListBox _stepList = NewList(42);
     readonly Label _emptySteps = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted" };
     readonly TableLayoutPanel _stepEditor = NewForm(4);
-    readonly ComboBox _kind = NewCombo("Clique do mouse", "Tecla");
+    readonly ComboBox _kind = NewCombo("Mouse", "Tecla");
     readonly ComboBox _button = NewCombo("Esquerdo", "Direito", "Meio");
     readonly HotkeyBox _keyBox = new() { Dock = DockStyle.Fill, PlaceholderText = "Clique aqui e aperte a tecla" };
     readonly Panel _buttonOrKey = new() { Dock = DockStyle.Fill, Margin = new Padding(0) };
@@ -110,8 +128,10 @@ public class AutoClickPage : Panel
     public event Action<string, string>? Notify;
     public event Action? HotkeysRequested;
 
-    public bool IsRunning => _runner.IsRunning;
-    public string? RunningName => _runner.Current?.Name;
+    /// <summary>Alguma macro rodando (testes de passo não contam).</summary>
+    public bool IsRunning => _running.Any(r => !r.IsTest);
+    public int RunningCount => _running.Count(r => !r.IsTest);
+    public string? RunningName => _running.FirstOrDefault(r => !r.IsTest)?.Macro.Name;
     /// <summary>Macros na ordem da lista (favoritas primeiro).</summary>
     public IReadOnlyList<Macro> Macros => Ordered();
 
@@ -128,12 +148,17 @@ public class AutoClickPage : Panel
         _grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         _grid.Controls.Add(_settingsCard, 0, 0);
         _grid.Controls.Add(_pointsCard, 1, 0);
-        _grid.Controls.Add(_previewCard, 2, 0);
+        _rightColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
+        _rightColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        _rightColumn.Controls.Add(_previewCard, 0, 0);
+        _rightColumn.Controls.Add(_runCard, 0, 1);
+        _grid.Controls.Add(_rightColumn, 2, 0);
 
         BuildMacrosCard();
         BuildSettingsCard();
         BuildPointsCard();
         BuildPreviewCard();
+        BuildRunCard();
         BuildActionBar();
         SetupTips();
 
@@ -141,14 +166,7 @@ public class AutoClickPage : Panel
         Controls.Add(_actionBar);
 
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); MacroStore.Save(_macros); };
-        _runner.Progress += text => OnUi(() => SetStatus(text));
-        _runner.Stopped += reason => OnUi(() =>
-        {
-            UpdateButtons();
-            _macroList.Invalidate();
-            RunningChanged?.Invoke();
-            Say(reason, notify: true);
-        });
+        RefreshRunList();
 
         RefreshMacroList(_macros.FirstOrDefault(m => m.Id == _settings.LastMacroId) ?? Ordered().FirstOrDefault());
         ApplyTheme();
@@ -215,11 +233,11 @@ public class AutoClickPage : Panel
         _macroList.MeasureItem += (_, e) => e.ItemHeight = Theme.S(42);
         _macroList.DropDownWidth = Theme.S(420);
         _macroList.SelectedIndexChanged += (_, _) => { if (!_loading) LoadMacro(_macroList.SelectedItem as Macro); };
-        _btnFavorite.Click += (_, _) => { if (_current != null && !_runner.IsRunning) ToggleFavorite(_current); };
+        _btnFavorite.Click += (_, _) => { if (_current != null) ToggleFavorite(_current); };
         _macroMenu.Opening += (_, e) =>
         {
             _macroMenu.Items.Clear();
-            if (_current == null || _runner.IsRunning) { e.Cancel = true; return; }
+            if (_current == null) { e.Cancel = true; return; }
             var m = _current;
             _macroMenu.Items.Add(new ToolStripMenuItem(m.Favorite ? "Remover dos favoritos" : "★ Adicionar aos favoritos", null, (_, _) => ToggleFavorite(m)));
             _macroMenu.Items.Add(new ToolStripMenuItem("Subir macro", null, (_, _) => MoveMacro(-1)));
@@ -402,6 +420,43 @@ public class AutoClickPage : Panel
         _pointsCard.Controls.Add(editor);
     }
 
+    void BuildRunCard()
+    {
+        _runList.DrawItem += DrawRunItem;
+        _runList.DoubleClick += (_, _) =>
+        {
+            // Duplo clique: abre a macro para ver/editar
+            if (_runList.SelectedItem is RunState r && _macros.Contains(r.Macro)) _macroList.SelectedItem = r.Macro;
+        };
+        _btnStopSel.Click += (_, _) =>
+        {
+            if (_runList.SelectedItem is RunState r) r.Runner.Stop();
+            else Say("Selecione na lista a macro que quer parar.");
+        };
+        _btnStopAll.Click += (_, _) => StopRunning();
+        _runCard.Controls.Add(_runList);
+        _runCard.Controls.Add(_emptyRun);
+        _runCard.Controls.Add(Toolbar(_btnStopSel, _btnStopAll));
+    }
+
+    void RefreshRunList()
+    {
+        var selected = _runList.SelectedItem;
+        _runList.BeginUpdate();
+        _runList.Items.Clear();
+        foreach (var r in _running) _runList.Items.Add(r);
+        if (selected != null && _runList.Items.Contains(selected)) _runList.SelectedItem = selected;
+        else if (_runList.Items.Count > 0) _runList.SelectedIndex = 0;
+        _runList.EndUpdate();
+        bool any = _running.Count > 0;
+        _runList.Visible = any;
+        _emptyRun.Visible = !any;
+        _btnStopSel.Enabled = _btnStopAll.Enabled = any;
+        int n = RunningCount;
+        _runCard.Subtitle = n == 0 ? "" : L.F("{0} rodando", n);
+        _runCard.Invalidate();
+    }
+
     void BuildPreviewCard()
     {
         _previewHint.Height = Theme.S(64);
@@ -413,7 +468,7 @@ public class AutoClickPage : Panel
     void BuildActionBar()
     {
         _btnStart.Click += (_, _) => StartSelected();
-        _btnStop.Click += (_, _) => StopRunning();
+        _btnStop.Click += (_, _) => StopCurrent();
         _btnTest.Click += (_, _) => TestStep();
         _btnHotkeys.Click += (_, _) => HotkeysRequested?.Invoke();
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, WrapContents = false, Padding = new Padding(0) };
@@ -431,6 +486,9 @@ public class AutoClickPage : Panel
         _tips.Set(_btnImport, "Importar macros", "Abre arquivos .hiddenmacro recebidos de outras pessoas e adiciona as macros na sua lista.");
         _tips.Set(_btnExport, "Exportar macros",
             "Salva a macro selecionada (ou todas) num arquivo .hiddenmacro, para compartilhar com outras pessoas.");
+        _tips.Set(_btnStopSel, "Parar a macro selecionada", "Para só a macro selecionada na lista \"Em execução\". As outras continuam rodando.");
+        _tips.Set(_btnStopAll, "Parar todas", "Para todas as macros que estão rodando (o mesmo que a tecla de parar).");
+        _tips.Set(_runList, "Em execução", "Macros rodando agora, com o progresso de cada uma. Duplo clique abre a macro.");
         _tips.Set(_btnFavorite, "Favoritar macro", "Marca ou desmarca a macro selecionada como favorita. As favoritas ficam no topo da lista, com estrela.");
         _tips.Set(_macroList, "Macros", "Escolha a macro para ver e editar. As favoritas (★) ficam no topo; a ordem das demais muda com as setas.");
         _tips.Set(_btnMacroUp, "Subir macro", "Move a macro selecionada para cima na lista. As favoritas (com estrela) ficam sempre no topo.");
@@ -477,11 +535,13 @@ public class AutoClickPage : Panel
         BackColor = p.Back;
         _grid.BackColor = p.Back;
         _actionBar.BackColor = p.Back;
-        foreach (var card in new[] { _settingsCard, _pointsCard, _previewCard }) card.BackColor = p.Surface;
+        _rightColumn.BackColor = p.Back;
+        foreach (var card in new[] { _settingsCard, _pointsCard, _previewCard, _runCard }) card.BackColor = p.Surface;
         _preview.BackColor = p.Back;
         ThemeChildren(this, p);
         UpdatePreviewHint();
         Theme.ApplyScrollbars(_stepList);
+        Theme.ApplyScrollbars(_runList);
         Invalidate(true);
     }
 
@@ -537,7 +597,7 @@ public class AutoClickPage : Panel
     /// <summary>Sobe/desce a macro selecionada dentro do seu grupo (favoritas ou não).</summary>
     void MoveMacro(int delta)
     {
-        if (_current == null || _runner.IsRunning) return;
+        if (_current == null) return;
         var ordered = Ordered();
         int i = ordered.IndexOf(_current), j = i + delta;
         if (j < 0 || j >= ordered.Count || ordered[j].Favorite != _current.Favorite) return;
@@ -721,9 +781,9 @@ public class AutoClickPage : Panel
         m.ScheduleLastRun = DateTime.Now.TimeOfDay >= m.ScheduleAt ? DateTime.Today : null;
         ScheduleSave();
         _macroList.Invalidate();
-        if (m.ScheduleEnabled)
-            SetStatus(L.F("A macro vai iniciar sozinha {0} às {1}.",
-                L.T(m.ScheduleLastRun == DateTime.Today ? "amanhã" : "hoje"), m.ScheduleTime));
+        SetStatus(m.ScheduleEnabled
+            ? L.F("A macro vai iniciar sozinha {0} às {1}.", L.T(m.ScheduleLastRun == DateTime.Today ? "amanhã" : "hoje"), m.ScheduleTime)
+            : L.T("Agendamento desligado."));
     }
 
     /// <summary>Confere as macros agendadas (a cada 10 s). Só dispara até 2 minutos depois do horário.</summary>
@@ -741,9 +801,10 @@ public class AutoClickPage : Panel
             if (m == _current) { _loading = true; _schedOn.Checked = m.ScheduleEnabled; UpdateScheduleFields(); _loading = false; }
             _macroList.Invalidate();
 
-            if (_runner.IsRunning)
+            if (IsMacroRunning(m)) continue; // já está rodando
+            if (m.Mode == ClickMode.Real && RealRun() is RunState other)
             {
-                Say($"A macro \"{m.Name}\" estava agendada para {m.ScheduleTime}, mas outra macro já está rodando.", notify: true);
+                Say($"A macro \"{m.Name}\" estava agendada para {m.ScheduleTime}, mas \"{other.Macro.Name}\" já está usando o modo real.", notify: true);
                 continue;
             }
             Say($"Horário agendado ({m.ScheduleTime}): iniciando \"{m.Name}\".", notify: true);
@@ -885,7 +946,7 @@ public class AutoClickPage : Panel
     /// <summary>Tecla de captura (F9): usa a posição atual do mouse na janela embaixo dele.</summary>
     public void CaptureFromCursor()
     {
-        if (_runner.IsRunning) return;
+        if (CurrentBusy) return;
         if (!ClickRunner.CaptureCursor(out var window, out double rx, out double ry))
         {
             Say("Posicione o mouse dentro de uma janela e aperte a tecla de captura.", notify: true);
@@ -948,21 +1009,41 @@ public class AutoClickPage : Panel
     // =====================================================================
     //  Executar
     // =====================================================================
-    public void StartMacro(Macro macro)
+    public bool IsMacroRunning(Macro m) => _running.Any(r => !r.IsTest && r.Macro.Id == m.Id);
+
+    public void StopMacro(Macro m)
     {
-        if (_runner.IsRunning) return;
-        _macroList.SelectedItem = macro;
-        StartSelected();
+        foreach (var r in _running.Where(r => r.Macro.Id == m.Id).ToList()) r.Runner.Stop();
     }
 
-    /// <summary>Tecla de iniciar (F7) ou botão "Iniciar".</summary>
+    /// <summary>Macro selecionada rodando (ou em teste): a edição dela fica bloqueada.</summary>
+    bool CurrentBusy => _current != null && _running.Any(r => r.Macro.Id == _current.Id);
+
+    /// <summary>O modo real usa o mouse e o teclado de verdade: só uma macro por vez.</summary>
+    RunState? RealRun() => _running.FirstOrDefault(r => r.Macro.Mode == ClickMode.Real);
+
+    /// <summary>Inicia uma macro sem mudar a seleção (menu da bandeja, agendamento).</summary>
+    public void StartMacro(Macro macro) => Start(macro);
+
+    /// <summary>Tecla de iniciar (F7) ou botão "Iniciar": inicia a macro selecionada.</summary>
     public void StartSelected()
     {
-        if (_runner.IsRunning) return;
         CancelPick();
         var m = _current ?? _macros.FirstOrDefault(x => x.Id == _settings.LastMacroId);
         if (m == null) { Say("Crie uma macro na aba Macro antes de iniciar.", notify: true); return; }
+        Start(m);
+    }
+
+    void Start(Macro m)
+    {
+        if (_running.Any(r => r.Macro.Id == m.Id)) { Say($"A macro \"{m.Name}\" já está rodando.", notify: true); return; }
         if (m.Steps.Count == 0) { Say($"A macro \"{m.Name}\" ainda não tem passos.", notify: true); return; }
+        if (m.Mode == ClickMode.Real && RealRun() is RunState other)
+        {
+            Say($"Só uma macro no modo real pode rodar por vez (\"{other.Macro.Name}\" já está usando o mouse e o teclado). " +
+                "Pare-a ou use o modo segundo plano.", notify: true);
+            return;
+        }
 
         var window = ClickRunner.FindWindow(m, m == _current ? _targetHandle : IntPtr.Zero);
         if (window == IntPtr.Zero)
@@ -975,29 +1056,73 @@ public class AutoClickPage : Panel
         SaveNow();
         try
         {
-            _runner.Start(m, window);
-            Say($"Rodando \"{m.Name}\" — aperte {_stopKey} para parar.", notify: true);
+            Launch(m, window, test: false);
+            Say(RunningCount > 1
+                ? $"Rodando \"{m.Name}\" junto com outras macros — {_stopKey} para todas."
+                : $"Rodando \"{m.Name}\" — aperte {_stopKey} para parar.", notify: true);
         }
         catch (Exception ex) { Say(ex.Message, notify: true); }
+    }
+
+    /// <summary>Cria um executor para a macro e acompanha o progresso dele na lista "Em execução".</summary>
+    void Launch(Macro m, IntPtr window, bool test)
+    {
+        var state = new RunState { Macro = m, Runner = new ClickRunner(), IsTest = test };
+        state.Runner.Progress += text => OnUi(() =>
+        {
+            state.Text = text;
+            _runList.Invalidate();
+            if (_current?.Id == m.Id) SetStatus(text);
+        });
+        state.Runner.Stopped += reason => OnUi(() =>
+        {
+            _running.Remove(state);
+            AfterRunChange();
+            if (test) SetStatus(reason); else Say(reason, notify: true);
+        });
+        _running.Add(state);
+        try { state.Runner.Start(m, window); }
+        catch { _running.Remove(state); throw; }
+        AfterRunChange();
+    }
+
+    void AfterRunChange()
+    {
+        RefreshRunList();
         UpdateButtons();
         _macroList.Invalidate();
         RunningChanged?.Invoke();
     }
 
-    /// <summary>Tecla de parar (F8) ou botão "Parar".</summary>
-    public void StopRunning() => _runner.Stop();
+    /// <summary>Tecla de parar (F8) ou "Parar todas": para todas as macros que estão rodando.</summary>
+    public void StopRunning()
+    {
+        foreach (var r in _running.ToList()) r.Runner.Stop();
+    }
+
+    /// <summary>Botão "Parar" da barra: para a macro selecionada.</summary>
+    void StopCurrent()
+    {
+        if (_current != null) StopMacro(_current);
+    }
 
     void TestStep()
     {
-        if (_runner.IsRunning || _current == null || SelectedStep is not MacroStep s) { Say("Selecione um passo para testar."); return; }
+        if (CurrentBusy || _current == null || SelectedStep is not MacroStep s) { Say("Selecione um passo para testar."); return; }
         if (_targetHandle == IntPtr.Zero || !Native.IsWindow(_targetHandle)) { Say("A janela alvo não está aberta."); return; }
+        if (_current.Mode == ClickMode.Real && RealRun() is RunState other)
+        {
+            Say($"Só uma macro no modo real pode rodar por vez (\"{other.Macro.Name}\" já está usando o mouse e o teclado). " +
+                "Pare-a ou use o modo segundo plano.");
+            return;
+        }
         CancelPick();
         var test = new Macro
         {
-            Name = "Teste", Mode = _current.Mode, Loops = 1, TargetExe = _current.TargetExe,
+            Id = _current.Id, Name = L.F("Teste: {0}", _current.Name), Mode = _current.Mode, Loops = 1, TargetExe = _current.TargetExe,
             Steps = { CloneForTest(s) }
         };
-        try { _runner.Start(test, _targetHandle); UpdateButtons(); }
+        try { Launch(test, _targetHandle, test: true); }
         catch (Exception ex) { Say(ex.Message); }
     }
 
@@ -1011,22 +1136,21 @@ public class AutoClickPage : Panel
 
     void UpdateButtons()
     {
-        bool running = _runner.IsRunning;
+        bool running = CurrentBusy; // só a macro selecionada fica travada enquanto roda
         bool has = _current != null;
         _settingsForm.Enabled = has && !running;
         _stepEditor.Enabled = _stepNameForm.Enabled = has && !running && SelectedStep != null;
         _btnStart.Enabled = has && !running;
         _btnStop.Enabled = running;
         _btnTest.Enabled = has && !running && SelectedStep != null;
-        _btnNew.Enabled = _btnImport.Enabled = _btnExport.Enabled = !running;
-        _btnDuplicate.Enabled = _btnDelete.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = _btnFavorite.Enabled = has && !running;
+        _btnDelete.Enabled = has && !running;
+        _btnDuplicate.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = _btnFavorite.Enabled = has;
         _btnFavorite.IconGlyph = _current?.Favorite == true ? Theme.Glyph.StarFill : Theme.Glyph.Star;
         _btnFavorite.Kind = _current?.Favorite == true ? ButtonKind.Favorite : ButtonKind.Secondary;
         _btnFavorite.Invalidate();
         _btnAddPoint.Enabled = _btnAddKey.Enabled = has && !running;
         _btnRemovePoint.Enabled = _btnUp.Enabled = _btnDown.Enabled = SelectedStep != null && !running;
         _btnMovePoint.Enabled = SelectedStep?.Kind == StepKind.Clique && !running;
-        _macroList.Enabled = !running;
     }
 
     // =====================================================================
@@ -1065,7 +1189,7 @@ public class AutoClickPage : Panel
         _btnStart.Text = $"▶ Iniciar ({start})";
         _btnStop.Text = $"■ Parar ({stop})";
         _tips.Set(_btnStart, "Iniciar", $"Começa a macro selecionada. Atalho: {start} (funciona mesmo com outra janela em uso).");
-        _tips.Set(_btnStop, "Parar", $"Para a macro na hora. Atalho: {stop} (funciona mesmo com outra janela em uso).");
+        _tips.Set(_btnStop, "Parar", $"Para a macro selecionada. A tecla {stop} para todas as macros que estiverem rodando (funciona mesmo com outra janela em uso).");
         UpdatePreviewHint();
         UpdateEmptySteps();
     }
@@ -1105,7 +1229,7 @@ public class AutoClickPage : Panel
 
         int x = e.Bounds.Left + StarAreaWidth + Theme.S(2);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(4)) / 2;
-        bool running = _runner.IsRunning && _runner.Current?.Id == m.Id;
+        bool running = IsMacroRunning(m);
         int pillW = running ? TextRenderer.MeasureText(L.T("RODANDO"), PillFont).Width + Theme.S(10) : 0;
         TextRenderer.DrawText(g, m.Name, BoldFont, new Rectangle(x, top, e.Bounds.Right - x - Theme.S(14) - pillW, BoldFont.Height), p.Text,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
@@ -1154,6 +1278,35 @@ public class AutoClickPage : Panel
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
     }
 
+    void DrawRunItem(object? sender, DrawItemEventArgs e)
+    {
+        if (e.Index < 0 || _runList.Items[e.Index] is not RunState r) return;
+        var p = Theme.Current;
+        var g = e.Graphics;
+        bool selected = (e.State & DrawItemState.Selected) != 0;
+        Color bg = selected ? p.Selection : p.Surface;
+        using (var b = new SolidBrush(bg)) g.FillRectangle(b, e.Bounds);
+
+        // Bolinha: verde = rodando, amarela = pausada
+        int d = Theme.S(10);
+        var dot = new Rectangle(e.Bounds.Left + Theme.S(10), e.Bounds.Top + (e.Bounds.Height - d) / 2, d, d);
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using (var db = new SolidBrush(r.Paused ? p.Favorite : p.Success)) g.FillEllipse(db, dot);
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
+
+        int x = dot.Right + Theme.S(10);
+        int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(2)) / 2;
+        string mode = r.Macro.Mode == ClickMode.Real ? "REAL" : "SEGUNDO PLANO";
+        int pillW = TextRenderer.MeasureText(L.T(mode), PillFont).Width + Theme.S(10);
+        TextRenderer.DrawText(g, r.Macro.Name, BoldFont, new Rectangle(x, top, e.Bounds.Right - x - pillW - Theme.S(14), BoldFont.Height), p.Text,
+            TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+        DrawPill(g, mode, r.Macro.Mode == ClickMode.Real ? p.Accent : p.Muted, bg, e.Bounds.Right - pillW - Theme.S(8),
+            new Rectangle(0, top, 0, BoldFont.Height));
+        string info = string.IsNullOrEmpty(r.Text) ? L.F("{0} · iniciando...", r.Macro.TargetName) : L.F("{0} · {1}", r.Macro.TargetName, L.T(r.Text));
+        TextRenderer.DrawText(g, info, SmallFont, new Rectangle(x, top + BoldFont.Height + Theme.S(2), e.Bounds.Right - x - Theme.S(8), SmallFont.Height),
+            r.Paused ? p.Favorite : p.Muted, TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
+    }
+
     static void DrawPill(Graphics g, string text, Color color, Color bg, int x, Rectangle line)
     {
         text = L.T(text);
@@ -1173,7 +1326,7 @@ public class AutoClickPage : Panel
     {
         if (disposing)
         {
-            _runner.Stop();
+            StopRunning();
             if (_saveTimer.Enabled) MacroStore.Save(_macros);
             _saveTimer.Dispose();
             _scheduleTimer.Dispose();

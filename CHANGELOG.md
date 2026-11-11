@@ -21,6 +21,10 @@ _Nada ainda._
   estar escondido perto do relógio) e a janela alvo, aberta; no modo real a janela é trazida para a frente.
 - **Macros favoritas:** botão de estrela (ou botão direito na caixa de macros); as favoritas aparecem com ★ no topo
   da lista e no menu da bandeja.
+- **Várias macros ao mesmo tempo:** o cartão **"Em execução"** (embaixo da prévia) lista as macros rodando, com o
+  progresso de cada uma, e permite parar uma ou todas. Em segundo plano, quantas quiser; no modo **real**, só uma por
+  vez (ela usa o mouse e o teclado de verdade). A tecla de parar (F8) para todas; o botão "Parar" para a selecionada.
+  Na bandeja, as macros rodando aparecem marcadas (clique para parar só ela).
 - **Ordenar macros:** botões para subir e descer a macro na lista (dentro do grupo de favoritas ou das demais).
 
 ### Alterado

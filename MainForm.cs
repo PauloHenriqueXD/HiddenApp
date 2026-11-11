@@ -598,16 +598,22 @@ public class MainForm : Form
         _trayMenu.Items.Clear();
         _trayMenu.Items.Add(new ToolStripMenuItem("Abrir HiddenApp", null, (_, _) => ShowFromTray()) { Font = BoldFont });
         if (_autoClick.IsRunning)
-            _trayMenu.Items.Add(new ToolStripMenuItem($"■ Parar macro ({HotkeyBox.Describe((Keys)_settings.HotkeyStop)})", null,
+            _trayMenu.Items.Add(new ToolStripMenuItem(_autoClick.RunningCount > 1
+                    ? $"■ Parar todas as macros ({HotkeyBox.Describe((Keys)_settings.HotkeyStop)})"
+                    : $"■ Parar macro ({HotkeyBox.Describe((Keys)_settings.HotkeyStop)})", null,
                 (_, _) => _autoClick.StopRunning()) { Font = BoldFont, ForeColor = Theme.Current.Danger });
-        else if (_autoClick.Macros.Count > 0)
+        // Iniciar macros pela bandeja (dá para rodar outras junto com as que já estão rodando)
+        if (_autoClick.Macros.Count > 0)
         {
             var clickMenu = new ToolStripMenuItem("Macros");
             foreach (var macro in _autoClick.Macros)
             {
                 var mm = macro;
-                clickMenu.DropDownItems.Add(new ToolStripMenuItem($"{(mm.Favorite ? "★" : "▶")} {mm.Name}", null, (_, _) => _autoClick.StartMacro(mm))
-                { ToolTipText = $"{mm.TargetName} · {mm.Steps.Count} passo(s)" });
+                bool running = _autoClick.IsMacroRunning(mm);
+                // Rodando: aparece marcada e o clique para só ela; parada: o clique inicia
+                clickMenu.DropDownItems.Add(new ToolStripMenuItem($"{(running ? "■" : mm.Favorite ? "★" : "▶")} {mm.Name}", null,
+                    (_, _) => { if (running) _autoClick.StopMacro(mm); else _autoClick.StartMacro(mm); })
+                { ToolTipText = running ? L.T("Rodando — clique para parar") : $"{mm.TargetName} · {mm.Steps.Count} passo(s)", Checked = running });
             }
             clickMenu.DropDownItems.Add(new ToolStripSeparator());
             clickMenu.DropDownItems.Add(new ToolStripMenuItem("Abrir a aba Macro", null, (_, _) => { ShowFromTray(); SelectTab(1); }));
@@ -747,7 +753,8 @@ public class MainForm : Form
     {
         int n = FirewallManager.Blocked.Count;
         string tip = n == 0 ? "HiddenApp" : $"HiddenApp - {n} bloqueado(s)";
-        if (_autoClick?.IsRunning == true) tip = $"HiddenApp - macro: {_autoClick.RunningName}";
+        if (_autoClick?.RunningCount > 1) tip = $"HiddenApp - {_autoClick.RunningCount} macros rodando";
+        else if (_autoClick?.IsRunning == true) tip = $"HiddenApp - macro: {_autoClick.RunningName}";
         if (_update != null) tip += $" - nova versão {_update.Version}";
         tip = L.T(tip);
         _tray.Text = tip.Length > 63 ? tip[..63] : tip;

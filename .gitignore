@@ -13,3 +13,6 @@ obj/
 
 # Designer não é usado (a interface é montada por código)
 MainForm.resx
+
+# Script e log locais de configuração do Git
+configurar-git.*

@@ -99,7 +99,7 @@ sequenceDiagram
     participant N as netsh
     participant T as Tabela TCP
 
-    U->>MF: Cortar internet
+    U->>MF: Bloquear internet
     MF->>MF: Avisa se o programa tem outras janelas
     MF->>FM: Block(caminho)
     FM->>FM: TargetsFor(caminho) → lista de .exe
@@ -120,9 +120,10 @@ bloqueios diferentes.
 
 ### A solução: o mesmo programa em outro caminho
 
-1. Calcula a pasta da cópia: `X:\HiddenAppClones\<Nome>_<hash>\`, onde `X:` é **o mesmo disco**
-   do original (hard links não atravessam volumes) e `<hash>` são 8 caracteres do SHA-1 do caminho
-   da pasta original (a mesma origem sempre gera a mesma cópia).
+1. Calcula a pasta da cópia: `X:\HiddenAppClones\<Nome>_<hash>[_N]\`, onde `X:` é **o mesmo disco**
+   do original (hard links não atravessam volumes), `<hash>` são 8 caracteres do SHA-1 do caminho
+   da pasta original e `_N` é o número da cópia (a cópia 1 não tem sufixo). Assim um programa pode ter
+   **várias cópias**, cada uma com caminho próprio — e portanto bloqueio próprio no firewall.
 2. Recria a árvore de pastas e, para cada arquivo, chama `CreateHardLink`.
    - Hard link = **outro nome para o mesmo arquivo** no disco: criação instantânea, **zero espaço extra**.
    - Se o link falhar (permissão), copia o arquivo de verdade.
@@ -133,6 +134,12 @@ bloqueios diferentes.
 5. Abre o `.exe` da cópia **sem elevação** (ver abaixo).
 6. Após 4 segundos, verifica se algum processo da cópia ainda está rodando. Se não, o programa
    provavelmente é de **instância única** e repassou a janela para o original, e o usuário é avisado.
+
+### Nome e argumentos de cada cópia
+
+Cada pasta de cópia guarda um `_HiddenApp.json` com o **nome** dado pelo usuário (ex.: "Trabalho";
+sem nome, aparece "Cópia N") e os **argumentos** usados para abri-la. Os argumentos são reutilizados
+quando a cópia é aberta de novo pelos favoritos, para manter o mesmo perfil separado.
 
 ### Bloqueio de todos os executáveis da cópia
 
@@ -147,7 +154,7 @@ para ela abrir uma janela. Para evitar isso, o diálogo sugere um perfil separad
 
 | Programa | Argumento sugerido |
 |---|---|
-| Chrome, Edge, Brave, Vivaldi, Opera | `--user-data-dir="<cópia>\_HiddenAppData"` |
+| Chrome, Edge, Brave, Vivaldi, Opera | `--user-data-dir="<cópia>\_HiddenAppData"` (um perfil por cópia) |
 | Firefox | `-no-remote -profile "<cópia>\_HiddenAppData"` |
 
 ### Abrir sem privilégio de administrador
@@ -236,7 +243,18 @@ tarefa para garantir que aponta para o `.exe` atual.
 - **Recursos:** `HiddenApp.ico` e `logo.png` são embutidos no executável (`EmbeddedResource` com
   `LogicalName`) e o `.ico` também é o ícone do `.exe` (`ApplicationIcon`).
 
-## 8. Atualização automática — `UpdateManager` + `UpdateDialog`
+## 8. Favoritos e balões de ajuda
+
+- **Favoritos** são caminhos de `.exe` (originais ou cópias) guardados em `settings.json`. A lista mostra
+  o nome amigável (descrição do executável, ex.: "Google Chrome", + nome da cópia) e a situação
+  (`SEM INTERNET` / `COM INTERNET` / `NÃO ENCONTRADO`). Bloquear um favorito funciona mesmo com o programa
+  fechado, porque a regra de firewall é por caminho. "Abrir" inicia o programa sem elevação e, para
+  cópias, com os argumentos salvos.
+- O ícone da bandeja tem um submenu **Favoritos** com bloquear/liberar/abrir para cada um.
+- **Balões de ajuda** (`ThemedToolTip`): tooltip desenhado à mão (título em ciano + explicação) com as
+  cores do tema, ligado a cada botão por `_tips.Set(...)`.
+
+## 9. Atualização automática — `UpdateManager` + `UpdateDialog`
 
 ### Versionamento
 
@@ -318,7 +336,7 @@ e **SHA-256** gerado pelo próprio workflow. Quem controla a conta do GitHub con
 por isso a conta deve ter **autenticação em dois fatores**. Assinar o executável com certificado de
 código seria a próxima camada de proteção.
 
-## 9. Publicação
+## 10. Publicação
 
 O perfil `Properties/PublishProfiles/Portatil.pubxml` gera um **único `HiddenApp.exe`** para
 `win-x64`, **autocontido** (inclui o runtime do .NET), com compressão e sem arquivos de debug.

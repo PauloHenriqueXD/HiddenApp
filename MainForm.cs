@@ -20,11 +20,21 @@ public class MainForm : Form
     readonly TableLayoutPanel _body = new() { Dock = DockStyle.Fill, Padding = new Padding(Theme.S(11)), ColumnCount = 2, RowCount = 2 };
     readonly Card _windowsCard = new("Janelas abertas", "duplo clique alterna o bloqueio");
     readonly Card _previewCard = new("Prévia ao vivo");
-    readonly Card _blockedCard = new("Programas bloqueados", "continuam bloqueados mesmo com o HiddenApp fechado");
+    readonly Card _blockedCard = new("Programas bloqueados", "continuam bloqueados com o app fechado");
+    readonly Card _favoritesCard = new("Favoritos", "acesso rápido aos seus programas");
+    readonly TableLayoutPanel _bottom = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
 
     readonly ThemedListView _windows = new() { Dock = DockStyle.Fill };
     readonly ListBox _blockedList = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = Theme.S(44), IntegralHeight = false };
     readonly Label _emptyBlocked = new() { Dock = DockStyle.Fill, Text = "Nenhum programa bloqueado no momento.", TextAlign = ContentAlignment.MiddleCenter };
+    readonly ListBox _favoritesList = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, DrawMode = DrawMode.OwnerDrawFixed, ItemHeight = Theme.S(44), IntegralHeight = false };
+    readonly Label _emptyFavorites = new()
+    {
+        Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+        Text = "Nenhum favorito ainda.\nClique com o botão direito numa janela da lista ou use \"Adicionar...\"."
+    };
+    readonly ThemedToolTip _tips = new();
+    readonly Dictionary<string, string> _nameCache = new(StringComparer.OrdinalIgnoreCase);
 
     readonly WindowPreview _preview = new() { Dock = DockStyle.Fill };
     readonly Label _previewTitle = new() { Dock = DockStyle.Top, Height = Theme.S(26), AutoEllipsis = true, Font = new Font("Segoe UI Semibold", 10f) };
@@ -34,7 +44,7 @@ public class MainForm : Form
     readonly Label _status = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
     readonly Label _statusCount = new() { Dock = DockStyle.Right, AutoSize = false, Width = Theme.S(280), TextAlign = ContentAlignment.MiddleRight };
 
-    readonly RoundButton _btnPick = new("Escolher janela (3s)");
+    readonly RoundButton _btnPick = new("Selecionar manualmente");
     readonly System.Windows.Forms.Timer _pickTimer = new() { Interval = 1000 };
     int _countdown;
 
@@ -56,7 +66,7 @@ public class MainForm : Form
     static readonly Font PillFont = new("Segoe UI Semibold", 8f);
     static readonly Font SmallFont = new("Segoe UI", 8.5f);
 
-    record RowData(WindowInfo Window, string Status, bool IsClone);
+    record RowData(WindowInfo Window, string Status, bool IsClone, string? CloneLabel);
 
     public MainForm(bool startInTray = false, bool justUpdated = false)
     {
@@ -75,16 +85,22 @@ public class MainForm : Form
         BuildWindowsCard();
         BuildPreviewCard();
         BuildBlockedCard();
+        BuildFavoritesCard();
         BuildTray();
 
         _body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 63));
         _body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37));
         _body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _body.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(230)));
+        _body.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(250)));
         _body.Controls.Add(_windowsCard, 0, 0);
         _body.Controls.Add(_previewCard, 1, 0);
-        _body.Controls.Add(_blockedCard, 0, 1);
-        _body.SetColumnSpan(_blockedCard, 2);
+        _bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        _bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        _bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        _bottom.Controls.Add(_blockedCard, 0, 0);
+        _bottom.Controls.Add(_favoritesCard, 1, 0);
+        _body.Controls.Add(_bottom, 0, 1);
+        _body.SetColumnSpan(_bottom, 2);
 
         _statusBar.Controls.Add(_status);
         _statusBar.Controls.Add(_statusCount);
@@ -105,7 +121,7 @@ public class MainForm : Form
 
         FirewallManager.Load();
         RefreshAll();
-        SetStatus("Selecione uma janela e clique em \"Cortar internet\".");
+        SetStatus("Selecione uma janela e clique em \"Bloquear internet\". Passe o mouse nos botões para ver o que cada um faz.");
 
         Activated += (_, _) => { if (!_refreshing) RefreshAll(); };
 
@@ -141,6 +157,10 @@ public class MainForm : Form
             BuildUpdatesMenu();
             _updatesMenu.Show(_btnUpdatesMenu, new Point(0, _btnUpdatesMenu.Height));
         };
+        _tips.Set(_btnUpdate, "Nova versão disponível", "Há uma versão nova do HiddenApp. Clique para ver as novidades e atualizar.");
+        _tips.Set(_btnUpdatesMenu, "Atualizações", "Verificar se há versão nova, escolher receber versões beta e ver a versão atual.");
+        _tips.Set(_startupToggle, "Iniciar com o Windows", "Abre o HiddenApp escondido perto do relógio quando você entra no Windows, sem pedir permissão de administrador.");
+        _tips.Set(_darkToggle, "Tema escuro", "Alterna entre o tema escuro e o tema claro.");
         right.Controls.Add(_btnUpdate);
         right.Controls.Add(_btnUpdatesMenu);
         right.Controls.Add(_startupToggle);
@@ -177,19 +197,67 @@ public class MainForm : Form
         _windows.MouseUp += (_, _) => _windows.Invalidate();
         _windows.ClientSizeChanged += (_, _) => FitColumns();
 
-        var btnBlock = new RoundButton("Cortar internet", ButtonKind.Danger);
-        var btnUnblock = new RoundButton("Liberar internet");
+        var btnBlock = new RoundButton("Bloquear internet", ButtonKind.Danger);
+        var btnUnblock = new RoundButton("Liberar internet", ButtonKind.Success);
         var btnClone = new RoundButton("Abrir cópia bloqueável...", ButtonKind.Primary);
+        var btnFavorite = new RoundButton("★ Favoritar");
         var btnRefresh = new RoundButton("Atualizar");
         btnBlock.Click += (_, _) => BlockSelected();
         btnUnblock.Click += (_, _) => UnblockSelected();
         btnClone.Click += (_, _) => OpenClone();
+        btnFavorite.Click += (_, _) =>
+        {
+            if (SelectedWindow?.ExePath is string path) AddFavorite(path);
+            else SetStatus("Selecione uma janela primeiro.");
+        };
         btnRefresh.Click += (_, _) => RefreshAll();
         _btnPick.Click += (_, _) => StartPick();
         _pickTimer.Tick += PickTick;
 
+        _tips.Set(btnBlock, "Bloquear internet",
+            "Corta a internet do programa da janela selecionada. Vale para todas as janelas desse programa " +
+            "e continua valendo mesmo com o HiddenApp fechado ou após reiniciar, até você liberar.\n\n" +
+            "Atalho: duplo clique na janela da lista.");
+        _tips.Set(btnUnblock, "Liberar internet", "Devolve a internet ao programa da janela selecionada.");
+        _tips.Set(_btnPick, "Selecionar manualmente",
+            "Clique aqui e, em até 3 segundos, clique na janela que você quer bloquear. " +
+            "O HiddenApp identifica a janela, mostra a prévia e pergunta se deve bloquear.\n\n" +
+            "Útil quando é difícil achar a janela certa na lista.");
+        _tips.Set(btnClone, "Abrir cópia bloqueável",
+            "Abre outra janela do programa a partir de uma cópia (que não ocupa espaço). " +
+            "Só a cópia fica sem internet; o programa original continua normal.\n\n" +
+            "Dá para ter várias cópias do mesmo programa, cada uma com nome e bloqueio próprios.");
+        _tips.Set(btnFavorite, "Favoritar",
+            "Adiciona o programa da janela selecionada aos Favoritos, para bloquear, liberar ou abrir " +
+            "rapidamente depois (também pelo ícone perto do relógio).");
+        _tips.Set(btnRefresh, "Atualizar", "Recarrega a lista de janelas abertas.");
+
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
-        toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, _btnPick, btnClone, btnRefresh });
+        toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, _btnPick, btnClone, btnFavorite, btnRefresh });
+
+        // Botão direito numa janela
+        var menu = new ContextMenuStrip();
+        menu.Opening += (_, e) =>
+        {
+            menu.Items.Clear();
+            var w = SelectedWindow;
+            if (w?.ExePath is not string path) { e.Cancel = true; return; }
+            bool blocked = FirewallManager.IsBlocked(path);
+            menu.Items.Add(new ToolStripMenuItem(blocked ? "Liberar internet" : "Bloquear internet", null,
+                (_, _) => { if (blocked) UnblockSelected(); else BlockSelected(); }) { Font = BoldFont });
+            menu.Items.Add(IsFavorite(path)
+                ? new ToolStripMenuItem("Remover dos favoritos", null, (_, _) => RemoveFavorite(path))
+                : new ToolStripMenuItem("★ Adicionar aos favoritos", null, (_, _) => AddFavorite(path)));
+            if (!CloneManager.IsClone(path))
+                menu.Items.Add(new ToolStripMenuItem("Abrir cópia bloqueável deste programa...", null, (_, _) => OpenClone(path)));
+        };
+        _windows.ContextMenuStrip = menu;
+        _windows.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Right) return;
+            var hit = _windows.HitTest(e.Location).Item;
+            if (hit != null) hit.Selected = true;
+        };
 
         _windowsCard.Controls.Add(_windows);
         _windowsCard.Controls.Add(toolbar);
@@ -204,29 +272,106 @@ public class MainForm : Form
 
     void BuildBlockedCard()
     {
-        _blockedList.DrawItem += DrawBlockedItem;
+        _blockedList.DrawItem += (_, e) => DrawProgramItem(_blockedList, e);
 
-        var btnUnblockSel = new RoundButton("Liberar selecionado");
+        var btnUnblockSel = new RoundButton("Liberar selecionado", ButtonKind.Success);
         var btnUnblockAll = new RoundButton("Liberar todos");
         var btnDeleteClones = new RoundButton("Apagar cópias");
         btnUnblockSel.Click += (_, _) =>
         {
             if (_blockedList.SelectedItem is string path)
             {
-                FirewallManager.Unblock(path);
-                RefreshAll();
-                SetStatus($"Internet liberada: {Path.GetFileName(path)}");
+                UnblockPath(path);
             }
         };
         btnUnblockAll.Click += (_, _) => UnblockAll();
         btnDeleteClones.Click += (_, _) => DeleteClones();
 
+        _tips.Set(btnUnblockSel, "Liberar selecionado", "Devolve a internet ao programa selecionado nesta lista.");
+        _tips.Set(btnUnblockAll, "Liberar todos", "Devolve a internet a todos os programas bloqueados de uma vez.");
+        _tips.Set(btnDeleteClones, "Apagar cópias",
+            "Apaga as cópias criadas pelo HiddenApp. Os programas originais não são afetados. " +
+            "Cópias que estiverem abertas não são apagadas.");
+
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
         toolbar.Controls.AddRange(new Control[] { btnUnblockSel, btnUnblockAll, btnDeleteClones });
+
+        var menu = new ContextMenuStrip();
+        menu.Opening += (_, e) =>
+        {
+            menu.Items.Clear();
+            if (_blockedList.SelectedItem is not string path) { e.Cancel = true; return; }
+            menu.Items.Add(new ToolStripMenuItem("Liberar internet", null, (_, _) => UnblockPath(path)) { Font = BoldFont });
+            menu.Items.Add(IsFavorite(path)
+                ? new ToolStripMenuItem("Remover dos favoritos", null, (_, _) => RemoveFavorite(path))
+                : new ToolStripMenuItem("★ Adicionar aos favoritos", null, (_, _) => AddFavorite(path)));
+        };
+        _blockedList.ContextMenuStrip = menu;
+        _blockedList.MouseDown += (_, e) => SelectOnRightClick(_blockedList, e);
 
         _blockedCard.Controls.Add(_blockedList);
         _blockedCard.Controls.Add(_emptyBlocked);
         _blockedCard.Controls.Add(toolbar);
+    }
+
+    void BuildFavoritesCard()
+    {
+        _favoritesList.DrawItem += (_, e) => DrawProgramItem(_favoritesList, e);
+        _favoritesList.DoubleClick += (_, _) =>
+        {
+            if (SelectedFavorite is not string path) return;
+            if (FirewallManager.IsBlocked(path)) UnblockPath(path); else BlockPath(path);
+        };
+        _favoritesList.MouseDown += (_, e) => SelectOnRightClick(_favoritesList, e);
+
+        var btnBlock = new RoundButton("Bloquear", ButtonKind.Danger);
+        var btnUnblock = new RoundButton("Liberar", ButtonKind.Success);
+        var btnOpen = new RoundButton("Abrir");
+        var btnAdd = new RoundButton("Adicionar...");
+        var btnRemove = new RoundButton("Remover");
+        btnBlock.Click += (_, _) => { if (SelectedFavorite is string f) BlockPath(f); else SetStatus("Selecione um favorito primeiro."); };
+        btnUnblock.Click += (_, _) => { if (SelectedFavorite is string f) UnblockPath(f); else SetStatus("Selecione um favorito primeiro."); };
+        btnOpen.Click += (_, _) => { if (SelectedFavorite is string f) LaunchProgram(f); else SetStatus("Selecione um favorito primeiro."); };
+        btnAdd.Click += (_, _) => AddFavoriteBrowse();
+        btnRemove.Click += (_, _) => { if (SelectedFavorite is string f) RemoveFavorite(f); else SetStatus("Selecione um favorito primeiro."); };
+
+        _tips.Set(btnBlock, "Bloquear", "Corta a internet do favorito selecionado, mesmo que ele não esteja aberto agora.\n\nAtalho: duplo clique no favorito.");
+        _tips.Set(btnUnblock, "Liberar", "Devolve a internet ao favorito selecionado.");
+        _tips.Set(btnOpen, "Abrir", "Abre o programa selecionado. Cópias abrem com o mesmo perfil e as mesmas configurações de quando foram criadas.");
+        _tips.Set(btnAdd, "Adicionar favorito",
+            "Escolhe um programa (.exe) do computador para colocar nos favoritos.\n\n" +
+            "Dica: também dá para clicar com o botão direito numa janela da lista ou usar \"★ Favoritar\".");
+        _tips.Set(btnRemove, "Remover", "Tira o programa dos favoritos. O bloqueio dele não muda.");
+
+        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
+        toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, btnOpen, btnAdd, btnRemove });
+
+        var menu = new ContextMenuStrip();
+        menu.Opening += (_, e) =>
+        {
+            menu.Items.Clear();
+            if (SelectedFavorite is not string path) { e.Cancel = true; return; }
+            bool blocked = FirewallManager.IsBlocked(path);
+            menu.Items.Add(new ToolStripMenuItem(blocked ? "Liberar internet" : "Bloquear internet", null,
+                (_, _) => { if (blocked) UnblockPath(path); else BlockPath(path); }) { Font = BoldFont });
+            menu.Items.Add(new ToolStripMenuItem("Abrir programa", null, (_, _) => LaunchProgram(path)));
+            if (!CloneManager.IsClone(path))
+                menu.Items.Add(new ToolStripMenuItem("Abrir cópia bloqueável...", null, (_, _) => OpenClone(path)));
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(new ToolStripMenuItem("Remover dos favoritos", null, (_, _) => RemoveFavorite(path)));
+        };
+        _favoritesList.ContextMenuStrip = menu;
+
+        _favoritesCard.Controls.Add(_favoritesList);
+        _favoritesCard.Controls.Add(_emptyFavorites);
+        _favoritesCard.Controls.Add(toolbar);
+    }
+
+    static void SelectOnRightClick(ListBox list, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Right) return;
+        int i = list.IndexFromPoint(e.Location);
+        if (i >= 0) list.SelectedIndex = i;
     }
 
     // =====================================================================
@@ -248,7 +393,7 @@ public class MainForm : Form
         _statusCount.ForeColor = p.Muted;
 
         _body.BackColor = p.Back;
-        foreach (var card in new[] { _windowsCard, _previewCard, _blockedCard })
+        foreach (var card in new[] { _windowsCard, _previewCard, _blockedCard, _favoritesCard })
             card.BackColor = p.Surface;
 
         _windows.BackColor = p.Surface;
@@ -256,6 +401,10 @@ public class MainForm : Form
         _blockedList.BackColor = p.Surface;
         _blockedList.ForeColor = p.Text;
         _emptyBlocked.ForeColor = p.Muted;
+        _bottom.BackColor = p.Back;
+        _favoritesList.BackColor = p.Surface;
+        _favoritesList.ForeColor = p.Text;
+        _emptyFavorites.ForeColor = p.Muted;
 
         _preview.BackColor = p.Back;
         _previewTitle.ForeColor = p.Text;
@@ -264,6 +413,7 @@ public class MainForm : Form
         Theme.ApplyTitleBar(this);
         Theme.ApplyScrollbars(_windows);
         Theme.ApplyScrollbars(_blockedList);
+        Theme.ApplyScrollbars(_favoritesList);
         Invalidate(true);
     }
 
@@ -323,6 +473,25 @@ public class MainForm : Form
             }
             _trayMenu.Items.Add(sub);
             _trayMenu.Items.Add(new ToolStripMenuItem("Liberar todos", null, (_, _) => UnblockAll()));
+        }
+
+        if (_settings.Favorites.Count > 0)
+        {
+            var favMenu = new ToolStripMenuItem($"Favoritos ({_settings.Favorites.Count})");
+            foreach (var path in _settings.Favorites.OrderBy(DisplayName, StringComparer.CurrentCultureIgnoreCase))
+            {
+                bool favBlocked = FirewallManager.IsBlocked(path);
+                string favName = DisplayName(path);
+                var item = new ToolStripMenuItem(favName) { Checked = favBlocked, ToolTipText = favBlocked ? "Sem internet" : "Com internet" };
+                item.DropDownItems.Add(new ToolStripMenuItem(favBlocked ? "Liberar internet" : "Bloquear internet", null, (_, _) =>
+                {
+                    if (favBlocked) UnblockPath(path); else BlockPath(path);
+                    ShowBalloon(favBlocked ? "Internet liberada" : "Internet bloqueada", favName);
+                }));
+                item.DropDownItems.Add(new ToolStripMenuItem("Abrir programa", null, (_, _) => LaunchProgram(path)));
+                favMenu.DropDownItems.Add(item);
+            }
+            _trayMenu.Items.Add(favMenu);
         }
 
         _trayMenu.Items.Add(new ToolStripSeparator());
@@ -552,6 +721,7 @@ public class MainForm : Form
         try
         {
             IntPtr selected = SelectedWindow?.Handle ?? IntPtr.Zero;
+            _nameCache.Clear();
 
             _windows.BeginUpdate();
             _windows.Items.Clear();
@@ -559,9 +729,10 @@ public class MainForm : Form
             {
                 string status = w.ExePath == null ? "SEM ACESSO" : FirewallManager.IsBlocked(w.ExePath) ? "BLOQUEADA" : "LIBERADA";
                 bool clone = CloneManager.IsClone(w.ExePath);
+                string? cloneLabel = clone ? CloneManager.LabelOf(w.ExePath!) : null;
                 var item = new ListViewItem(new[] { w.Title, w.ProcessName, w.Pid.ToString(), status })
                 {
-                    Tag = new RowData(w, status, clone)
+                    Tag = new RowData(w, status, clone, cloneLabel)
                 };
                 _windows.Items.Add(item);
             }
@@ -570,12 +741,23 @@ public class MainForm : Form
 
             _blockedList.BeginUpdate();
             _blockedList.Items.Clear();
-            foreach (var path in FirewallManager.Blocked.OrderBy(Path.GetFileName))
+            foreach (var path in FirewallManager.Blocked.OrderBy(DisplayName, StringComparer.CurrentCultureIgnoreCase))
                 _blockedList.Items.Add(path);
             _blockedList.EndUpdate();
             bool any = _blockedList.Items.Count > 0;
             _blockedList.Visible = any;
             _emptyBlocked.Visible = !any;
+
+            string? selectedFav = SelectedFavorite;
+            _favoritesList.BeginUpdate();
+            _favoritesList.Items.Clear();
+            foreach (var path in _settings.Favorites.OrderBy(DisplayName, StringComparer.CurrentCultureIgnoreCase))
+                _favoritesList.Items.Add(path);
+            _favoritesList.EndUpdate();
+            if (selectedFav != null) _favoritesList.SelectedItem = selectedFav;
+            bool anyFav = _favoritesList.Items.Count > 0;
+            _favoritesList.Visible = anyFav;
+            _emptyFavorites.Visible = !anyFav;
 
             int n = FirewallManager.Blocked.Count;
             _statusCount.Text = n == 0 ? "Nenhum programa bloqueado" : $"{n} programa(s) sem internet";
@@ -670,7 +852,7 @@ public class MainForm : Form
                 if (row.IsClone)
                 {
                     int w = TextRenderer.MeasureText(row.Window.ProcessName, RowFont).Width;
-                    DrawPill(g, "CÓPIA", p.Accent, bg, bounds.Left + Theme.S(16) + w, bounds);
+                    DrawPill(g, PillText(row.CloneLabel ?? "Cópia"), p.Accent, bg, bounds.Left + Theme.S(16) + w, bounds);
                 }
                 break;
 
@@ -700,10 +882,32 @@ public class MainForm : Form
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
     }
 
-    // ---------- Desenho da lista de bloqueados ----------
-    void DrawBlockedItem(object? sender, DrawItemEventArgs e)
+    // ---------- Desenho das listas de programas (bloqueados e favoritos) ----------
+    static string PillText(string text)
     {
-        if (e.Index < 0 || _blockedList.Items[e.Index] is not string path) return;
+        text = text.ToUpperInvariant();
+        return text.Length > 18 ? text[..17] + "…" : text;
+    }
+
+    /// <summary>Nome amigável do programa (ex.: "Google Chrome") + nome da cópia, se for uma.</summary>
+    string DisplayName(string path)
+    {
+        if (_nameCache.TryGetValue(path, out var cached)) return cached;
+        string name;
+        try
+        {
+            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+            name = string.IsNullOrWhiteSpace(info.FileDescription) ? Path.GetFileNameWithoutExtension(path) : info.FileDescription.Trim();
+        }
+        catch { name = Path.GetFileNameWithoutExtension(path); }
+        if (CloneManager.IsClone(path)) name += $" — {CloneManager.LabelOf(path)}";
+        _nameCache[path] = name;
+        return name;
+    }
+
+    void DrawProgramItem(ListBox list, DrawItemEventArgs e)
+    {
+        if (e.Index < 0 || list.Items[e.Index] is not string path) return;
         var p = Theme.Current;
         var g = e.Graphics;
         bool selected = (e.State & DrawItemState.Selected) != 0;
@@ -718,19 +922,24 @@ public class MainForm : Form
             g.DrawImage(icon, e.Bounds.Left + pad, e.Bounds.Top + (e.Bounds.Height - isz) / 2, isz, isz);
         }
 
-        string name = Path.GetFileName(path);
+        // Etiqueta de situação
+        bool blocked = FirewallManager.IsBlocked(path);
+        bool exists = File.Exists(path);
+        (string pill, Color pillColor) = blocked ? ("SEM INTERNET", p.Danger)
+                                       : exists ? ("COM INTERNET", p.Success)
+                                       : ("NÃO ENCONTRADO", p.Muted);
+        int pillW = TextRenderer.MeasureText(pill, PillFont).Width + Theme.S(10);
+
+        string name = DisplayName(path);
         int line1 = BoldFont.Height + Theme.S(4);
         int top = e.Bounds.Top + (e.Bounds.Height - line1 - SmallFont.Height) / 2;
         var firstLine = new Rectangle(e.Bounds.Left, top, e.Bounds.Width, line1);
-        TextRenderer.DrawText(g, name, BoldFont, new Rectangle(textX, top, e.Bounds.Width, line1), p.Text,
-            TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.SingleLine);
-        int x = textX + TextRenderer.MeasureText(name, BoldFont).Width + Theme.S(4);
-        DrawPill(g, "SEM INTERNET", p.Danger, bg, x, firstLine);
-        if (CloneManager.IsClone(path))
-        {
-            int x2 = x + TextRenderer.MeasureText("SEM INTERNET", PillFont).Width + Theme.S(16);
-            DrawPill(g, "CÓPIA", p.Accent, bg, x2, firstLine);
-        }
+        int nameMax = e.Bounds.Width - (textX - e.Bounds.Left) - pillW - Theme.S(16);
+        int nameW = Math.Min(TextRenderer.MeasureText(name, BoldFont).Width, Math.Max(Theme.S(60), nameMax));
+        TextRenderer.DrawText(g, name, BoldFont, new Rectangle(textX, top, nameW, line1), p.Text,
+            TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+        DrawPill(g, pill, pillColor, bg, textX + nameW + Theme.S(6), firstLine);
+
         TextRenderer.DrawText(g, path, SmallFont,
             new Rectangle(textX, top + line1, e.Bounds.Width - Theme.S(50), SmallFont.Height), p.Muted,
             TextFormatFlags.Left | TextFormatFlags.PathEllipsis | TextFormatFlags.SingleLine);
@@ -774,13 +983,20 @@ public class MainForm : Form
             if (r != DialogResult.Yes) return;
         }
 
+        BlockPath(w.ExePath, w.ProcessName);
+    }
+
+    /// <summary>Bloqueia um programa pelo caminho (usado pela lista de janelas, favoritos e bandeja).</summary>
+    void BlockPath(string path, string? name = null)
+    {
+        name ??= DisplayName(path);
         try
         {
             Cursor = Cursors.WaitCursor;
-            FirewallManager.Block(w.ExePath);
-            // Corta também as conexões que já estavam abertas
-            int killed = Native.KillTcpConnections(WindowEnumerator.GetPidsForExes(FirewallManager.TargetsFor(w.ExePath)));
-            SetStatus($"Internet cortada para {w.ProcessName}. ({killed} conexão(ões) aberta(s) derrubada(s))");
+            FirewallManager.Block(path);
+            // Derruba também as conexões que já estavam abertas
+            int killed = Native.KillTcpConnections(WindowEnumerator.GetPidsForExes(FirewallManager.TargetsFor(path)));
+            SetStatus($"Internet bloqueada para {name}." + (killed > 0 ? $" ({killed} conexão(ões) aberta(s) derrubada(s))" : ""));
         }
         catch (Exception ex)
         {
@@ -788,6 +1004,64 @@ public class MainForm : Form
         }
         finally { Cursor = Cursors.Default; }
         RefreshAll();
+    }
+
+    void UnblockPath(string path)
+    {
+        FirewallManager.Unblock(path);
+        SetStatus($"Internet liberada para {DisplayName(path)}.");
+        RefreshAll();
+    }
+
+    // ---------- Favoritos ----------
+    string? SelectedFavorite => _favoritesList.SelectedItem as string;
+
+    bool IsFavorite(string path) => _settings.Favorites.Contains(path, StringComparer.OrdinalIgnoreCase);
+
+    void AddFavorite(string path)
+    {
+        if (!IsFavorite(path))
+        {
+            _settings.Favorites.Add(path);
+            _settings.Save();
+        }
+        RefreshAll();
+        _favoritesList.SelectedItem = _settings.Favorites.First(f => f.Equals(path, StringComparison.OrdinalIgnoreCase));
+        SetStatus($"{DisplayName(path)} está nos favoritos.");
+    }
+
+    void RemoveFavorite(string path)
+    {
+        _settings.Favorites.RemoveAll(f => f.Equals(path, StringComparison.OrdinalIgnoreCase));
+        _settings.Save();
+        RefreshAll();
+        SetStatus($"{DisplayName(path)} saiu dos favoritos.");
+    }
+
+    void AddFavoriteBrowse()
+    {
+        using var dlg = new OpenFileDialog { Filter = "Programas (*.exe)|*.exe", Title = "Escolha um programa para os favoritos" };
+        if (dlg.ShowDialog(this) == DialogResult.OK) AddFavorite(dlg.FileName);
+    }
+
+    /// <summary>Abre um programa (sem privilégio de admin). Cópias abrem com os argumentos salvos.</summary>
+    void LaunchProgram(string path)
+    {
+        if (!File.Exists(path))
+        {
+            MessageBox.Show("O programa não foi encontrado nesse caminho:\n" + path, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        string args = CloneManager.IsClone(path) ? CloneManager.ArgsOf(path) : "";
+        try
+        {
+            CloneManager.Launch(path, args);
+            SetStatus($"Abrindo {DisplayName(path)}...");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     void UnblockSelected()
@@ -807,14 +1081,15 @@ public class MainForm : Form
     }
 
     // ---------- Cópia bloqueável (hard links) ----------
-    async void OpenClone()
+    async void OpenClone(string? program = null)
     {
-        string? initial = SelectedWindow?.ExePath;
+        string? initial = program ?? SelectedWindow?.ExePath;
         if (CloneManager.IsClone(initial)) initial = null;
 
         using var dlg = new CloneDialog(initial);
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
-        string exe = dlg.ExePath, args = dlg.Arguments;
+        string exe = dlg.ExePath, args = dlg.Arguments, copyName = dlg.CopyName;
+        int copyNumber = dlg.CopyNumber;
         bool startBlocked = dlg.StartBlocked;
 
         try
@@ -832,7 +1107,8 @@ public class MainForm : Form
             }
 
             var progress = new Progress<string>(SetStatus);
-            var res = await Task.Run(() => CloneManager.CreateOrUpdate(exe, progress));
+            var res = await Task.Run(() => CloneManager.CreateOrUpdate(exe, copyNumber, progress));
+            CloneManager.SaveMeta(res.CloneExe, copyName, args);
 
             if (startBlocked)
             {
@@ -847,7 +1123,7 @@ public class MainForm : Form
             string info = $"{res.Linked} arquivos linkados" +
                           (res.Copied > 0 ? $", {res.Copied} copiados" : "") +
                           (res.Failed > 0 ? $", {res.Failed} com erro" : "");
-            SetStatus($"Cópia aberta ({info}). {(startBlocked ? "Ela já está sem internet." : "")}");
+            SetStatus($"{CloneManager.LabelOf(res.CloneExe)} aberta ({info}). {(startBlocked ? "Ela já está sem internet." : "")}");
 
             // Confere se o programa abriu mesmo uma instância separada
             await Task.Delay(4000);
@@ -894,7 +1170,7 @@ public class MainForm : Form
         RefreshAll();
     }
 
-    // ---------- "Escolher janela": clica no botão e depois clica na janela desejada ----------
+    // ---------- "Selecionar manualmente": clica no botão e depois clica na janela desejada ----------
     void StartPick()
     {
         _countdown = 3;
@@ -925,7 +1201,7 @@ public class MainForm : Form
         RefreshAll();
         SelectWindowInList(w.Handle);
 
-        var r = MessageBox.Show($"Cortar a internet de:\n\n\"{w.Title}\"\n({w.ProcessName})?",
+        var r = MessageBox.Show($"Bloquear a internet de:\n\n\"{w.Title}\"\n({w.ProcessName})?",
             "HiddenApp", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
         if (r == DialogResult.Yes) Block(w);
         else RefreshAll();

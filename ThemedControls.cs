@@ -19,7 +19,7 @@ internal static class Gfx
     }
 }
 
-public enum ButtonKind { Primary, Secondary, Danger }
+public enum ButtonKind { Primary, Secondary, Danger, Success }
 
 /// <summary>Botão arredondado que segue o tema.</summary>
 public class RoundButton : Button
@@ -64,6 +64,7 @@ public class RoundButton : Button
         {
             ButtonKind.Primary => (p.Accent, p.AccentText, (Color?)null),
             ButtonKind.Danger => (p.Danger, Color.White, null),
+            ButtonKind.Success => (p.Success, p.SuccessText, null),
             _ => (p.Surface2, p.Text, p.Border),
         };
 
@@ -298,5 +299,59 @@ public class ThinProgress : Control
             using var b = new SolidBrush(p.Accent);
             g.FillPath(b, fill);
         }
+    }
+}
+
+/// <summary>
+/// Balão de ajuda (tooltip) com título e explicação, desenhado com as cores do tema.
+/// Use <see cref="Set"/> em vez de SetToolTip.
+/// </summary>
+public class ThemedToolTip : ToolTip
+{
+    static readonly Font TitleFont = new("Segoe UI Semibold", 9.5f);
+    static readonly Font BodyFont = new("Segoe UI", 9f);
+    readonly Dictionary<Control, (string Title, string Body)> _tips = new();
+
+    public ThemedToolTip()
+    {
+        OwnerDraw = true;
+        InitialDelay = 450;
+        ReshowDelay = 150;
+        AutoPopDelay = 30000;
+        Popup += OnPopup;
+        Draw += OnDraw;
+    }
+
+    public void Set(Control control, string title, string body)
+    {
+        _tips[control] = (title, body);
+        SetToolTip(control, body);
+    }
+
+    static int MaxWidth => Theme.S(330);
+    static int Pad => Theme.S(11);
+    static readonly TextFormatFlags BodyFlags = TextFormatFlags.WordBreak | TextFormatFlags.Left | TextFormatFlags.NoPadding;
+
+    void OnPopup(object? sender, PopupEventArgs e)
+    {
+        if (e.AssociatedControl == null || !_tips.TryGetValue(e.AssociatedControl, out var t)) return;
+        var title = TextRenderer.MeasureText(t.Title, TitleFont);
+        var body = TextRenderer.MeasureText(t.Body, BodyFont, new Size(MaxWidth, int.MaxValue), BodyFlags);
+        e.ToolTipSize = new Size(Math.Max(title.Width, body.Width) + Pad * 2,
+                                 title.Height + Theme.S(4) + body.Height + Pad * 2);
+    }
+
+    void OnDraw(object? sender, DrawToolTipEventArgs e)
+    {
+        var p = Theme.Current;
+        var g = e.Graphics;
+        using (var b = new SolidBrush(p.Surface2)) g.FillRectangle(b, e.Bounds);
+        using (var pen = new Pen(p.Accent)) g.DrawRectangle(pen, 0, 0, e.Bounds.Width - 1, e.Bounds.Height - 1);
+        if (e.AssociatedControl == null || !_tips.TryGetValue(e.AssociatedControl, out var t)) return;
+
+        var titleSize = TextRenderer.MeasureText(t.Title, TitleFont);
+        TextRenderer.DrawText(g, t.Title, TitleFont, new Point(Pad, Pad), p.Accent);
+        var bodyRect = new Rectangle(Pad, Pad + titleSize.Height + Theme.S(4), e.Bounds.Width - Pad * 2, e.Bounds.Height);
+        TextRenderer.DrawText(g, t.Body, BodyFont, bodyRect, p.Text, BodyFlags);
     }
 }

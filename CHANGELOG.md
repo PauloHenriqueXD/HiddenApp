@@ -9,6 +9,29 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [1.2.0] - 2026-11-10
+
+### Adicionado
+
+- **Favoritos:** nova lista ao lado dos programas bloqueados para guardar os programas que você mais usa.
+  - Bloquear, liberar e abrir com um clique (duplo clique alterna o bloqueio), mesmo com o programa fechado.
+  - Adicionar pelo botão "★ Favoritar", pelo botão direito numa janela ou programa bloqueado, ou escolhendo um `.exe`.
+  - Submenu "Favoritos" no ícone da bandeja para bloquear, liberar ou abrir sem abrir a janela.
+- **Várias cópias bloqueáveis por programa:** cada cópia tem bloqueio, perfil e nome próprios
+  (ex.: "Chrome — Trabalho" sem internet e "Chrome — Pessoal" com internet).
+  O diálogo permite escolher entre criar uma cópia nova ou reabrir uma existente.
+- **Balões de ajuda:** passar o mouse sobre qualquer botão mostra o que ele faz na prática.
+- **Menu do botão direito** na lista de janelas e nas listas de bloqueados e favoritos.
+- Programas bloqueados e favoritos aparecem com o nome amigável (ex.: "Google Chrome") e a situação
+  (SEM INTERNET / COM INTERNET).
+
+### Alterado
+
+- Botão "Cortar internet" renomeado para **"Bloquear internet"**.
+- Botões "Liberar internet" e "Liberar selecionado" agora são **verdes**.
+- Botão "Escolher janela (3s)" renomeado para **"Selecionar manualmente"**.
+- A cópia passou a mostrar o seu nome na lista de janelas no lugar da etiqueta genérica "CÓPIA".
+
 ## [1.1.0] - 2026-11-10
 
 ### Adicionado
@@ -57,6 +80,7 @@ Primeira versão.
 - Perfil de publicação **Portatil** e `publicar.bat`: gera um único `HiddenApp.exe` autocontido
   (não precisa instalar o .NET).
 
-[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.1.0...HEAD
+[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.2.0
 [1.1.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.1.0
 [1.0.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.0.0

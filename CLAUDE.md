@@ -31,17 +31,17 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 |---|---|
 | `Program.cs` | Entrada; instância única (Mutex + EventWaitHandle); argumentos `--tray` e `--updated` |
 | `MainForm.cs` | Janela principal: montagem da UI, listas owner-draw, bandeja, ações |
-| `CloneDialog.cs` | Diálogo "Abrir cópia bloqueável" |
+| `CloneDialog.cs` | Diálogo "Abrir cópia bloqueável" (nova cópia ou existente, nome, argumentos) |
 | `FirewallManager.cs` | Cria/remove regras via `netsh`; guarda a lista de bloqueados |
-| `CloneManager.cs` | Cópias com hard links em `X:\HiddenAppClones\`, abertura e limpeza |
+| `CloneManager.cs` | Cópias numeradas com hard links em `X:\HiddenAppClones\`, metadados (nome/args), abertura e limpeza |
 | `WindowEnumerator.cs` | Lista janelas (estilo Alt+Tab), resolve processo/caminho, PIDs por .exe |
 | `WindowPreview.cs` | Miniatura ao vivo via DWM Thumbnails |
 | `StartupManager.cs` | "Iniciar com o Windows" via Tarefa Agendada (`schtasks /XML`) |
-| `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` (tema, betas, última versão perguntada) |
+| `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` (tema, favoritos, betas, última versão perguntada) |
 | `UpdateManager.cs` | `SemVer`; consulta ao GitHub Releases, download, verificação SHA-256 e troca do .exe |
 | `UpdateDialog.cs` | Diálogo "Nova versão disponível" com novidades e progresso do download |
 | `Theme.cs` | Paletas, tema atual, escala de DPI (`Theme.S`), barra de título escura, recursos embutidos |
-| `ThemedControls.cs` | Controles próprios: `RoundButton`, `Card`, `ToggleSwitch`, `ThemedListView`, renderer do menu |
+| `ThemedControls.cs` | Controles próprios: `RoundButton` (Primary/Secondary/Danger/Success), `Card`, `ToggleSwitch`, `ThemedListView`, `ThinProgress`, `ThemedToolTip`, renderer do menu |
 | `Native.cs` | Todo o P/Invoke (user32, kernel32, dwmapi, iphlpapi, advapi32) |
 | `Assets/` | `HiddenApp.ico` (ícone do exe/bandeja) e `logo.png` (cabeçalho), embutidos como recurso |
 | `Properties/PublishProfiles/Portatil.pubxml` | Publicação single-file self-contained win-x64 |
@@ -64,6 +64,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 - **Requer administrador** (`app.manifest` → `requireAdministrator`). Tudo que o app abre por conta
   própria (cópias) deve ser iniciado **sem elevação** via `Native.StartUnelevated`.
 - Nullable está ativado; mantenha o build **sem warnings**.
+- **Todo botão novo ganha um balão de ajuda** via `_tips.Set(botão, título, explicação)` (`ThemedToolTip`),
+  explicando o que ele faz na prática. Verde (`ButtonKind.Success`) = liberar; vermelho (`Danger`) = bloquear.
+- Para exibir programas use `DisplayName(path)` (nome amigável + nome da cópia) e `DrawProgramItem`
+  para listas (bloqueados/favoritos), em vez de desenhar à mão.
 
 ## Armadilhas conhecidas (não "consertar" sem entender)
 
@@ -72,6 +76,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 - **Cópias são hard links:** mesmo conteúdo do original. Nunca escreva em arquivos dentro de
   `HiddenAppClones` achando que é uma cópia independente. Hard links só funcionam no mesmo volume,
   por isso a pasta de cópias fica na raiz do disco do programa original.
+- **Um programa pode ter várias cópias** (`Nome_HASH` = cópia 1, `Nome_HASH_2`, `Nome_HASH_3`...). Cada uma
+  tem pasta, bloqueio e perfil (`_HiddenAppData`) próprios. Nome e argumentos ficam em `_HiddenApp.json`
+  dentro da pasta da cópia; "Abrir" (favoritos) reutiliza esses argumentos — sem eles, navegadores
+  repassariam a janela para o original.
 - **Bloquear uma cópia bloqueia todos os `.exe` da pasta da cópia** (`FirewallManager.TargetsFor`),
   porque muitos apps usam launcher + outro executável. Ao apagar cópias, as regras precisam ser
   removidas **antes** de apagar a pasta (depois não dá para listar os .exe).
@@ -106,15 +114,17 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | Programas bloqueados | `%AppData%\HiddenApp\blocked.json` (conferido contra o firewall ao abrir) |
 | Preferências (tema, aviso da bandeja) | `%AppData%\HiddenApp\settings.json` |
 | Regras de firewall | Nome `HiddenApp - <caminho do exe>`, uma de entrada e uma de saída |
-| Cópias | `X:\HiddenAppClones\<Programa>_<hash8>\` |
+| Cópias | `X:\HiddenAppClones\<Programa>_<hash8>[_N]\` (+ `_HiddenApp.json` com nome e argumentos) |
+| Favoritos | `%AppData%\HiddenApp\settings.json` (`Favorites`) |
 | Inicialização | Tarefa agendada `HiddenApp` (argumento `--tray`) |
 
 ## Checklist de teste manual
 
 1. Abrir o app (UAC aparece) → lista de janelas com ícones; prévia ao selecionar.
-2. Cortar internet de um navegador → página não carrega; status "BLOQUEADA"; regra aparece em
+2. Bloquear internet de um navegador → página não carrega; status "BLOQUEADA"; regra aparece em
    "Firewall do Windows com Segurança Avançada". Liberar → volta a funcionar.
 3. Abrir cópia bloqueável do Chrome → nova janela sem internet, a original continua com internet.
+   Abrir uma segunda cópia (nome "Pessoal", sem bloquear) → as duas cópias têm bloqueio independente.
 4. Apagar cópias com a cópia fechada → pasta `HiddenAppClones` some e regras são removidas.
 5. Fechar no "X" → app continua na bandeja; menu da bandeja funciona; "Sair" encerra.
 6. Alternar tema escuro/claro → toda a janela, barra de título e menu da bandeja mudam.
@@ -124,6 +134,9 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 10. Atualização: com um `.exe` publicado de versão menor, "Atualizações → Verificar agora" mostra a
     versão nova; "Depois" mantém o botão "Nova versão" no topo e o item na bandeja; "Atualizar agora"
     baixa, reinicia na versão nova e mantém bloqueios/configurações.
+11. Favoritos: adicionar pelo "★ Favoritar" e pelo botão direito; bloquear/liberar/abrir pela lista
+    e pelo menu da bandeja; abrir uma cópia favorita reabre com o mesmo perfil.
+12. Passar o mouse nos botões → balão de ajuda com as cores do tema.
 
 ## Versão, changelog e lançamento
 

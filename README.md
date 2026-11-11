@@ -11,9 +11,11 @@
 ## O que ele faz
 
 - **Lista as janelas abertas** (as mesmas do Alt+Tab), com o ícone de cada programa e uma **prévia ao vivo** da janela selecionada.
-- **Cortar / liberar internet** de um programa com um clique (ou duplo clique na lista). As conexões que já estavam abertas também são derrubadas.
-- **Escolher janela (3s):** clique no botão e depois na janela que deseja bloquear.
-- **Cópia bloqueável:** abre uma segunda instância de um programa a partir de uma cópia feita de *hard links* (não ocupa espaço). Só a cópia fica sem internet; o programa original continua normal — útil para, por exemplo, ter duas janelas do mesmo navegador e bloquear só uma.
+- **Bloquear / liberar internet** de um programa com um clique (ou duplo clique na lista). As conexões que já estavam abertas também são derrubadas.
+- **Selecionar manualmente:** clique no botão e, em até 3 segundos, na janela que deseja bloquear.
+- **Favoritos:** lista com os programas que você mais usa, para bloquear, liberar ou abrir rapidamente (também pelo ícone da bandeja).
+- **Balões de ajuda:** passe o mouse sobre um botão para ver o que ele faz.
+- **Cópia bloqueável:** abre outra instância de um programa a partir de uma cópia feita de *hard links* (não ocupa espaço). Só a cópia fica sem internet; o programa original continua normal — útil para, por exemplo, ter duas janelas do mesmo navegador e bloquear só uma. Um programa pode ter **várias cópias**, cada uma com nome, perfil e bloqueio próprios.
 - **Bandeja do sistema:** fica rodando perto do relógio; o menu do ícone permite liberar programas, trocar o tema e sair.
 - **Iniciar com o Windows** (abre direto na bandeja, sem prompt do UAC).
 - **Tema escuro** (padrão) e **tema claro**.
@@ -80,6 +82,7 @@ Acompanhe a publicação na aba **Actions** do repositório.
 | Programas bloqueados e configurações | `%AppData%\HiddenApp\` |
 | Regras de firewall | Firewall do Windows, regras que começam com `HiddenApp - ` |
 | Cópias bloqueáveis | `X:\HiddenAppClones\` (no mesmo disco do programa original) |
+| Favoritos | `%AppData%\HiddenApp\settings.json` |
 | Inicialização automática | Agendador de Tarefas, tarefa `HiddenApp` |
 
 ## Limitações

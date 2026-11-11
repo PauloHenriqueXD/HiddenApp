@@ -8,6 +8,9 @@ internal class AppSettings
     public bool DarkTheme { get; set; } = true;
     public bool TrayHintShown { get; set; }
 
+    /// <summary>Programas favoritos (caminho completo do .exe, inclusive de cópias).</summary>
+    public List<string> Favorites { get; set; } = new();
+
     // ---------- Atualizações ----------
     /// <summary>Receber versões beta (pré-lançamento) além das versões estáveis.</summary>
     public bool IncludePrereleases { get; set; }

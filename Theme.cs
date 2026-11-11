@@ -15,6 +15,7 @@ public record Palette(
     Color AccentText, // texto sobre o Accent
     Color Danger,     // vermelho do ícone
     Color Success,
+    Color SuccessText, // texto sobre o Success (botão verde)
     Color Selection);
 
 /// <summary>Tema atual (escuro/claro) e ajustes visuais do Windows (barra de título, scrollbars).</summary>
@@ -23,12 +24,12 @@ public static class Theme
     public static readonly Palette Dark = new(true,
         Back: Hex("#0A0F1E"), Surface: Hex("#121A2E"), Surface2: Hex("#1B2541"), Border: Hex("#26335A"),
         Text: Hex("#E8ECF5"), Muted: Hex("#8A96B3"), Accent: Hex("#22C7EE"), AccentText: Hex("#03121C"),
-        Danger: Hex("#FF4D6D"), Success: Hex("#34D399"), Selection: Hex("#1D3A63"));
+        Danger: Hex("#FF4D6D"), Success: Hex("#34D399"), SuccessText: Hex("#03140D"), Selection: Hex("#1D3A63"));
 
     public static readonly Palette Light = new(false,
         Back: Hex("#EEF1F7"), Surface: Hex("#FFFFFF"), Surface2: Hex("#F0F3F9"), Border: Hex("#D5DBE7"),
         Text: Hex("#162033"), Muted: Hex("#5B6782"), Accent: Hex("#0A8BD0"), AccentText: Hex("#FFFFFF"),
-        Danger: Hex("#D7354F"), Success: Hex("#159A66"), Selection: Hex("#D3EAF9"));
+        Danger: Hex("#D7354F"), Success: Hex("#159A66"), SuccessText: Hex("#FFFFFF"), Selection: Hex("#D3EAF9"));
 
     public static Palette Current { get; private set; } = Dark;
     public static event Action? Changed;

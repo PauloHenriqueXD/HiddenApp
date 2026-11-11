@@ -136,6 +136,16 @@ Acompanhe a publicação na aba **Actions** do repositório.
 - Apps da Microsoft Store, programas que acessam a internet por um serviço do Windows e jogos com anti-cheat podem não funcionar com a cópia bloqueável.
 - Os arquivos da cópia são *hard links*: se a cópia alterar um arquivo da própria pasta, o original também é alterado.
 
+## Licença, privacidade e assinatura
+
+- Código aberto sob a licença **[MIT](LICENSE)**.
+- **[Política de privacidade](PRIVACY.md):** o HiddenApp não coleta nem envia dados pessoais.
+- **[Política de assinatura de código](CODE_SIGNING_POLICY.md)** — Free code signing provided by
+  [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+- **Desinstalar:** em **Atualizações ▾ → Desinstalar (remover tudo do computador)** o HiddenApp remove as regras
+  de firewall, as cópias bloqueáveis e a inicialização com o Windows (e, se você quiser, suas configurações).
+  Depois é só apagar o `HiddenApp.exe`.
+
 ## Documentação
 
 - [ARQUITETURA.md](ARQUITETURA.md) — como o HiddenApp funciona por dentro

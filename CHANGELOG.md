@@ -9,6 +9,17 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [2.1.0] - 2026-11-11
+
+### Adicionado
+
+- **Desinstalar (remover tudo do computador)**, em "Atualizações ▾" e no menu da bandeja: remove todas as regras
+  de firewall do HiddenApp, as cópias bloqueáveis e a inicialização com o Windows; opcionalmente apaga
+  configurações, favoritos e macros. Depois abre a pasta do programa para apagar o `.exe`.
+- Licença **MIT**, política de privacidade e política de assinatura de código (preparação para assinatura
+  gratuita pela SignPath Foundation).
+- Nome do autor, copyright e descrição nas propriedades do `.exe`.
+
 ## [2.0.1] - 2026-11-11
 
 ### Adicionado

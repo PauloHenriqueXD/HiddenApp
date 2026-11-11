@@ -11,9 +11,14 @@
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <!-- Ícone do .exe (Explorer / barra de tarefas) -->
     <ApplicationIcon>Assets\HiddenApp.ico</ApplicationIcon>
-    <Version>2.0.1</Version>
+    <Version>2.1.0</Version>
     <AssemblyTitle>HiddenApp</AssemblyTitle>
     <Product>HiddenApp</Product>
+    <Company>Paulo Henrique Ferrari Mantuaneli</Company>
+    <Authors>Paulo Henrique Ferrari Mantuaneli</Authors>
+    <Copyright>Copyright © 2026 Paulo Henrique Ferrari Mantuaneli (MIT)</Copyright>
+    <Description>HiddenApp — bloqueia a internet de programas pelo Firewall do Windows e automatiza cliques</Description>
+    <RepositoryUrl>https://github.com/PauloHenriqueXD/HiddenApp</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

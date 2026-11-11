@@ -7,6 +7,9 @@ internal static class Program
     /// <summary>Reinício pedido pelo próprio app (ex.: troca de idioma): espera a instância anterior fechar.</summary>
     public const string RestartArgument = "--restart";
 
+    /// <summary>Marcado por "Desinstalar" para apagar %AppData%\\HiddenApp ao fechar.</summary>
+    public static bool WipeDataOnExit;
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -43,6 +46,17 @@ internal static class Program
         }) { IsBackground = true }.Start();
 
         Application.Run(form);
+
+        // "Desinstalar" com a opção de apagar os dados: só depois que tudo fechou (nada salva de novo)
+        if (WipeDataOnExit)
+        {
+            try
+            {
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HiddenApp");
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+            catch { }
+        }
         GC.KeepAlive(mutex);
     }
 }

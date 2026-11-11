@@ -92,6 +92,7 @@ jobs:
           }
           $text = ($out -join "`n").Trim()
           if (-not $text) { $text = "Versão $ver." }
+          $text += "`n`n---`n[Política de assinatura de código / Code signing policy](https://github.com/${{ github.repository }}/blob/main/CODE_SIGNING_POLICY.md) · [Privacidade / Privacy](https://github.com/${{ github.repository }}/blob/main/PRIVACY.md) · Licença MIT"
           $text | Out-File -FilePath notes.md -Encoding utf8
 
       - name: Criar a Release

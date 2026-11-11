@@ -48,6 +48,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder); link do GitHub Sponsors |
 | `Feedback.cs` | Botão "Sugestões": abre o Google Forms (`GoogleFormTemplate`) ou uma issue do GitHub já preenchidos com versão/Windows/idioma |
 | `.github/ISSUE_TEMPLATE/` | Formulários de issue `sugestao.yml` e `problema.yml` (ids `versao`, `windows`, `idioma` são preenchidos pela URL) |
+| `LICENSE`, `PRIVACY.md`, `CODE_SIGNING_POLICY.md` | Licença MIT e políticas exigidas pela SignPath Foundation (assinatura grátis). Mantenha-as verdadeiras: qualquer acesso novo à rede ou mudança no sistema precisa aparecer na política de privacidade e no "Desinstalar" |
 | `.github/FUNDING.yml` | Faz o GitHub mostrar o botão "Sponsor" no repositório |
 | `SupportDialog.cs` | Janela "Apoiar o projeto": QR, copia e cola, conferência do recebedor e site oficial |
 | `I18n.cs` | Traduções: `L.T`/`L.F` (dicionário por texto em português, com modelos `{0}`), `L.Apply(controle)`, `Msg.Show` |
@@ -154,6 +155,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   token ou endereço de envio no `.exe` (qualquer um extrai e usa para spam). O link do Google Forms é um modelo
   com as palavras `VERSAO`, `WINDOWS` e `IDIOMA`; se o formulário mudar, gere um novo link pré-preenchido.
   Os ids dos campos nos modelos de issue precisam bater com os parâmetros da URL em `Feedback.OpenGitHub`.
+- **Desinstalar** (`MainForm.Uninstall`): `UnblockAll` **antes** de `DeleteAllClones`, depois `FirewallManager.RemoveAllRules`
+  (PowerShell, apaga sobras `HiddenApp - *`) e a tarefa de inicialização. Os dados em `%AppData%\HiddenApp` só são
+  apagados no fim do `Program.Main` (`WipeDataOnExit`), quando nada mais salva. Algo novo que o app crie no sistema
+  precisa ser desfeito aqui.
 - **Visual Studio com arquivos abertos** pode salvar a versão antiga por cima de edições feitas fora
   dele. Ao editar arquivos externamente, recarregue no VS ("Sim para Todos").
 

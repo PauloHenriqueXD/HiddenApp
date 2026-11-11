@@ -375,5 +375,11 @@
  "Enviar comentário ou sugestão (sem conta)": "发送意见或建议（无需账号）",
  "Sugerir uma melhoria no GitHub": "在 GitHub 上提出改进建议",
  "Relatar um problema no GitHub": "在 GitHub 上报告问题",
- "Enviar sugestão ou comentário": "发送反馈"
+ "Enviar sugestão ou comentário": "发送反馈",
+ "Desinstalar (remover tudo do computador)...": "卸载（从电脑中移除所有内容）……",
+ "Desinstalar o HiddenApp": "卸载 HiddenApp",
+ "Isto desfaz tudo o que o HiddenApp mudou no computador:\n\n• remove todas as regras de firewall criadas por ele (a internet volta para todos os programas);\n• apaga as cópias bloqueáveis (os programas originais não são afetados);\n• remove a inicialização com o Windows.\n\nFeche as cópias abertas antes. Continuar?": "这将撤销 HiddenApp 对电脑所做的所有更改：\n\n• 删除它创建的所有防火墙规则（所有程序恢复网络）；\n• 删除可封锁副本（原程序不受影响）；\n• 取消开机启动。\n\n请先关闭正在运行的副本。继续吗？",
+ "Apagar também suas configurações, favoritos e macros?\n\nEscolha \"Não\" se pretende usar o HiddenApp de novo depois.": "同时删除你的设置、收藏和宏吗？\n\n如果以后还打算使用 HiddenApp，请选择“否”。",
+ "{0} cópia(s) não puderam ser apagadas porque ainda estão abertas. Feche-as e apague a pasta HiddenAppClones manualmente.": "有 {0} 个副本仍在运行，无法删除。请关闭它们后手动删除 HiddenAppClones 文件夹。",
+ "Pronto. O HiddenApp vai fechar e a pasta dele será aberta: para terminar, apague o arquivo HiddenApp.exe.": "完成。HiddenApp 将关闭并打开其所在文件夹：最后请删除 HiddenApp.exe 文件。"
 }

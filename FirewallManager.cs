@@ -115,6 +115,25 @@ internal static class FirewallManager
         foreach (var path in _blocked.ToList()) Unblock(path);
     }
 
+    /// <summary>
+    /// Remove qualquer regra com o nome "HiddenApp - ..." (também as que ficaram fora da lista).
+    /// Usado ao desinstalar. Decide só pelo código de saída, nunca pelo texto (que é localizado).
+    /// </summary>
+    public static void RemoveAllRules()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("powershell.exe",
+                "-NoProfile -NonInteractive -Command \"Get-NetFirewallRule -DisplayName 'HiddenApp - *' -ErrorAction SilentlyContinue | Remove-NetFirewallRule\"")
+            { UseShellExecute = false, CreateNoWindow = true };
+            using var p = Process.Start(psi);
+            p?.WaitForExit(30000);
+        }
+        catch { }
+        _blocked.Clear();
+        Save();
+    }
+
     static bool RuleExists(string exePath) =>
         Netsh($"advfirewall firewall show rule name=\"{RuleName(exePath)}\"").code == 0;
 

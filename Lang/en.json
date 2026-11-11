@@ -375,5 +375,11 @@
  "Enviar comentário ou sugestão (sem conta)": "Send a comment or suggestion (no account)",
  "Sugerir uma melhoria no GitHub": "Suggest an improvement on GitHub",
  "Relatar um problema no GitHub": "Report a problem on GitHub",
- "Enviar sugestão ou comentário": "Send feedback"
+ "Enviar sugestão ou comentário": "Send feedback",
+ "Desinstalar (remover tudo do computador)...": "Uninstall (remove everything from the computer)...",
+ "Desinstalar o HiddenApp": "Uninstall HiddenApp",
+ "Isto desfaz tudo o que o HiddenApp mudou no computador:\n\n• remove todas as regras de firewall criadas por ele (a internet volta para todos os programas);\n• apaga as cópias bloqueáveis (os programas originais não são afetados);\n• remove a inicialização com o Windows.\n\nFeche as cópias abertas antes. Continuar?": "This undoes everything HiddenApp changed on the computer:\n\n• removes all firewall rules it created (internet comes back for every program);\n• deletes the blockable copies (the original programs are not affected);\n• removes the start with Windows.\n\nClose any open copies first. Continue?",
+ "Apagar também suas configurações, favoritos e macros?\n\nEscolha \"Não\" se pretende usar o HiddenApp de novo depois.": "Also delete your settings, favorites and macros?\n\nChoose \"No\" if you plan to use HiddenApp again later.",
+ "{0} cópia(s) não puderam ser apagadas porque ainda estão abertas. Feche-as e apague a pasta HiddenAppClones manualmente.": "{0} copy(ies) could not be deleted because they are still open. Close them and delete the HiddenAppClones folder manually.",
+ "Pronto. O HiddenApp vai fechar e a pasta dele será aberta: para terminar, apague o arquivo HiddenApp.exe.": "Done. HiddenApp will close and its folder will open: to finish, delete the HiddenApp.exe file."
 }

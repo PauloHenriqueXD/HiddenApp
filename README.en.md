@@ -90,6 +90,15 @@ The UI is built in code — don't use the Visual Studio Designer.
 - Microsoft Store apps, programs that reach the internet through a Windows service and games with anti-cheat may not work with the blockable copy.
 - The copy's files are *hard links*: if the copy changes a file in its own folder, the original changes too.
 
+## License, privacy and signing
+
+- Open source under the **[MIT license](LICENSE)**.
+- **[Privacy policy](PRIVACY.md):** HiddenApp doesn't collect or send personal data.
+- **[Code signing policy](CODE_SIGNING_POLICY.md)** — Free code signing provided by
+  [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+- **Uninstall:** **Updates ▾ → Uninstall (remove everything)** removes the firewall rules, blockable copies and
+  start with Windows (and, if you want, your settings). Then just delete `HiddenApp.exe`.
+
 ## Documentation (Portuguese)
 
 - [ARQUITETURA.md](ARQUITETURA.md) — how HiddenApp works internally

@@ -667,6 +667,7 @@ public class MainForm : Form
         _trayMenu.Items.Add(feedback);
         _trayMenu.Items.Add(new ToolStripMenuItem("❤ Apoiar o projeto", null, (_, _) => ShowSupport()));
         _trayMenu.Items.Add(new ToolStripSeparator());
+        _trayMenu.Items.Add(new ToolStripMenuItem("Desinstalar (remover tudo do computador)...", null, (_, _) => Uninstall()));
         _trayMenu.Items.Add(new ToolStripMenuItem("Sair", null, (_, _) => ExitApp()));
         L.Apply(_trayMenu.Items);
     }
@@ -894,6 +895,49 @@ public class MainForm : Form
         catch (Exception ex) { Msg.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
 
+    // =====================================================================
+    //  Desinstalar: desfaz tudo o que o HiddenApp mudou no Windows
+    // =====================================================================
+    void Uninstall()
+    {
+        if (!Visible) ShowFromTray();
+        if (Msg.Show(this,
+                "Isto desfaz tudo o que o HiddenApp mudou no computador:\n\n" +
+                "• remove todas as regras de firewall criadas por ele (a internet volta para todos os programas);\n" +
+                "• apaga as cópias bloqueáveis (os programas originais não são afetados);\n" +
+                "• remove a inicialização com o Windows.\n\n" +
+                "Feche as cópias abertas antes. Continuar?",
+                "Desinstalar o HiddenApp", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+
+        bool wipeData = Msg.Show(this,
+                "Apagar também suas configurações, favoritos e macros?\n\n" +
+                "Escolha \"Não\" se pretende usar o HiddenApp de novo depois.",
+                "Desinstalar o HiddenApp", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+
+        Cursor = Cursors.WaitCursor;
+        _autoClick.StopRunning();
+        int inUse;
+        try
+        {
+            FirewallManager.UnblockAll();              // antes de apagar as cópias (precisa listar os .exe delas)
+            (_, inUse) = CloneManager.DeleteAllClones();
+            FirewallManager.RemoveAllRules();          // sobras com o nome "HiddenApp - ..." (ex.: lista apagada à mão)
+            if (StartupManager.IsEnabled()) StartupManager.Disable();
+        }
+        finally { Cursor = Cursors.Default; }
+
+        Program.WipeDataOnExit = wipeData;
+        string exe = Environment.ProcessPath ?? Application.ExecutablePath;
+        Msg.Show(this,
+            (inUse > 0 ? L.F("{0} cópia(s) não puderam ser apagadas porque ainda estão abertas. Feche-as e apague a pasta HiddenAppClones manualmente.", inUse) + "\n\n" : "") +
+            L.T("Pronto. O HiddenApp vai fechar e a pasta dele será aberta: para terminar, apague o arquivo HiddenApp.exe."),
+            "Desinstalar o HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+        string winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        Native.StartUnelevated(Path.Combine(winDir, "explorer.exe"), $"/select,\"{exe}\"", winDir);
+        ExitApp();
+    }
+
     void ShowFeedbackMenu()
     {
         _feedbackMenu.Items.Clear();
@@ -929,6 +973,8 @@ public class MainForm : Form
         _updatesMenu.Items.Add(new ToolStripSeparator());
         _updatesMenu.Items.Add(new ToolStripMenuItem($"Versão atual: {UpdateManager.CurrentVersion}") { Enabled = false });
         _updatesMenu.Items.Add(new ToolStripMenuItem("Ver todas as versões no GitHub", null, (_, _) => UpdateManager.OpenUrl(UpdateManager.ReleasesPage)));
+        _updatesMenu.Items.Add(new ToolStripSeparator());
+        _updatesMenu.Items.Add(new ToolStripMenuItem("Desinstalar (remover tudo do computador)...", null, (_, _) => Uninstall()));
         L.Apply(_updatesMenu.Items);
     }
 

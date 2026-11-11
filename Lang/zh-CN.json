@@ -457,5 +457,8 @@
  "Abrir a aba Macro": "打开“宏”页",
  "HiddenApp - macro: {0}": "HiddenApp - 宏：{0}",
  "Iniciar": "开始",
- "Real (mouse e teclado de verdade)": "真实（真实的鼠标和键盘）"
+ "Real (mouse e teclado de verdade)": "真实（真实的鼠标和键盘）",
+ "Favoritar macro": "收藏宏",
+ "Marca ou desmarca a macro selecionada como favorita. As favoritas ficam no topo da lista, com estrela.": "将当前宏标记或取消标记为收藏。收藏的宏带星标并显示在列表最上方。",
+ "Escolha a macro para ver e editar. As favoritas (★) ficam no topo; a ordem das demais muda com as setas.": "选择要查看和编辑的宏。收藏的宏（★）在最上方；其他宏可用箭头调整顺序。"
 }

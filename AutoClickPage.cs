@@ -27,15 +27,20 @@ public class AutoClickPage : Panel
 
     // ---------- Layout ----------
     readonly TableLayoutPanel _grid = new() { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
-    readonly TableLayoutPanel _leftColumn = new() { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
-    readonly Card _macrosCard = new("Macros");
-    readonly Card _settingsCard = new("Macro selecionada");
+    readonly Card _settingsCard = new("Macro");
     readonly Card _pointsCard = new("Passos", "rodam em loop, na ordem");
     readonly Card _previewCard = new("Janela alvo");
     readonly Panel _actionBar = new() { Dock = DockStyle.Bottom, Height = Theme.S(58), Padding = new Padding(Theme.S(7), Theme.S(8), Theme.S(7), 0) };
 
-    readonly ListBox _macroList = NewList(50);
-    readonly Label _emptyMacros = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted",
+    // Caixa de seleção de macros (ocupa pouco espaço; os itens mostram estrela, nome, alvo e agendamento)
+    readonly ComboBox _macroList = new()
+    {
+        DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Top,
+        DrawMode = DrawMode.OwnerDrawVariable, ItemHeight = Theme.S(42), MaxDropDownItems = 12,
+        Margin = new Padding(0), IntegralHeight = false
+    };
+    readonly RoundButton _btnFavorite = RoundButton.IconButton(Theme.Glyph.Star, "Favoritar macro", ButtonKind.Secondary);
+    readonly Label _emptyMacros = new() { Dock = DockStyle.Top, Height = Theme.S(64), TextAlign = ContentAlignment.MiddleCenter, Tag = "muted",
         Text = "Nenhuma macro ainda.\nClique no + verde para criar a primeira\nou importe uma macro recebida." };
 
     readonly TableLayoutPanel _settingsForm = NewForm(2);
@@ -121,11 +126,7 @@ public class AutoClickPage : Panel
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
         _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
         _grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
-        _leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
-        _leftColumn.Controls.Add(_macrosCard, 0, 0);
-        _leftColumn.Controls.Add(_settingsCard, 0, 1);
-        _grid.Controls.Add(_leftColumn, 0, 0);
+        _grid.Controls.Add(_settingsCard, 0, 0);
         _grid.Controls.Add(_pointsCard, 1, 0);
         _grid.Controls.Add(_previewCard, 2, 0);
 
@@ -211,17 +212,10 @@ public class AutoClickPage : Panel
     void BuildMacrosCard()
     {
         _macroList.DrawItem += DrawMacroItem;
+        _macroList.MeasureItem += (_, e) => e.ItemHeight = Theme.S(42);
+        _macroList.DropDownWidth = Theme.S(420);
         _macroList.SelectedIndexChanged += (_, _) => { if (!_loading) LoadMacro(_macroList.SelectedItem as Macro); };
-        // Estrela antes do nome: clique alterna o favorito
-        _macroList.MouseDown += (_, e) =>
-        {
-            int i = _macroList.IndexFromPoint(e.Location);
-            if (i < 0 || _macroList.Items[i] is not Macro m) return;
-            if (e.Button == MouseButtons.Right) { _macroList.SelectedIndex = i; return; }
-            if (e.Button == MouseButtons.Left && e.X < StarAreaWidth && !_runner.IsRunning) ToggleFavorite(m);
-        };
-        _macroList.MouseMove += (_, e) =>
-            _macroList.Cursor = e.X < StarAreaWidth && _macroList.IndexFromPoint(e.Location) >= 0 ? Cursors.Hand : Cursors.Default;
+        _btnFavorite.Click += (_, _) => { if (_current != null && !_runner.IsRunning) ToggleFavorite(_current); };
         _macroMenu.Opening += (_, e) =>
         {
             _macroMenu.Items.Clear();
@@ -275,9 +269,7 @@ public class AutoClickPage : Panel
             _exportMenu.Show(_btnExport, new Point(0, _btnExport.Height));
         };
 
-        _macrosCard.Controls.Add(_macroList);
-        _macrosCard.Controls.Add(_emptyMacros);
-        _macrosCard.Controls.Add(Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnImport, _btnExport));
+        // Montado em BuildSettingsCard: caixa de macros e botões no topo do cartão "Macro"
     }
 
     void BuildSettingsCard()
@@ -324,7 +316,16 @@ public class AutoClickPage : Panel
         _schedMin.ValueChanged += (_, _) => ScheduleChanged();
         _schedRepeat.SelectedIndexChanged += (_, _) => ScheduleChanged();
 
+        // Ordem de encaixe: o último adicionado fica mais acima
+        var toolbar = Toolbar(_btnNew, _btnFavorite, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnImport, _btnExport);
+        toolbar.Padding = new Padding(0, Theme.S(8), 0, Theme.S(4));
+        var line = new Panel { Dock = DockStyle.Top, Height = Theme.S(10) };
+        line.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, Theme.S(4), line.Width, Theme.S(4)); };
         _settingsCard.Controls.Add(_settingsForm);
+        _settingsCard.Controls.Add(line);
+        _settingsCard.Controls.Add(toolbar);
+        _settingsCard.Controls.Add(_emptyMacros);
+        _settingsCard.Controls.Add(_macroList);
     }
 
     void BuildPointsCard()
@@ -430,6 +431,8 @@ public class AutoClickPage : Panel
         _tips.Set(_btnImport, "Importar macros", "Abre arquivos .hiddenmacro recebidos de outras pessoas e adiciona as macros na sua lista.");
         _tips.Set(_btnExport, "Exportar macros",
             "Salva a macro selecionada (ou todas) num arquivo .hiddenmacro, para compartilhar com outras pessoas.");
+        _tips.Set(_btnFavorite, "Favoritar macro", "Marca ou desmarca a macro selecionada como favorita. As favoritas ficam no topo da lista, com estrela.");
+        _tips.Set(_macroList, "Macros", "Escolha a macro para ver e editar. As favoritas (★) ficam no topo; a ordem das demais muda com as setas.");
         _tips.Set(_btnMacroUp, "Subir macro", "Move a macro selecionada para cima na lista. As favoritas (com estrela) ficam sempre no topo.");
         _tips.Set(_btnMacroDown, "Descer macro", "Move a macro selecionada para baixo na lista. As favoritas (com estrela) ficam sempre no topo.");
         _tips.Set(_stepLabel, "Nome do passo", "Um nome ou descrição opcional, para quem ver a macro entender o que cada passo faz.");
@@ -473,13 +476,12 @@ public class AutoClickPage : Panel
         var p = Theme.Current;
         BackColor = p.Back;
         _grid.BackColor = p.Back;
-        _leftColumn.BackColor = p.Back;
         _actionBar.BackColor = p.Back;
-        foreach (var card in new[] { _macrosCard, _settingsCard, _pointsCard, _previewCard }) card.BackColor = p.Surface;
+        foreach (var card in new[] { _settingsCard, _pointsCard, _previewCard }) card.BackColor = p.Surface;
         _preview.BackColor = p.Back;
         ThemeChildren(this, p);
         UpdatePreviewHint();
-        foreach (var c in new Control[] { _macroList, _stepList }) Theme.ApplyScrollbars(c);
+        Theme.ApplyScrollbars(_stepList);
         Invalidate(true);
     }
 
@@ -554,7 +556,6 @@ public class AutoClickPage : Panel
         _macroList.EndUpdate();
         _loading = false;
         bool any = _macros.Count > 0;
-        _macroList.Visible = any;
         _emptyMacros.Visible = !any;
         if (select != null) _macroList.SelectedItem = select;
         else LoadMacro(null);
@@ -1018,7 +1019,10 @@ public class AutoClickPage : Panel
         _btnStop.Enabled = running;
         _btnTest.Enabled = has && !running && SelectedStep != null;
         _btnNew.Enabled = _btnImport.Enabled = _btnExport.Enabled = !running;
-        _btnDuplicate.Enabled = _btnDelete.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = has && !running;
+        _btnDuplicate.Enabled = _btnDelete.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = _btnFavorite.Enabled = has && !running;
+        _btnFavorite.IconGlyph = _current?.Favorite == true ? Theme.Glyph.StarFill : Theme.Glyph.Star;
+        _btnFavorite.Kind = _current?.Favorite == true ? ButtonKind.Favorite : ButtonKind.Secondary;
+        _btnFavorite.Invalidate();
         _btnAddPoint.Enabled = _btnAddKey.Enabled = has && !running;
         _btnRemovePoint.Enabled = _btnUp.Enabled = _btnDown.Enabled = SelectedStep != null && !running;
         _btnMovePoint.Enabled = SelectedStep?.Kind == StepKind.Clique && !running;
@@ -1086,12 +1090,13 @@ public class AutoClickPage : Panel
     // =====================================================================
     void DrawMacroItem(object? sender, DrawItemEventArgs e)
     {
-        if (e.Index < 0 || _macroList.Items[e.Index] is not Macro m) return;
         var p = Theme.Current;
         var g = e.Graphics;
-        bool selected = (e.State & DrawItemState.Selected) != 0;
-        Color bg = selected ? p.Selection : p.Surface;
+        bool editArea = (e.State & DrawItemState.ComboBoxEdit) != 0;
+        bool selected = !editArea && (e.State & DrawItemState.Selected) != 0;
+        Color bg = selected ? p.Selection : editArea ? p.Surface2 : p.Surface;
         using (var b = new SolidBrush(bg)) g.FillRectangle(b, e.Bounds);
+        if (e.Index < 0 || _macroList.Items[e.Index] is not Macro m) return;
 
         // Estrela: amarela = favorita; cinza = clique para favoritar
         var star = new Rectangle(e.Bounds.Left + Theme.S(4), e.Bounds.Top, StarAreaWidth - Theme.S(4), e.Bounds.Height);

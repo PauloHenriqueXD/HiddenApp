@@ -19,13 +19,15 @@ _Nada ainda._
   no segundo plano, vão direto para a janela.
 - **Agendar macro:** "Iniciar às" um horário, **todo dia** ou **só uma vez**. O HiddenApp precisa estar aberto (pode
   estar escondido perto do relógio) e a janela alvo, aberta; no modo real a janela é trazida para a frente.
-- **Macros favoritas:** estrela antes do nome (clique para alternar, ou botão direito); as favoritas ficam no topo
+- **Macros favoritas:** botão de estrela (ou botão direito na caixa de macros); as favoritas aparecem com ★ no topo
   da lista e no menu da bandeja.
 - **Ordenar macros:** botões para subir e descer a macro na lista (dentro do grupo de favoritas ou das demais).
 
 ### Alterado
 
 - Macros novas começam no modo **real** (mouse e teclado de verdade).
+- A lista de macros virou uma **caixa de seleção** no topo do cartão "Macro" (com estrela, alvo e agendamento em cada
+  item), deixando a coluna da esquerda livre para as configurações — melhor em telas pequenas.
 - Aba Internet: botões com **ícones** (o nome e a explicação aparecem no balão ao passar o mouse); "Bloquear internet"
   e "Liberar internet" mostram ícone e texto.
 - Arquivos `.hiddenmacro` passam para a versão 2 do formato (versões antigas do HiddenApp pedem para atualizar).

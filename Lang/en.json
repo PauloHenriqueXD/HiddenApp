@@ -457,5 +457,8 @@
  "Abrir a aba Macro": "Open the Macro tab",
  "HiddenApp - macro: {0}": "HiddenApp - macro: {0}",
  "Iniciar": "Start",
- "Real (mouse e teclado de verdade)": "Real (real mouse and keyboard)"
+ "Real (mouse e teclado de verdade)": "Real (real mouse and keyboard)",
+ "Favoritar macro": "Favorite macro",
+ "Marca ou desmarca a macro selecionada como favorita. As favoritas ficam no topo da lista, com estrela.": "Marks or unmarks the selected macro as a favorite. Favorites stay at the top of the list, with a star.",
+ "Escolha a macro para ver e editar. As favoritas (★) ficam no topo; a ordem das demais muda com as setas.": "Choose the macro to view and edit. Favorites (★) stay at the top; use the arrows to reorder the others."
 }

@@ -41,7 +41,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `AppSettings.cs` | Preferências em `%AppData%\HiddenApp\settings.json` (tema, favoritos, betas, última versão perguntada) |
 | `UpdateManager.cs` | `SemVer`; consulta ao GitHub Releases, download, verificação SHA-256 e troca do .exe |
 | `UpdateDialog.cs` | Diálogo "Nova versão disponível" com novidades e progresso do download |
-| `AutoClickPage.cs` | Aba "Macro": lista de macros (favoritas no topo, ordem manual), configuração (alvo, modo, loop, agendamento), passos, prévia clicável; timer que dispara macros agendadas |
+| `AutoClickPage.cs` | Aba "Macro": caixa de seleção de macros (`_macroList`, owner-draw; favoritas no topo, ordem manual), configuração (alvo, modo, loop, agendamento), passos, prévia clicável; timer que dispara macros agendadas |
 | `Macro.cs` | Modelos `Macro`/`MacroStep` (passo = clique em posição relativa 0–1 ou tecla) e `MacroStore` (`macros.json`) |
 | `ClickRunner.cs` | Executa macros numa thread: cliques e teclas no modo segundo plano (`PostMessage`) ou real (`SendInput`), loop, segurar, pausas de segurança; acha a janela alvo e captura a posição do mouse |
 | `HotkeyDialog.cs` | `HotkeyBox` (grava uma tecla) e diálogo para trocar as teclas de iniciar/parar/capturar |
@@ -154,7 +154,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   ou app fechado no horário = não roda atrasado). `ScheduleLastRun` evita rodar duas vezes no dia; ao mudar o horário, se o
   de hoje já passou, a próxima vez é amanhã. Agendamento nunca vem ligado em macros importadas.
 - **Favoritas e ordem:** a ordem de `_macros` (e do `macros.json`) é a ordem do usuário; a lista mostra `Ordered()`
-  (favoritas primeiro). Subir/descer troca de lugar só dentro do mesmo grupo.
+  (favoritas primeiro) numa `ComboBox` owner-draw (não dá para clicar na estrela dentro dela: favoritar é pelo botão
+  de estrela ou pelo menu do botão direito). Subir/descer troca de lugar só dentro do mesmo grupo.
 - **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 2, Macros: [...] }` (versão 2 = passos de tecla). Ao mudar o formato,
   suba `Versao` e trate versões antigas em `MacroStore.Import` (versões mais novas são recusadas com aviso).
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.

@@ -98,7 +98,8 @@ public static class Theme
         public const string Add = "\uE710", Copy = "\uE8C8", Delete = "\uE74D", Import = "\uE896", Export = "\uE898",
                             Up = "\uE74A", Down = "\uE74B", Pin = "\uE707", Cancel = "\uE711", Globe = "\uE774", Feedback = "\uED15",
                             Keyboard = "\uE765", Lock = "\uE72E", Unlock = "\uE785", Search = "\uE721", NewWindow = "\uE8A7",
-                            Refresh = "\uE72C", SelectAll = "\uE8B3", Play = "\uE768", Remove = "\uE738";
+                            Refresh = "\uE72C", SelectAll = "\uE8B3", Play = "\uE768", Remove = "\uE738",
+                            Star = "\uE734", StarFill = "\uE735";
     }
 
     public static Icon TrayIcon(int size) => new(Resource("HiddenApp.ico"), new Size(size, size));

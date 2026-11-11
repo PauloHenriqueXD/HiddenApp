@@ -36,7 +36,7 @@ internal static class Gfx
     }
 }
 
-public enum ButtonKind { Primary, Secondary, Danger, Success }
+public enum ButtonKind { Primary, Secondary, Danger, Success, Favorite }
 
 /// <summary>Cor de destaque do cartão: borda e faixa do título.</summary>
 public enum CardAccent { Normal, Favorite, Danger }
@@ -107,6 +107,7 @@ public class RoundButton : Button
             ButtonKind.Primary => (p.Accent, p.AccentText, (Color?)null),
             ButtonKind.Danger => (p.Danger, Color.White, null),
             ButtonKind.Success => (p.Success, p.SuccessText, null),
+            ButtonKind.Favorite => (p.Favorite, p.IsDark ? p.Back : p.Text, null),
             _ => (p.Surface2, p.Text, p.Border),
         };
 

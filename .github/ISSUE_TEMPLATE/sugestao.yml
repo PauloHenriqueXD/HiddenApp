@@ -1,0 +1,24 @@
+name: 💡 Sugestão / Suggestion
+description: Ideia de melhoria ou recurso novo para o HiddenApp / Idea or new feature
+title: "[Sugestão] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Sua sugestão / Your suggestion
+      description: O que você gostaria que o HiddenApp fizesse? Para que isso ajudaria? / What would you like HiddenApp to do, and why?
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do HiddenApp / HiddenApp version
+  - type: input
+    id: windows
+    attributes:
+      label: Windows
+  - type: input
+    id: idioma
+    attributes:
+      label: Idioma / Language

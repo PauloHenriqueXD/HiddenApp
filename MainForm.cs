@@ -57,6 +57,8 @@ public class MainForm : Form
     readonly RoundButton _btnSupport = new("❤ Apoiar");
     readonly RoundButton _btnLanguage = RoundButton.IconButton(Theme.Glyph.Globe, "Idioma", ButtonKind.Secondary);
     readonly ContextMenuStrip _languageMenu = new();
+    readonly RoundButton _btnFeedback = RoundButton.IconButton(Theme.Glyph.Feedback, "Sugestões", ButtonKind.Secondary);
+    readonly ContextMenuStrip _feedbackMenu = new();
     readonly ContextMenuStrip _updatesMenu = new();
     readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 6 * 60 * 60 * 1000 }; // a cada 6 horas
 
@@ -186,7 +188,11 @@ public class MainForm : Form
         _btnLanguage.Margin = new Padding(0, -Theme.S(2), Theme.S(4), 0);
         _btnLanguage.Click += (_, _) => ShowLanguageMenu();
         _tips.Set(_btnLanguage, "Idioma", "Escolhe o idioma do HiddenApp: português, inglês ou chinês. O app reinicia para aplicar.");
+        _btnFeedback.Margin = new Padding(0, -Theme.S(2), Theme.S(4), 0);
+        _btnFeedback.Click += (_, _) => ShowFeedbackMenu();
+        _tips.Set(_btnFeedback, "Sugestões", "Mande um comentário, uma sugestão ou relate um problema. Abre um formulário no navegador, já com a versão do HiddenApp e do Windows; nada é enviado sem você confirmar.");
         right.Controls.Add(_btnUpdate);
+        right.Controls.Add(_btnFeedback);
         right.Controls.Add(_btnLanguage);
         right.Controls.Add(_btnSupport);
         right.Controls.Add(_btnUpdatesMenu);
@@ -656,6 +662,9 @@ public class MainForm : Form
         _trayMenu.Items.Add(new ToolStripMenuItem("Tema escuro", null, (_, _) => _darkToggle.Checked = !_darkToggle.Checked) { Checked = _darkToggle.Checked });
         _trayMenu.Items.Add(new ToolStripMenuItem("Iniciar com o Windows", null, (_, _) => _startupToggle.Checked = !_startupToggle.Checked) { Checked = _startupToggle.Checked });
         _trayMenu.Items.Add(new ToolStripMenuItem("Verificar atualizações", null, async (_, _) => await CheckForUpdatesAsync(manual: true)));
+        var feedback = new ToolStripMenuItem("Enviar sugestão ou comentário");
+        feedback.DropDownItems.AddRange(Feedback.MenuItems());
+        _trayMenu.Items.Add(feedback);
         _trayMenu.Items.Add(new ToolStripMenuItem("❤ Apoiar o projeto", null, (_, _) => ShowSupport()));
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add(new ToolStripMenuItem("Sair", null, (_, _) => ExitApp()));
@@ -883,6 +892,14 @@ public class MainForm : Form
             ExitApp();
         }
         catch (Exception ex) { Msg.Show(ex.Message, "HiddenApp", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    void ShowFeedbackMenu()
+    {
+        _feedbackMenu.Items.Clear();
+        _feedbackMenu.Items.AddRange(Feedback.MenuItems());
+        L.Apply(_feedbackMenu.Items);
+        _feedbackMenu.Show(_btnFeedback, new Point(0, _btnFeedback.Height));
     }
 
     void ShowSupport()

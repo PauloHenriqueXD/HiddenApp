@@ -1,0 +1,35 @@
+name: 🐞 Problema / Bug report
+description: Algo não funcionou como deveria / Something didn't work as expected
+title: "[Problema] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu? / What happened?
+      description: Descreva o problema e o que você esperava que acontecesse. / Describe the problem and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Como reproduzir / Steps to reproduce
+      placeholder: |
+        1. Abri o HiddenApp...
+        2. Cliquei em...
+  - type: input
+    id: programa
+    attributes:
+      label: Programa ou jogo envolvido (se houver) / Program or game involved
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do HiddenApp / HiddenApp version
+  - type: input
+    id: windows
+    attributes:
+      label: Windows
+  - type: input
+    id: idioma
+    attributes:
+      label: Idioma / Language

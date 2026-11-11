@@ -361,5 +361,19 @@
  "marcar ponto": "标记位置",
  "A janela foi fechada.": "窗口已关闭。",
  "Janela minimizada.\nRestaure-a para ver a prévia.": "窗口已最小化。\n还原后即可查看预览。",
- "Não foi possível gerar a prévia desta janela.": "无法生成此窗口的预览。"
+ "Não foi possível gerar a prévia desta janela.": "无法生成此窗口的预览。",
+ "Sair": "退出",
+ "Cancelado.": "已取消。",
+ "Cópia": "副本",
+ "cópia": "副本",
+ "Intervalo": "间隔",
+ "Parar": "停止",
+ "Variação (%)": "浮动 (%)",
+ "Muda um pouco cada intervalo (em %), para os cliques não terem um ritmo perfeitamente exato. 0 = tempos exatos.": "每次间隔会有少许浮动（百分比），让点击节奏不那么机械。0 = 精确时间。",
+ "Sugestões": "反馈",
+ "Mande um comentário, uma sugestão ou relate um problema. Abre um formulário no navegador, já com a versão do HiddenApp e do Windows; nada é enviado sem você confirmar.": "发送意见、建议或报告问题。会在浏览器中打开已填好 HiddenApp 和 Windows 版本的表单；未经你确认不会发送任何内容。",
+ "Enviar comentário ou sugestão (sem conta)": "发送意见或建议（无需账号）",
+ "Sugerir uma melhoria no GitHub": "在 GitHub 上提出改进建议",
+ "Relatar um problema no GitHub": "在 GitHub 上报告问题",
+ "Enviar sugestão ou comentário": "发送反馈"
 }

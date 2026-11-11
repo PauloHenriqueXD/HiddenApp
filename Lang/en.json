@@ -361,5 +361,19 @@
  "marcar ponto": "mark point",
  "A janela foi fechada.": "The window was closed.",
  "Janela minimizada.\nRestaure-a para ver a prévia.": "Window minimized.\nRestore it to see the preview.",
- "Não foi possível gerar a prévia desta janela.": "Could not generate a preview of this window."
+ "Não foi possível gerar a prévia desta janela.": "Could not generate a preview of this window.",
+ "Sair": "Exit",
+ "Cancelado.": "Canceled.",
+ "Cópia": "Copy",
+ "cópia": "copy",
+ "Intervalo": "Interval",
+ "Parar": "Stop",
+ "Variação (%)": "Variation (%)",
+ "Muda um pouco cada intervalo (em %), para os cliques não terem um ritmo perfeitamente exato. 0 = tempos exatos.": "Changes each interval a little (in %), so the clicks don't have a perfectly exact rhythm. 0 = exact times.",
+ "Sugestões": "Feedback",
+ "Mande um comentário, uma sugestão ou relate um problema. Abre um formulário no navegador, já com a versão do HiddenApp e do Windows; nada é enviado sem você confirmar.": "Send a comment, a suggestion or report a problem. Opens a form in the browser, already filled with the HiddenApp and Windows versions; nothing is sent without your confirmation.",
+ "Enviar comentário ou sugestão (sem conta)": "Send a comment or suggestion (no account)",
+ "Sugerir uma melhoria no GitHub": "Suggest an improvement on GitHub",
+ "Relatar um problema no GitHub": "Report a problem on GitHub",
+ "Enviar sugestão ou comentário": "Send feedback"
 }

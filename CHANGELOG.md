@@ -7,7 +7,16 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
-_Nada ainda._
+### Adicionado
+
+- Botão **"Sugestões"** no topo (e no menu da bandeja): enviar comentário ou sugestão pelo **Google Forms**
+  (sem conta) ou pelo **GitHub** (sugerir melhoria / relatar problema). O formulário abre no navegador já com a
+  versão do HiddenApp, do Windows e o idioma; nada é enviado sem a pessoa confirmar.
+- Modelos de issue no GitHub para sugestões e problemas.
+
+### Corrigido
+
+- Alguns textos que ficavam em português nos outros idiomas ("Sair", "Cancelado.", "Parar", variação aleatória...).
 
 ## [2.0.0] - 2026-11-11
 

@@ -46,6 +46,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `ClickRunner.cs` | Executa macros numa thread: modo segundo plano (`PostMessage`) ou real (`SendInput`), loop, segurar, pausas de segurança; acha a janela alvo e captura a posição do mouse |
 | `HotkeyDialog.cs` | `HotkeyBox` (grava uma tecla) e diálogo para trocar as teclas de iniciar/parar/capturar |
 | `Donation.cs` | Chave Pix de doação; monta o BR Code ("Pix Copia e Cola", com CRC16) e gera o QR (QRCoder); link do GitHub Sponsors |
+| `Feedback.cs` | Botão "Sugestões": abre o Google Forms (`GoogleFormTemplate`) ou uma issue do GitHub já preenchidos com versão/Windows/idioma |
+| `.github/ISSUE_TEMPLATE/` | Formulários de issue `sugestao.yml` e `problema.yml` (ids `versao`, `windows`, `idioma` são preenchidos pela URL) |
 | `.github/FUNDING.yml` | Faz o GitHub mostrar o botão "Sponsor" no repositório |
 | `SupportDialog.cs` | Janela "Apoiar o projeto": QR, copia e cola, conferência do recebedor e site oficial |
 | `I18n.cs` | Traduções: `L.T`/`L.F` (dicionário por texto em português, com modelos `{0}`), `L.Apply(controle)`, `Msg.Show` |
@@ -148,6 +150,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.
 - **Teclas de atalho globais** usam `RegisterHotKey` no handle do `MainForm` (ids 1–3, tratadas no `WndProc`).
   Se outra aplicação já usa a tecla, o registro falha e o usuário é avisado.
+- **Sugestões nunca são enviadas pelo próprio app:** só abrimos um formulário no navegador. Não coloque webhook,
+  token ou endereço de envio no `.exe` (qualquer um extrai e usa para spam). O link do Google Forms é um modelo
+  com as palavras `VERSAO`, `WINDOWS` e `IDIOMA`; se o formulário mudar, gere um novo link pré-preenchido.
+  Os ids dos campos nos modelos de issue precisam bater com os parâmetros da URL em `Feedback.OpenGitHub`.
 - **Visual Studio com arquivos abertos** pode salvar a versão antiga por cima de edições feitas fora
   dele. Ao editar arquivos externamente, recarregue no VS ("Sim para Todos").
 

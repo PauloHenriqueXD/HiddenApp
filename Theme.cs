@@ -96,7 +96,7 @@ public static class Theme
     public static class Glyph
     {
         public const string Add = "\uE710", Copy = "\uE8C8", Delete = "\uE74D", Import = "\uE896", Export = "\uE898",
-                            Up = "\uE74A", Down = "\uE74B", Pin = "\uE707", Cancel = "\uE711", Globe = "\uE774";
+                            Up = "\uE74A", Down = "\uE74B", Pin = "\uE707", Cancel = "\uE711", Globe = "\uE774", Feedback = "\uED15";
     }
 
     public static Icon TrayIcon(int size) => new(Resource("HiddenApp.ico"), new Size(size, size));

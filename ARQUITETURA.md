@@ -250,6 +250,9 @@ tarefa para garantir que aponta para o `.exe` atual.
   (`SEM INTERNET` / `COM INTERNET` / `NÃO ENCONTRADO`). Bloquear um favorito funciona mesmo com o programa
   fechado, porque a regra de firewall é por caminho. "Abrir" inicia o programa sem elevação e, para
   cópias, com os argumentos salvos.
+- Na lista de janelas, a primeira coluna tem uma **estrela** (amarela = favorito, cinza = não) desenhada
+  como polígono (`Gfx.FillStar`); clicar nela adiciona ou remove o programa dos favoritos.
+- Os cartões de Favoritos (borda amarela) e Programas bloqueados (borda vermelha) usam `Card.Accent`.
 - O ícone da bandeja tem um submenu **Favoritos** com bloquear/liberar/abrir para cada um.
 - **Balões de ajuda** (`ThemedToolTip`): tooltip desenhado à mão (título em ciano + explicação) com as
   cores do tema, ligado a cada botão por `_tips.Set(...)`.

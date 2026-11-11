@@ -9,6 +9,20 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [1.3.1] - 2026-11-11
+
+### Alterado
+
+- **Estrela de favorito na lista de janelas:** cada janela tem uma estrela no começo da linha —
+  amarela quando o programa é favorito, cinza quando não. Um clique adiciona ou remove dos favoritos.
+  O botão "★ Favoritar" foi removido.
+- **Favoritos à esquerda e Programas bloqueados à direita**, com bordas coloridas:
+  amarela nos favoritos e vermelha nos bloqueados.
+
+### Corrigido
+
+- A linha embaixo do cabeçalho ficava escondida atrás dos botões do lado direito.
+
 ## [1.3.0] - 2026-11-11
 
 ### Adicionado
@@ -90,7 +104,8 @@ Primeira versão.
 - Perfil de publicação **Portatil** e `publicar.bat`: gera um único `HiddenApp.exe` autocontido
   (não precisa instalar o .NET).
 
-[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.3.0...HEAD
+[Não lançado]: https://github.com/PauloHenriqueXD/HiddenApp/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.3.1
 [1.3.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.3.0
 [1.2.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.2.0
 [1.1.0]: https://github.com/PauloHenriqueXD/HiddenApp/releases/tag/v1.1.0

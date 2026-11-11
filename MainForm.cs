@@ -31,7 +31,7 @@ public class MainForm : Form
     readonly Label _emptyFavorites = new()
     {
         Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-        Text = "Nenhum favorito ainda.\nClique com o botão direito numa janela da lista ou use \"Adicionar...\"."
+        Text = "Nenhum favorito ainda.\nClique na estrela ★ ao lado de uma janela da lista ou use \"Adicionar...\"."
     };
     readonly ThemedToolTip _tips = new();
     readonly Dictionary<string, string> _nameCache = new(StringComparer.OrdinalIgnoreCase);
@@ -98,8 +98,10 @@ public class MainForm : Form
         _bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         _bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         _bottom.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _bottom.Controls.Add(_blockedCard, 0, 0);
-        _bottom.Controls.Add(_favoritesCard, 1, 0);
+        _favoritesCard.Accent = CardAccent.Favorite;
+        _blockedCard.Accent = CardAccent.Danger;
+        _bottom.Controls.Add(_favoritesCard, 0, 0);
+        _bottom.Controls.Add(_blockedCard, 1, 0);
         _body.Controls.Add(_bottom, 0, 1);
         _body.SetColumnSpan(_bottom, 2);
 
@@ -184,11 +186,13 @@ public class MainForm : Form
         _header.Controls.Add(_appSubtitle);
         _header.Controls.Add(_versionLabel);
         _header.Controls.Add(right);
+        _header.Padding = new Padding(0, 0, 0, 1); // deixa a linha de baixo visível também atrás dos botões
         _header.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, _header.Height - 1, _header.Width, _header.Height - 1); };
     }
 
     void BuildWindowsCard()
     {
+        _windows.Columns.Add("", Theme.S(38)); // estrela de favorito
         _windows.Columns.Add("Janela", Theme.S(400));
         _windows.Columns.Add("Programa", Theme.S(200));
         _windows.Columns.Add("PID", Theme.S(70));
@@ -196,7 +200,21 @@ public class MainForm : Form
         _windows.DrawColumnHeader += DrawWindowsHeader;
         _windows.DrawItem += (_, e) => e.DrawDefault = false;
         _windows.DrawSubItem += DrawWindowsCell;
-        _windows.DoubleClick += (_, _) => ToggleSelected();
+        _windows.DoubleClick += (_, _) => { if (!_lastClickOnStar) ToggleSelected(); };
+        _windows.MouseDown += (_, e) => _lastClickOnStar = IsStarArea(e.Location);
+        _windows.MouseClick += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left || !IsStarArea(e.Location)) return;
+            if (_windows.HitTest(e.Location).Item?.Tag is RowData row && row.Window.ExePath is string path)
+                ToggleFavorite(path);
+        };
+        _windows.MouseMove += (_, e) =>
+        {
+            int hover = IsStarArea(e.Location) ? _windows.HitTest(e.Location).Item?.Index ?? -1 : -1;
+            _windows.Cursor = hover >= 0 ? Cursors.Hand : Cursors.Default;
+            if (hover != _hoverStarRow) { _hoverStarRow = hover; _windows.Invalidate(); }
+        };
+        _windows.MouseLeave += (_, _) => { if (_hoverStarRow >= 0) { _hoverStarRow = -1; _windows.Invalidate(); } };
         _windows.SelectedIndexChanged += (_, _) => { if (!_refreshing) UpdatePreview(); };
         _windows.ItemSelectionChanged += (_, _) => _windows.Invalidate();
         _windows.MouseUp += (_, _) => _windows.Invalidate();
@@ -205,16 +223,10 @@ public class MainForm : Form
         var btnBlock = new RoundButton("Bloquear internet", ButtonKind.Danger);
         var btnUnblock = new RoundButton("Liberar internet", ButtonKind.Success);
         var btnClone = new RoundButton("Abrir cópia bloqueável...", ButtonKind.Primary);
-        var btnFavorite = new RoundButton("★ Favoritar");
         var btnRefresh = new RoundButton("Atualizar");
         btnBlock.Click += (_, _) => BlockSelected();
         btnUnblock.Click += (_, _) => UnblockSelected();
         btnClone.Click += (_, _) => OpenClone();
-        btnFavorite.Click += (_, _) =>
-        {
-            if (SelectedWindow?.ExePath is string path) AddFavorite(path);
-            else SetStatus("Selecione uma janela primeiro.");
-        };
         btnRefresh.Click += (_, _) => RefreshAll();
         _btnPick.Click += (_, _) => StartPick();
         _pickTimer.Tick += PickTick;
@@ -232,13 +244,10 @@ public class MainForm : Form
             "Abre outra janela do programa a partir de uma cópia (que não ocupa espaço). " +
             "Só a cópia fica sem internet; o programa original continua normal.\n\n" +
             "Dá para ter várias cópias do mesmo programa, cada uma com nome e bloqueio próprios.");
-        _tips.Set(btnFavorite, "Favoritar",
-            "Adiciona o programa da janela selecionada aos Favoritos, para bloquear, liberar ou abrir " +
-            "rapidamente depois (também pelo ícone perto do relógio).");
         _tips.Set(btnRefresh, "Atualizar", "Recarrega a lista de janelas abertas.");
 
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
-        toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, _btnPick, btnClone, btnFavorite, btnRefresh });
+        toolbar.Controls.AddRange(new Control[] { btnBlock, btnUnblock, _btnPick, btnClone, btnRefresh });
 
         // Botão direito numa janela
         var menu = new ContextMenuStrip();
@@ -345,7 +354,7 @@ public class MainForm : Form
         _tips.Set(btnOpen, "Abrir", "Abre o programa selecionado. Cópias abrem com o mesmo perfil e as mesmas configurações de quando foram criadas.");
         _tips.Set(btnAdd, "Adicionar favorito",
             "Escolhe um programa (.exe) do computador para colocar nos favoritos.\n\n" +
-            "Dica: também dá para clicar com o botão direito numa janela da lista ou usar \"★ Favoritar\".");
+            "Dica: também dá para clicar na estrela ao lado de uma janela da lista.");
         _tips.Set(btnRemove, "Remover", "Tira o programa dos favoritos. O bloqueio dele não muda.");
 
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 0, 0, 4) };
@@ -743,7 +752,7 @@ public class MainForm : Form
                 string status = w.ExePath == null ? "SEM ACESSO" : FirewallManager.IsBlocked(w.ExePath) ? "BLOQUEADA" : "LIBERADA";
                 bool clone = CloneManager.IsClone(w.ExePath);
                 string? cloneLabel = clone ? CloneManager.LabelOf(w.ExePath!) : null;
-                var item = new ListViewItem(new[] { w.Title, w.ProcessName, w.Pid.ToString(), status })
+                var item = new ListViewItem(new[] { "", w.Title, w.ProcessName, w.Pid.ToString(), status })
                 {
                     Tag = new RowData(w, status, clone, cloneLabel)
                 };
@@ -784,9 +793,9 @@ public class MainForm : Form
 
     void FitColumns()
     {
-        if (_windows.Columns.Count < 4) return;
-        int others = _windows.Columns[1].Width + _windows.Columns[2].Width + _windows.Columns[3].Width;
-        _windows.Columns[0].Width = Math.Max(Theme.S(150), _windows.ClientSize.Width - others - 1);
+        if (_windows.Columns.Count < 5) return;
+        int others = _windows.Columns[0].Width + _windows.Columns[2].Width + _windows.Columns[3].Width + _windows.Columns[4].Width;
+        _windows.Columns[1].Width = Math.Max(Theme.S(150), _windows.ClientSize.Width - others - 1);
     }
 
     void UpdatePreview()
@@ -848,6 +857,19 @@ public class MainForm : Form
         switch (e.ColumnIndex)
         {
             case 0:
+                if (row.Window.ExePath is string exe)
+                {
+                    bool fav = IsFavorite(exe);
+                    bool hover = e.ItemIndex == _hoverStarRow;
+                    Color starColor = fav ? p.Favorite
+                        : hover ? Theme.Blend(p.Favorite, p.Muted, 0.5)
+                        : Theme.Blend(p.Muted, bg, 0.45);
+                    using var starBrush = new SolidBrush(starColor);
+                    Gfx.FillStar(g, starBrush, new PointF(bounds.Left + bounds.Width / 2f + Theme.S(2), bounds.Top + bounds.Height / 2f), Theme.S(8));
+                }
+                break;
+
+            case 1:
                 var icon = GetIcon(row.Window.ExePath);
                 if (icon != null)
                 {
@@ -859,7 +881,7 @@ public class MainForm : Form
                     new Rectangle(bounds.Left + Theme.S(42), bounds.Top, bounds.Width - Theme.S(48), bounds.Height), p.Text, flags);
                 break;
 
-            case 1:
+            case 2:
                 var r1 = new Rectangle(bounds.Left + Theme.S(12), bounds.Top, bounds.Width - Theme.S(16), bounds.Height);
                 TextRenderer.DrawText(g, row.Window.ProcessName, RowFont, r1, p.Text, flags);
                 if (row.IsClone)
@@ -869,12 +891,12 @@ public class MainForm : Form
                 }
                 break;
 
-            case 2:
+            case 3:
                 TextRenderer.DrawText(g, row.Window.Pid.ToString(), RowFont,
                     new Rectangle(bounds.Left + Theme.S(12), bounds.Top, bounds.Width - Theme.S(16), bounds.Height), p.Muted, flags);
                 break;
 
-            case 3:
+            case 4:
                 Color c = row.Status switch { "BLOQUEADA" => p.Danger, "LIBERADA" => p.Success, _ => p.Muted };
                 DrawPill(g, row.Status, c, bg, bounds.Left + Theme.S(12), bounds);
                 break;
@@ -1027,6 +1049,17 @@ public class MainForm : Form
     }
 
     // ---------- Favoritos ----------
+    bool _lastClickOnStar;
+    int _hoverStarRow = -1;
+
+    /// <summary>O ponto está na coluna da estrela (primeira coluna da lista de janelas)?</summary>
+    bool IsStarArea(Point pt) => _windows.Columns.Count > 0 && pt.X >= 0 && pt.X < _windows.Columns[0].Width;
+
+    void ToggleFavorite(string path)
+    {
+        if (IsFavorite(path)) RemoveFavorite(path); else AddFavorite(path);
+    }
+
     string? SelectedFavorite => _favoritesList.SelectedItem as string;
 
     bool IsFavorite(string path) => _settings.Favorites.Contains(path, StringComparer.OrdinalIgnoreCase);

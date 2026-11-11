@@ -68,6 +68,10 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 - Nullable está ativado; mantenha o build **sem warnings**.
 - **Todo botão novo ganha um balão de ajuda** via `_tips.Set(botão, título, explicação)` (`ThemedToolTip`),
   explicando o que ele faz na prática. Verde (`ButtonKind.Success`) = liberar; vermelho (`Danger`) = bloquear.
+- A lista de janelas tem 5 colunas: **0 = estrela de favorito**, 1 = janela (ocupa o espaço que sobra,
+  ver `FitColumns`), 2 = programa, 3 = PID, 4 = internet. Clique na coluna 0 alterna o favorito
+  (`IsStarArea`) e não conta como duplo clique de bloqueio.
+- Cartões de destaque usam `Card.Accent`: `Favorite` (borda amarela, `Palette.Favorite`) e `Danger` (vermelha).
 - Para exibir programas use `DisplayName(path)` (nome amigável + nome da cópia) e `DrawProgramItem`
   para listas (bloqueados/favoritos), em vez de desenhar à mão.
 
@@ -140,7 +144,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 10. Atualização: com um `.exe` publicado de versão menor, "Atualizações → Verificar agora" mostra a
     versão nova; "Depois" mantém o botão "Nova versão" no topo e o item na bandeja; "Atualizar agora"
     baixa, reinicia na versão nova e mantém bloqueios/configurações.
-11. Favoritos: adicionar pelo "★ Favoritar" e pelo botão direito; bloquear/liberar/abrir pela lista
+11. Favoritos: estrela da lista de janelas (amarela = favorito, cinza = não; clique alterna) e botão direito; bloquear/liberar/abrir pela lista
     e pelo menu da bandeja; abrir uma cópia favorita reabre com o mesmo perfil.
 12. Passar o mouse nos botões → balão de ajuda com as cores do tema.
 13. "❤ Apoiar" → QR legível pelo app do banco nos dois temas; "Copiar código Pix" funciona; o banco mostra

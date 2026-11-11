@@ -17,9 +17,29 @@ internal static class Gfx
         p.CloseFigure();
         return p;
     }
+
+    /// <summary>Estrela de 5 pontas centralizada em <paramref name="center"/>.</summary>
+    public static void FillStar(Graphics g, Brush brush, PointF center, float outerRadius)
+    {
+        float inner = outerRadius * 0.45f;
+        var pts = new PointF[10];
+        for (int i = 0; i < 10; i++)
+        {
+            double angle = -Math.PI / 2 + i * Math.PI / 5;
+            float r = i % 2 == 0 ? outerRadius : inner;
+            pts[i] = new PointF(center.X + (float)(Math.Cos(angle) * r), center.Y + (float)(Math.Sin(angle) * r));
+        }
+        var old = g.SmoothingMode;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.FillPolygon(brush, pts);
+        g.SmoothingMode = old;
+    }
 }
 
 public enum ButtonKind { Primary, Secondary, Danger, Success }
+
+/// <summary>Cor de destaque do cartão: borda e faixa do título.</summary>
+public enum CardAccent { Normal, Favorite, Danger }
 
 /// <summary>Botão arredondado que segue o tema.</summary>
 public class RoundButton : Button
@@ -95,6 +115,8 @@ public class Card : Panel
     public string Title { get; set; } = "";
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string Subtitle { get; set; } = "";
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public CardAccent Accent { get; set; } = CardAccent.Normal;
     static readonly Font TitleFont = new("Segoe UI Semibold", 11f);
     static readonly Font SubFont = new("Segoe UI", 9f);
 
@@ -114,16 +136,21 @@ public class Card : Panel
         var g = e.Graphics;
         g.Clear(p.Back);
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        using (var path = Gfx.RoundRect(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), Theme.S(12)))
+        // Cartões de destaque ganham borda mais grossa na cor deles (amarelo = favoritos, vermelho = bloqueados)
+        Color accentColor = Accent switch { CardAccent.Favorite => p.Favorite, CardAccent.Danger => p.Danger, _ => p.Accent };
+        bool colored = Accent != CardAccent.Normal;
+        float bw = colored ? Math.Max(2f, Theme.S(2)) : 1f;
+        float inset = bw / 2f;
+        using (var path = Gfx.RoundRect(new RectangleF(inset, inset, Width - 1 - bw, Height - 1 - bw), Theme.S(12)))
         {
             using var b = new SolidBrush(p.Surface);
-            using var pen = new Pen(p.Border);
+            using var pen = new Pen(colored ? Theme.Blend(accentColor, p.Surface, 0.15) : p.Border, bw);
             g.FillPath(b, path);
             g.DrawPath(pen, path);
         }
 
         // Faixa de destaque à esquerda do título
-        using (var accent = new SolidBrush(p.Accent))
+        using (var accent = new SolidBrush(accentColor))
             g.FillRectangle(accent, Theme.S(16), Theme.S(14) + Theme.S(3), Theme.S(3), TitleFont.Height - Theme.S(6));
 
         int tx = Theme.S(25), ty = Theme.S(14);

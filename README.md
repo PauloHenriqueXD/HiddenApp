@@ -13,7 +13,7 @@
 - **Lista as janelas abertas** (as mesmas do Alt+Tab), com o ícone de cada programa e uma **prévia ao vivo** da janela selecionada.
 - **Bloquear / liberar internet** de um programa com um clique (ou duplo clique na lista). As conexões que já estavam abertas também são derrubadas.
 - **Selecionar manualmente:** clique no botão e, em até 3 segundos, na janela que deseja bloquear.
-- **Favoritos:** lista com os programas que você mais usa, para bloquear, liberar ou abrir rapidamente (também pelo ícone da bandeja).
+- **Favoritos:** clique na estrela ao lado de uma janela para guardar o programa na lista de favoritos, e bloqueie, libere ou abra com um clique (também pelo ícone da bandeja).
 - **Balões de ajuda:** passe o mouse sobre um botão para ver o que ele faz.
 - **Cópia bloqueável:** abre outra instância de um programa a partir de uma cópia feita de *hard links* (não ocupa espaço). Só a cópia fica sem internet; o programa original continua normal — útil para, por exemplo, ter duas janelas do mesmo navegador e bloquear só uma. Um programa pode ter **várias cópias**, cada uma com nome, perfil e bloqueio próprios.
 - **Bandeja do sistema:** fica rodando perto do relógio; o menu do ícone permite liberar programas, trocar o tema e sair.

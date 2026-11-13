@@ -6,6 +6,7 @@ public class MainForm : Form
     readonly AppSettings _settings = AppSettings.Load();
     bool _allowShow;      // false = começa escondido na bandeja
     bool _exiting;        // true = "Sair" de verdade (não só esconder)
+    DateTime _lastActivatedRefresh = DateTime.MinValue;
     bool _refreshing;
     readonly Dictionary<string, Bitmap?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -141,7 +142,15 @@ public class MainForm : Form
         RefreshAll();
         SetStatus("Selecione uma janela e clique em \"Bloquear internet\". Passe o mouse nos botões para ver o que cada um faz.");
 
-        Activated += (_, _) => { if (!_refreshing && _body.Visible) RefreshAll(); };
+        // Ao voltar para a janela, atualiza a lista depois que ela terminar de aparecer (e no máximo a cada 3 s):
+        // atualizar durante a restauração travava a janela e o Windows ignorava o primeiro clique (com aviso sonoro)
+        Activated += (_, _) =>
+        {
+            if (_refreshing || !_body.Visible || WindowState == FormWindowState.Minimized) return;
+            if (DateTime.UtcNow - _lastActivatedRefresh < TimeSpan.FromSeconds(3)) return;
+            _lastActivatedRefresh = DateTime.UtcNow;
+            BeginInvoke(() => { if (!_refreshing && WindowState != FormWindowState.Minimized) RefreshAll(); });
+        };
         SelectTab(_settings.LastTab);
         RegisterHotkeys(showErrors: false);
         L.Apply(this); // traduz a interface (se o idioma não for português)
@@ -495,6 +504,8 @@ public class MainForm : Form
         _autoClick.Notify += (title, text) => ShowBalloon(title, text);
         _autoClick.RunningChanged += UpdateTrayText;
         _autoClick.HotkeysRequested += EditHotkeys;
+        // Caixa de tecla de um passo com foco: solta as teclas globais para elas não dispararem ao gravar
+        _autoClick.SuspendHotkeys += suspend => { if (suspend) UnregisterHotkeys(); else RegisterHotkeys(showErrors: false); };
     }
 
     void SelectTab(int index)
@@ -552,7 +563,9 @@ public class MainForm : Form
     void EditHotkeys()
     {
         using var dlg = new HotkeyDialog((Keys)_settings.HotkeyStart, (Keys)_settings.HotkeyStop, (Keys)_settings.HotkeyCapture);
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        // Solta as teclas globais enquanto o diálogo está aberto: senão apertar F7 para gravá-la iniciaria a macro
+        UnregisterHotkeys();
+        if (dlg.ShowDialog(this) != DialogResult.OK) { RegisterHotkeys(showErrors: false); return; }
         _settings.HotkeyStart = (int)dlg.StartKey;
         _settings.HotkeyStop = (int)dlg.StopKey;
         _settings.HotkeyCapture = (int)dlg.CaptureKey;

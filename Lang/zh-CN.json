@@ -497,5 +497,21 @@
  "Posição vertical (%)": "垂直位置 (%)",
  "Onde o clique acontece da esquerda (0%) para a direita (100%) da janela. Use para ajustar o ponto com precisão.": "点击位置从窗口左侧（0%）到右侧（100%）。用于精确调整位置。",
  "Onde o clique acontece de cima (0%) para baixo (100%) da janela. Use para ajustar o ponto com precisão.": "点击位置从窗口顶部（0%）到底部（100%）。用于精确调整位置。",
- "Abre outra janela do favorito selecionado a partir de uma cópia (que não ocupa espaço), com bloqueio próprio. Se o favorito já for uma cópia, escolha o programa original no diálogo.": "从副本（不占用空间）打开所选收藏的另一个窗口，拥有独立的封锁。如果该收藏本身就是副本，请在对话框中选择原程序。"
+ "Abre outra janela do favorito selecionado a partir de uma cópia (que não ocupa espaço), com bloqueio próprio. Se o favorito já for uma cópia, escolha o programa original no diálogo.": "从副本（不占用空间）打开所选收藏的另一个窗口，拥有独立的封锁。如果该收藏本身就是副本，请在对话框中选择原程序。",
+ "iniciar": "开始",
+ "parar": "停止",
+ "capturar ponto": "捕获位置",
+ "{0} é a tecla de {1} das macros. Escolha outra tecla ou troque o atalho em \"Teclas de atalho\".": "{0} 是宏的“{1}”快捷键。请选择其他按键，或在“快捷键”中更换。",
+ "Nome da macro": "宏名称",
+ "O nome que aparece na lista de macros, no menu da bandeja e nos avisos.": "显示在宏列表、托盘菜单和通知中的名称。",
+ "A janela onde a macro clica e aperta as teclas. Escolha uma janela aberta; se o programa for fechado e aberto de novo, o HiddenApp encontra a janela dele outra vez.": "宏点击和按键的窗口。请选择一个已打开的窗口；程序关闭后重新打开，HiddenApp 会再次找到它的窗口。",
+ "Quantas vezes a sequência inteira de passos roda (só quando \"Repetir\" está em \"Número de vezes\").": "整个步骤序列运行的次数（仅当“重复”设为“指定次数”时）。",
+ "Hora": "小时",
+ "Minuto": "分钟",
+ "Hora em que a macro inicia sozinha (0 a 23).": "宏自动开始的小时（0 到 23）。",
+ "Minuto em que a macro inicia sozinha (0 a 59).": "宏自动开始的分钟（0 到 59）。",
+ "Qual botão do mouse é usado neste passo: esquerdo, direito ou do meio (rodinha).": "此步骤使用哪个鼠标键：左键、右键或中键（滚轮）。",
+ "Clique: aperta e solta.\nClique duplo: dois cliques rápidos.\nSegurar: mantém apertado pelo tempo do campo \"Segurar\".\nPara teclas: Apertar ou Segurar.": "单击：按下并松开。\n双击：快速点击两次。\n按住：按“按住”字段的时间保持按下。\n按键：按下或按住。",
+ "Botão ou tecla": "按键或鼠标键",
+ "Num passo de clique: qual botão do mouse é usado.\nNum passo de tecla: a tecla apertada (clique na caixa e aperte a tecla).": "点击步骤：使用哪个鼠标键。\n按键步骤：要按的键（点击输入框并按下该键）。"
 }

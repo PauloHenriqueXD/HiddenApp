@@ -9,6 +9,21 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [2.3.1] - 2026-11-12
+
+### Corrigido
+
+- Voltar o HiddenApp de minimizado às vezes fazia o Windows tocar o aviso sonoro e pedia um segundo clique: a lista de
+  janelas agora é atualizada só depois que a janela termina de aparecer (e no máximo a cada 3 segundos).
+- Trocar as teclas de atalho: apertar a tecla que já era um atalho (ex.: F7) iniciava a macro em vez de ser gravada.
+  Enquanto o diálogo de teclas ou a caixa "Tecla" de um passo estão em uso, os atalhos ficam desligados.
+- Passo de tecla não aceita mais as teclas de atalho do HiddenApp (a macro se iniciaria/pararia sozinha ao rodar).
+
+### Alterado
+
+- Todos os campos da macro têm explicação ao passar o mouse, tanto no nome do campo quanto na caixa (inclusive nas
+  setinhas dos campos numéricos).
+
 ## [2.3.0] - 2026-11-11
 
 ### Adicionado

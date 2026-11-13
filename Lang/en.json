@@ -497,5 +497,21 @@
  "Posição vertical (%)": "Vertical position (%)",
  "Onde o clique acontece da esquerda (0%) para a direita (100%) da janela. Use para ajustar o ponto com precisão.": "Where the click happens from the left (0%) to the right (100%) of the window. Use it to fine-tune the point.",
  "Onde o clique acontece de cima (0%) para baixo (100%) da janela. Use para ajustar o ponto com precisão.": "Where the click happens from the top (0%) to the bottom (100%) of the window. Use it to fine-tune the point.",
- "Abre outra janela do favorito selecionado a partir de uma cópia (que não ocupa espaço), com bloqueio próprio. Se o favorito já for uma cópia, escolha o programa original no diálogo.": "Opens another window of the selected favorite from a copy (that takes no space), with its own block. If the favorite is already a copy, choose the original program in the dialog."
+ "Abre outra janela do favorito selecionado a partir de uma cópia (que não ocupa espaço), com bloqueio próprio. Se o favorito já for uma cópia, escolha o programa original no diálogo.": "Opens another window of the selected favorite from a copy (that takes no space), with its own block. If the favorite is already a copy, choose the original program in the dialog.",
+ "iniciar": "start",
+ "parar": "stop",
+ "capturar ponto": "capture point",
+ "{0} é a tecla de {1} das macros. Escolha outra tecla ou troque o atalho em \"Teclas de atalho\".": "{0} is the macro {1} key. Choose another key or change the shortcut in \"Hotkeys\".",
+ "Nome da macro": "Macro name",
+ "O nome que aparece na lista de macros, no menu da bandeja e nos avisos.": "The name shown in the macro list, the tray menu and notifications.",
+ "A janela onde a macro clica e aperta as teclas. Escolha uma janela aberta; se o programa for fechado e aberto de novo, o HiddenApp encontra a janela dele outra vez.": "The window where the macro clicks and presses keys. Choose an open window; if the program is closed and opened again, HiddenApp finds its window again.",
+ "Quantas vezes a sequência inteira de passos roda (só quando \"Repetir\" está em \"Número de vezes\").": "How many times the whole sequence of steps runs (only when \"Repeat\" is set to \"Number of times\").",
+ "Hora": "Hour",
+ "Minuto": "Minute",
+ "Hora em que a macro inicia sozinha (0 a 23).": "Hour when the macro starts by itself (0 to 23).",
+ "Minuto em que a macro inicia sozinha (0 a 59).": "Minute when the macro starts by itself (0 to 59).",
+ "Qual botão do mouse é usado neste passo: esquerdo, direito ou do meio (rodinha).": "Which mouse button is used in this step: left, right or middle (wheel).",
+ "Clique: aperta e solta.\nClique duplo: dois cliques rápidos.\nSegurar: mantém apertado pelo tempo do campo \"Segurar\".\nPara teclas: Apertar ou Segurar.": "Click: press and release.\nDouble click: two quick clicks.\nHold: keeps it pressed for the time in the \"Hold\" field.\nFor keys: Press or Hold.",
+ "Botão ou tecla": "Button or key",
+ "Num passo de clique: qual botão do mouse é usado.\nNum passo de tecla: a tecla apertada (clique na caixa e aperte a tecla).": "In a click step: which mouse button is used.\nIn a key step: the key pressed (click the box and press the key)."
 }

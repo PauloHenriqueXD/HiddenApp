@@ -133,6 +133,8 @@ public class AutoClickPage : Panel
     /// <summary>Aviso para mostrar na bandeja quando a janela do app está escondida.</summary>
     public event Action<string, string>? Notify;
     public event Action? HotkeysRequested;
+    /// <summary>true = soltar as teclas de atalho globais (caixa de tecla com foco); false = registrar de novo.</summary>
+    public event Action<bool>? SuspendHotkeys;
 
     /// <summary>Alguma macro rodando (testes de passo não contam).</summary>
     public bool IsRunning => _running.Any(r => !r.IsTest);
@@ -424,7 +426,24 @@ public class AutoClickPage : Panel
             if (s.Kind == StepKind.Tecla && s.Key == 0) _keyBox.Focus();
         };
         _button.SelectedIndexChanged += (_, _) => ChangeStep(s => s.Button = (ClickButton)Math.Max(0, _button.SelectedIndex));
-        _keyBox.TextChanged += (_, _) => ChangeStep(s => s.Key = (int)_keyBox.Keys);
+        _keyBox.TextChanged += (_, _) =>
+        {
+            if (_loading || SelectedStep is not MacroStep s || _keyBox.Keys == Keys.None) return;
+            // As teclas de atalho do HiddenApp não podem ser passos: ao rodar, a macro se iniciaria/pararia sozinha
+            if (HotkeyName(_keyBox.Keys) is string action)
+            {
+                Say($"{HotkeyBox.Describe(_keyBox.Keys)} é a tecla de {action} das macros. Escolha outra tecla ou troque o atalho em \"Teclas de atalho\".");
+                _loading = true;
+                _keyBox.Keys = (Keys)s.Key;
+                if (s.Key == 0) _keyBox.Text = "";
+                _loading = false;
+                return;
+            }
+            ChangeStep(st => st.Key = (int)_keyBox.Keys);
+        };
+        // Enquanto grava a tecla, as teclas de atalho globais ficam soltas (senão F7 iniciaria a macro em vez de ser gravado)
+        _keyBox.GotFocus += (_, _) => SuspendHotkeys?.Invoke(true);
+        _keyBox.LostFocus += (_, _) => SuspendHotkeys?.Invoke(false);
         _action.SelectedIndexChanged += (_, _) =>
         {
             var a = ActionFromIndex(_action.SelectedIndex);
@@ -538,6 +557,17 @@ public class AutoClickPage : Panel
 
     void SetupTips()
     {
+        _tips.Set(_name, "Nome da macro", "O nome que aparece na lista de macros, no menu da bandeja e nos avisos.");
+        _tips.Set(_target, "Janela alvo",
+            "A janela onde a macro clica e aperta as teclas. Escolha uma janela aberta; se o programa for fechado e aberto de novo, " +
+            "o HiddenApp encontra a janela dele outra vez.");
+        _tips.Set(_loops, "Vezes", "Quantas vezes a sequência inteira de passos roda (só quando \"Repetir\" está em \"Número de vezes\").");
+        _tips.Set(_schedHour, "Hora", "Hora em que a macro inicia sozinha (0 a 23).");
+        _tips.Set(_schedMin, "Minuto", "Minuto em que a macro inicia sozinha (0 a 59).");
+        _tips.Set(_button, "Botão", "Qual botão do mouse é usado neste passo: esquerdo, direito ou do meio (rodinha).");
+        _tips.Set(_action, "Ação",
+            "Clique: aperta e solta.\nClique duplo: dois cliques rápidos.\nSegurar: mantém apertado pelo tempo do campo \"Segurar\".\n" +
+            "Para teclas: Apertar ou Segurar.");
         _tips.Set(_btnNew, "Nova macro", "Cria uma macro vazia. Depois escolha a janela alvo e adicione os pontos de clique.");
         _tips.Set(_btnDuplicate, "Duplicar macro", "Cria uma cópia da macro selecionada, para fazer variações sem mexer na original.");
         _tips.Set(_btnDelete, "Excluir macro", "Apaga a macro selecionada (pede confirmação).");
@@ -585,7 +615,16 @@ public class AutoClickPage : Panel
         _tips.Set(_posY, "Posição vertical (%)", "Onde o clique acontece de cima (0%) para baixo (100%) da janela. Use para ajustar o ponto com precisão.");
         _tips.Set(_btnZoom, "Ampliar prévia",
             "Abre a prévia da janela alvo numa janela grande, que pode ser maximizada. Dá para adicionar e reposicionar pontos nela também, com mais precisão.");
+        _tips.Set(_runList, "Em execução", "Macros rodando agora, com o progresso de cada uma. Duplo clique abre a macro.");
         _tips.Set(_delay, "Espera depois", "Tempo de espera depois deste passo, antes de ir para o próximo.");
+
+        // O rótulo de cada campo mostra o mesmo balão do campo
+        foreach (var form in new[] { _settingsForm, _stepNameForm, _stepEditor })
+            for (int k = 0; k + 1 < form.Controls.Count; k += 2)
+                if (form.Controls[k] is Label label) _tips.Copy(form.Controls[k + 1], label);
+        if (_buttonLabel != null)
+            _tips.Set(_buttonLabel, "Botão ou tecla",
+                "Num passo de clique: qual botão do mouse é usado.\nNum passo de tecla: a tecla apertada (clique na caixa e aperte a tecla).");
     }
 
     // =====================================================================
@@ -806,6 +845,12 @@ public class AutoClickPage : Panel
         finally { _loading = false; }
         UpdateButtons();
     }
+
+    /// <summary>Nome da ação se a tecla for um atalho do HiddenApp ("iniciar", "parar", "capturar ponto").</summary>
+    string? HotkeyName(Keys k) =>
+        (int)k == _settings.HotkeyStart ? L.T("iniciar") :
+        (int)k == _settings.HotkeyStop ? L.T("parar") :
+        (int)k == _settings.HotkeyCapture ? L.T("capturar ponto") : null;
 
     bool SelectedIsKey => SelectedStep?.Kind == StepKind.Tecla;
 

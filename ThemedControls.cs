@@ -392,11 +392,30 @@ public class ThemedToolTip : ToolTip
         Draw += OnDraw;
     }
 
-    public void Set(Control control, string title, string body)
+    public void Set(Control control, string title, string body) => SetTranslated(control, L.T(title), L.T(body));
+
+    void SetTranslated(Control control, string title, string body)
     {
-        title = L.T(title); body = L.T(body);
         _tips[control] = (title, body);
         SetToolTip(control, body);
+        // Campos numéricos têm partes internas (caixa de texto e setas): o balão aparece em cima delas também
+        if (control is NumericUpDown or UpDownBase)
+            foreach (Control child in control.Controls) SetTranslated(child, title, body);
+    }
+
+    /// <summary>Procura o balão de um controle ou do primeiro controle dentro dele que tenha um.</summary>
+    public bool TryFind(Control control, out (string Title, string Body) tip)
+    {
+        if (_tips.TryGetValue(control, out tip)) return true;
+        foreach (Control child in control.Controls)
+            if (TryFind(child, out tip)) return true;
+        return false;
+    }
+
+    /// <summary>Dá a <paramref name="target"/> (ex.: o rótulo de um campo) o mesmo balão de <paramref name="source"/>.</summary>
+    public void Copy(Control source, Control target)
+    {
+        if (TryFind(source, out var tip)) SetTranslated(target, tip.Title, tip.Body);
     }
 
     static int MaxWidth => Theme.S(330);

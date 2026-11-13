@@ -168,7 +168,13 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   suba `Versao` e trate versões antigas em `MacroStore.Import` (versões mais novas são recusadas com aviso).
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.
 - **Teclas de atalho globais** usam `RegisterHotKey` no handle do `MainForm` (ids 1–3, tratadas no `WndProc`).
-  Se outra aplicação já usa a tecla, o registro falha e o usuário é avisado.
+  Se outra aplicação já usa a tecla, o registro falha e o usuário é avisado. Elas são **soltas** enquanto o diálogo de
+  teclas está aberto e enquanto a caixa "Tecla" de um passo tem foco (`AutoClickPage.SuspendHotkeys`, por
+  `GotFocus`/`LostFocus` — `Leave` não dispara ao trocar de programa); senão o `RegisterHotKey` engole a tecla.
+- **Atualização ao ativar a janela** (`Activated`): é adiada com `BeginInvoke` e limitada a cada 3 s. Rodar `RefreshAll`
+  durante a restauração de minimizado travava a janela e o Windows ignorava o clique (com aviso sonoro).
+- **Balões nos campos:** `ThemedToolTip.Set` também cobre as partes internas de `NumericUpDown`; `SetupTips` copia o
+  balão de cada campo para o rótulo dele (pares rótulo/campo dos formulários). Campo novo = balão novo.
 - **Sugestões nunca são enviadas pelo próprio app:** só abrimos um formulário no navegador. Não coloque webhook,
   token ou endereço de envio no `.exe` (qualquer um extrai e usa para spam). O link do Google Forms é um modelo
   com as palavras `VERSAO`, `WINDOWS` e `IDIOMA`; se o formulário mudar, gere um novo link pré-preenchido.

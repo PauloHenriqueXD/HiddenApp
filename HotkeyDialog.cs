@@ -110,10 +110,11 @@ public class HotkeyDialog : Form
         CancelButton = cancel;
         ok.Click += (_, _) =>
         {
-            var keys = new[] { _start.Keys, _stop.Keys, _capture.Keys };
-            if (keys.Distinct().Count() < 3)
+            // Iniciar e parar podem ser a mesma tecla (ela liga/desliga); capturar ponto precisa de uma só dela
+            if (_capture.Keys == _start.Keys || _capture.Keys == _stop.Keys)
             {
-                Msg.Show(this, "Cada ação precisa de uma tecla diferente.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Msg.Show(this, "Iniciar e parar podem usar a mesma tecla (ela liga e desliga), mas capturar ponto precisa de uma tecla própria.",
+                    Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
             }
         };

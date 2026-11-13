@@ -506,6 +506,9 @@ public class MainForm : Form
         _autoClick.HotkeysRequested += EditHotkeys;
         // Caixa de tecla de um passo com foco: solta as teclas globais para elas não dispararem ao gravar
         _autoClick.SuspendHotkeys += suspend => { if (suspend) UnregisterHotkeys(); else RegisterHotkeys(showErrors: false); };
+        // Gatilhos das macros também são teclas globais, registradas no handle desta janela
+        _autoClick.RegisterTrigger = (id, keys) => RegisterOne(id, keys);
+        _autoClick.UnregisterTrigger = id => { if (IsHandleCreated) Native.UnregisterHotKey(Handle, id); };
     }
 
     void SelectTab(int index)
@@ -542,7 +545,9 @@ public class MainForm : Form
         var stop = (Keys)_settings.HotkeyStop;
         var capture = (Keys)_settings.HotkeyCapture;
         if (!RegisterOne(HotkeyIdStart, start)) failed.Add($"{HotkeyBox.Describe(start)} (iniciar)");
-        if (!RegisterOne(HotkeyIdStop, stop)) failed.Add($"{HotkeyBox.Describe(stop)} (parar)");
+        // Mesma tecla para iniciar e parar: registra uma vez só e ela liga/desliga (ver WndProc)
+        if (stop == start) Native.UnregisterHotKey(Handle, HotkeyIdStop);
+        else if (!RegisterOne(HotkeyIdStop, stop)) failed.Add($"{HotkeyBox.Describe(stop)} (parar)");
         if (!RegisterOne(HotkeyIdCapture, capture)) failed.Add($"{HotkeyBox.Describe(capture)} (capturar ponto)");
         _autoClick.SetHotkeyLabels(HotkeyBox.Describe(start), HotkeyBox.Describe(stop), HotkeyBox.Describe(capture));
 
@@ -581,7 +586,12 @@ public class MainForm : Form
         {
             switch ((int)m.WParam)
             {
-                case HotkeyIdStart: _autoClick.StartSelected(); break;
+                case HotkeyIdStart:
+                    // Tecla única de iniciar/parar: se algo estiver rodando (ou aguardando gatilho), para tudo
+                    if (_settings.HotkeyStart == _settings.HotkeyStop && _autoClick.IsRunning) _autoClick.StopRunning();
+                    else _autoClick.StartSelected();
+                    break;
+                case >= AutoClickPage.FirstTriggerId: _autoClick.OnTrigger((int)m.WParam); break;
                 case HotkeyIdStop: _autoClick.StopRunning(); break;
                 case HotkeyIdCapture: _autoClick.CaptureFromCursor(); break;
             }

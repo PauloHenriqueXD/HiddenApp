@@ -9,6 +9,16 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [2.4.0] - 2026-11-12
+
+### Adicionado
+
+- **Gatilho de macro:** escolha uma tecla de gatilho e o que ela faz — **"Rodar até parar"** (inicia; apertar de novo para)
+  ou **"Uma volta por toque"** (cada toque roda a sequência uma vez). Ao clicar em Iniciar, a macro fica **aguardando**
+  no cartão "Em execução" (bolinha azul, etiqueta GATILHO) e volta a aguardar depois de cada execução, até ser parada.
+  Funciona no modo real e em segundo plano, em qualquer programa.
+- **Mesma tecla para iniciar e parar:** ela passa a ligar e desligar (se algo estiver rodando, para tudo; senão inicia).
+
 ## [2.3.1] - 2026-11-12
 
 ### Corrigido

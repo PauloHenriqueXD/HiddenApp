@@ -10,6 +10,9 @@ public enum ClickAction { Clique, CliqueDuplo, Segurar }
 /// <summary>O que o passo faz: clicar num ponto da janela ou apertar uma tecla.</summary>
 public enum StepKind { Clique, Tecla }
 
+/// <summary>O que acontece quando a tecla de gatilho é apertada.</summary>
+public enum TriggerMode { RodarAteParar, UmaVolta }
+
 /// <summary>Quando o agendamento se repete.</summary>
 public enum ScheduleRepeat { TodoDia, UmaVez }
 
@@ -96,6 +99,14 @@ public class Macro
 
     /// <summary>Favorita: aparece no topo da lista, com estrela.</summary>
     public bool Favorite { get; set; }
+
+    /// <summary>
+    /// Gatilho: ao "iniciar", a macro fica aguardando; a tecla de gatilho roda a macro (até parar, ou uma volta por toque)
+    /// e depois ela volta a aguardar. Valor de <see cref="Keys"/>, com Ctrl/Alt/Shift.
+    /// </summary>
+    public bool TriggerEnabled { get; set; }
+    public int TriggerKey { get; set; }
+    public TriggerMode TriggerMode { get; set; } = TriggerMode.RodarAteParar;
 
     /// <summary>Iniciar sozinha num horário (HH:mm), todo dia ou uma vez.</summary>
     public bool ScheduleEnabled { get; set; }
@@ -217,6 +228,8 @@ internal static class MacroStore
         m.ScheduleEnabled = false; // agendamento não vem de arquivos de outras pessoas
         m.ScheduleLastRun = null;
         if (!Enum.IsDefined(m.ScheduleRepeat)) m.ScheduleRepeat = ScheduleRepeat.TodoDia;
+        if (!Enum.IsDefined(m.TriggerMode)) m.TriggerMode = TriggerMode.RodarAteParar;
+        if (m.TriggerKey < 0 || ((Keys)m.TriggerKey & Keys.KeyCode) == Keys.None) { m.TriggerKey = 0; m.TriggerEnabled = false; }
         foreach (var s in m.Steps)
         {
             if (!Enum.IsDefined(s.Kind)) s.Kind = StepKind.Clique;

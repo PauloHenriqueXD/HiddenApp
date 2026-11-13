@@ -17,11 +17,27 @@ public class AutoClickPage : Panel
     sealed class RunState
     {
         public required Macro Macro { get; init; }
-        public required ClickRunner Runner { get; init; }
+        /// <summary>Executor da volta atual; null = aguardando o gatilho.</summary>
+        public ClickRunner? Runner { get; set; }
         public bool IsTest { get; init; }
+        /// <summary>Macro com gatilho "armada": fica na lista esperando a tecla até ser parada.</summary>
+        public bool Armed { get; set; }
+        public int TriggerId { get; init; }
         public string Text { get; set; } = "";
-        public bool Paused => Text.StartsWith("Pausado", StringComparison.Ordinal);
+        public bool Waiting => Armed && Runner == null;
+        public bool Paused => Runner != null && Text.StartsWith("Pausado", StringComparison.Ordinal);
     }
+
+    /// <summary>Ids de tecla global dos gatilhos (os atalhos fixos usam 1–3).</summary>
+    public const int FirstTriggerId = 100;
+    int _nextTriggerId = FirstTriggerId;
+    bool _triggersSuspended;
+
+    /// <summary>Registra uma tecla global de gatilho (fornecido pela janela principal). Retorna false se a tecla estiver ocupada.</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Func<int, Keys, bool>? RegisterTrigger { get; set; }
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Action<int>? UnregisterTrigger { get; set; }
 
     /// <summary>Macros rodando agora. Várias em segundo plano ao mesmo tempo; no modo real, só uma.</summary>
     readonly List<RunState> _running = new();
@@ -73,6 +89,9 @@ public class AutoClickPage : Panel
     readonly NumericUpDown _schedHour = NewNum(0, 23, 14);
     readonly NumericUpDown _schedMin = NewNum(0, 59, 0);
     readonly ComboBox _schedRepeat = NewCombo("Todo dia", "Só uma vez");
+    readonly CheckBox _trigOn = new() { AutoSize = true, Margin = new Padding(0, Theme.S(5), Theme.S(4), 0) };
+    readonly HotkeyBox _trigKey = new() { Dock = DockStyle.None, PlaceholderText = "Tecla", Margin = new Padding(0, Theme.S(1), 0, 0) };
+    readonly ComboBox _trigMode = NewCombo("Rodar até parar", "Uma volta por toque");
 
     readonly ListBox _stepList = NewList(42);
     readonly Label _emptySteps = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted" };
@@ -336,6 +355,11 @@ public class AutoClickPage : Panel
         sched.Controls.AddRange(new Control[] { _schedOn, _schedHour, colon, _schedMin });
         AddField(_settingsForm, "Iniciar às", sched);
         AddField(_settingsForm, "Agenda", _schedRepeat);
+        var trig = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
+        _trigKey.Width = Theme.S(130);
+        trig.Controls.AddRange(new Control[] { _trigOn, _trigKey });
+        AddField(_settingsForm, "Gatilho", trig);
+        AddField(_settingsForm, "Ao apertar", _trigMode);
 
         _name.TextChanged += (_, _) => Change(m => m.Name = string.IsNullOrWhiteSpace(_name.Text) ? "Sem nome" : _name.Text.Trim());
         _target.DropDown += (_, _) => RefreshTargets();
@@ -362,6 +386,25 @@ public class AutoClickPage : Panel
         _schedHour.ValueChanged += (_, _) => ScheduleChanged();
         _schedMin.ValueChanged += (_, _) => ScheduleChanged();
         _schedRepeat.SelectedIndexChanged += (_, _) => ScheduleChanged();
+        _trigOn.CheckedChanged += (_, _) => { UpdateTriggerFields(); Change(m => m.TriggerEnabled = _trigOn.Checked); _macroList.Invalidate(); };
+        _trigMode.SelectedIndexChanged += (_, _) => Change(m => m.TriggerMode = _trigMode.SelectedIndex == 1 ? TriggerMode.UmaVolta : TriggerMode.RodarAteParar);
+        _trigKey.TextChanged += (_, _) =>
+        {
+            if (_loading || _current == null || _trigKey.Keys == Keys.None) return;
+            if (HotkeyName(_trigKey.Keys) is string action)
+            {
+                Say($"{HotkeyBox.Describe(_trigKey.Keys)} é a tecla de {action} das macros. Escolha outra tecla ou troque o atalho em \"Teclas de atalho\".");
+                _loading = true;
+                _trigKey.Keys = (Keys)_current.TriggerKey;
+                if (_current.TriggerKey == 0) _trigKey.Text = "";
+                _loading = false;
+                return;
+            }
+            Change(m => m.TriggerKey = (int)_trigKey.Keys);
+            _macroList.Invalidate();
+        };
+        _trigKey.GotFocus += (_, _) => SuspendHotkeys?.Invoke(true);
+        _trigKey.LostFocus += (_, _) => SuspendHotkeys?.Invoke(false);
 
         // Ordem de encaixe: o último adicionado fica mais acima
         var toolbar = Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnImport, _btnExport);
@@ -444,6 +487,8 @@ public class AutoClickPage : Panel
         // Enquanto grava a tecla, as teclas de atalho globais ficam soltas (senão F7 iniciaria a macro em vez de ser gravado)
         _keyBox.GotFocus += (_, _) => SuspendHotkeys?.Invoke(true);
         _keyBox.LostFocus += (_, _) => SuspendHotkeys?.Invoke(false);
+        // Enquanto uma tecla é gravada, os gatilhos armados também ficam soltos
+        SuspendHotkeys += suspend => SetTriggersSuspended(suspend);
         _action.SelectedIndexChanged += (_, _) =>
         {
             var a = ActionFromIndex(_action.SelectedIndex);
@@ -482,7 +527,7 @@ public class AutoClickPage : Panel
         };
         _btnStopSel.Click += (_, _) =>
         {
-            if (_runList.SelectedItem is RunState r) r.Runner.Stop();
+            if (_runList.SelectedItem is RunState r) StopState(r);
             else Say("Selecione na lista a macro que quer parar.");
         };
         _btnStopAll.Click += (_, _) => StopRunning();
@@ -562,6 +607,15 @@ public class AutoClickPage : Panel
             "A janela onde a macro clica e aperta as teclas. Escolha uma janela aberta; se o programa for fechado e aberto de novo, " +
             "o HiddenApp encontra a janela dele outra vez.");
         _tips.Set(_loops, "Vezes", "Quantas vezes a sequência inteira de passos roda (só quando \"Repetir\" está em \"Número de vezes\").");
+        _tips.Set(_trigOn, "Gatilho",
+            "Liga o gatilho: ao clicar em Iniciar, a macro fica aguardando (no cartão \"Em execução\") e só roda quando você " +
+            "aperta a tecla escolhida — em qualquer programa. Ela continua aguardando até você parar (botão Parar ou tecla de parar).");
+        _tips.Set(_trigKey, "Tecla de gatilho",
+            "Clique aqui e aperte a tecla (pode combinar com Ctrl, Alt ou Shift). Enquanto a macro aguarda, essa tecla fica reservada " +
+            "para o gatilho e não chega aos outros programas.");
+        _tips.Set(_trigMode, "Ao apertar o gatilho",
+            "Rodar até parar: o gatilho inicia a macro (seguindo \"Repetir\"); apertar de novo para e volta a aguardar.\n" +
+            "Uma volta por toque: cada toque roda a sequência de passos uma vez e volta a aguardar.");
         _tips.Set(_schedHour, "Hora", "Hora em que a macro inicia sozinha (0 a 23).");
         _tips.Set(_schedMin, "Minuto", "Minuto em que a macro inicia sozinha (0 a 59).");
         _tips.Set(_button, "Botão", "Qual botão do mouse é usado neste passo: esquerdo, direito ou do meio (rodinha).");
@@ -743,6 +797,11 @@ public class AutoClickPage : Panel
             _schedMin.Value = at.Minutes;
             _schedRepeat.SelectedIndex = m?.ScheduleRepeat == ScheduleRepeat.UmaVez ? 1 : 0;
             UpdateScheduleFields();
+            _trigOn.Checked = m?.TriggerEnabled ?? false;
+            _trigKey.Keys = (Keys)(m?.TriggerKey ?? 0);
+            if ((m?.TriggerKey ?? 0) == 0) _trigKey.Text = "";
+            _trigMode.SelectedIndex = m?.TriggerMode == TriggerMode.UmaVolta ? 1 : 0;
+            UpdateTriggerFields();
             _targetHandle = m != null ? ClickRunner.FindWindow(m, IntPtr.Zero) : IntPtr.Zero;
             RefreshTargets();
         }
@@ -879,6 +938,8 @@ public class AutoClickPage : Panel
     // =====================================================================
     //  Agendamento: iniciar a macro sozinha num horário
     // =====================================================================
+    void UpdateTriggerFields() => _trigKey.Enabled = _trigMode.Enabled = _trigOn.Checked;
+
     void UpdateScheduleFields() => _schedHour.Enabled = _schedMin.Enabled = _schedRepeat.Enabled = _schedOn.Checked;
 
     void ScheduleChanged()
@@ -1124,14 +1185,14 @@ public class AutoClickPage : Panel
 
     public void StopMacro(Macro m)
     {
-        foreach (var r in _running.Where(r => r.Macro.Id == m.Id).ToList()) r.Runner.Stop();
+        foreach (var r in _running.Where(r => r.Macro.Id == m.Id).ToList()) StopState(r);
     }
 
     /// <summary>Macro selecionada rodando (ou em teste): a edição dela fica bloqueada.</summary>
     bool CurrentBusy => _current != null && _running.Any(r => r.Macro.Id == _current.Id);
 
     /// <summary>O modo real usa o mouse e o teclado de verdade: só uma macro por vez.</summary>
-    RunState? RealRun() => _running.FirstOrDefault(r => r.Macro.Mode == ClickMode.Real);
+    RunState? RealRun() => _running.FirstOrDefault(r => r.Runner != null && r.Macro.Mode == ClickMode.Real);
 
     /// <summary>Inicia uma macro sem mudar a seleção (menu da bandeja, agendamento).</summary>
     public void StartMacro(Macro macro) => Start(macro);
@@ -1149,6 +1210,7 @@ public class AutoClickPage : Panel
     {
         if (_running.Any(r => r.Macro.Id == m.Id)) { Say($"A macro \"{m.Name}\" já está rodando.", notify: true); return; }
         if (m.Steps.Count == 0) { Say($"A macro \"{m.Name}\" ainda não tem passos.", notify: true); return; }
+        if (m.TriggerEnabled) { Arm(m); return; }
         if (m.Mode == ClickMode.Real && RealRun() is RunState other)
         {
             Say($"Só uma macro no modo real pode rodar por vez (\"{other.Macro.Name}\" já está usando o mouse e o teclado). " +
@@ -1178,23 +1240,140 @@ public class AutoClickPage : Panel
     /// <summary>Cria um executor para a macro e acompanha o progresso dele na lista "Em execução".</summary>
     void Launch(Macro m, IntPtr window, bool test)
     {
-        var state = new RunState { Macro = m, Runner = new ClickRunner(), IsTest = test };
-        state.Runner.Progress += text => OnUi(() =>
-        {
-            state.Text = text;
-            _runList.Invalidate();
-            if (_current?.Id == m.Id) SetStatus(text);
-        });
-        state.Runner.Stopped += reason => OnUi(() =>
-        {
-            _running.Remove(state);
-            AfterRunChange();
-            if (test) SetStatus(reason); else Say(reason, notify: true);
-        });
+        var state = new RunState { Macro = m, IsTest = test };
         _running.Add(state);
-        try { state.Runner.Start(m, window); }
+        try { StartRunner(state, m, window); }
         catch { _running.Remove(state); throw; }
         AfterRunChange();
+    }
+
+    /// <summary>Roda uma volta (ou a macro inteira) para o item da lista "Em execução".</summary>
+    void StartRunner(RunState state, Macro runMacro, IntPtr window)
+    {
+        var runner = new ClickRunner();
+        runner.Progress += text => OnUi(() =>
+        {
+            if (state.Runner != runner) return;
+            state.Text = text;
+            _runList.Invalidate();
+            if (_current?.Id == state.Macro.Id) SetStatus(text);
+        });
+        runner.Stopped += reason => OnUi(() =>
+        {
+            if (state.Runner == runner) state.Runner = null;
+            if (state.Armed && _running.Contains(state))
+            {
+                // Macro com gatilho: volta a aguardar a tecla
+                state.Text = WaitingText(state.Macro);
+                SetStatus(reason);
+            }
+            else
+            {
+                _running.Remove(state);
+                if (state.IsTest) SetStatus(reason); else Say(reason, notify: true);
+            }
+            AfterRunChange();
+        });
+        state.Runner = runner;
+        state.Text = "";
+        try { runner.Start(runMacro, window); }
+        catch { state.Runner = null; throw; }
+    }
+
+    static string WaitingText(Macro m) => L.F("Aguardando gatilho: {0}", HotkeyBox.Describe((Keys)m.TriggerKey));
+
+    // =====================================================================
+    //  Gatilho: a macro fica aguardando e a tecla roda a macro
+    // =====================================================================
+    void Arm(Macro m)
+    {
+        var key = (Keys)m.TriggerKey;
+        if (m.TriggerKey == 0) { Say($"Escolha a tecla de gatilho da macro \"{m.Name}\".", notify: true); return; }
+        if (m.TargetExe == null) { Say($"Escolha a janela alvo da macro \"{m.Name}\".", notify: true); return; }
+        if (HotkeyName(key) is string action)
+        {
+            Say($"{HotkeyBox.Describe(key)} é a tecla de {action} das macros. Escolha outra tecla ou troque o atalho em \"Teclas de atalho\".", notify: true);
+            return;
+        }
+        if (m.Steps.Any(s => s.Kind == StepKind.Tecla && s.Key == m.TriggerKey))
+        {
+            // A própria macro apertaria o gatilho e se pararia/reiniciaria sozinha
+            Say($"A macro \"{m.Name}\" aperta a tecla {HotkeyBox.Describe(key)}, que também é o gatilho dela. Escolha outra tecla de gatilho.", notify: true);
+            return;
+        }
+        if (_running.FirstOrDefault(r => r.Armed && r.Macro.TriggerKey == m.TriggerKey) is RunState same)
+        {
+            Say($"A tecla {HotkeyBox.Describe(key)} já é o gatilho de \"{same.Macro.Name}\".", notify: true);
+            return;
+        }
+        int id = _nextTriggerId++;
+        if (!_triggersSuspended && RegisterTrigger?.Invoke(id, key) != true)
+        {
+            Say($"A tecla {HotkeyBox.Describe(key)} já está sendo usada por outro programa e não pode ser gatilho.", notify: true);
+            return;
+        }
+        SaveNow();
+        _running.Add(new RunState { Macro = m, Armed = true, TriggerId = id, Text = WaitingText(m) });
+        AfterRunChange();
+        Say(m.TriggerMode == TriggerMode.UmaVolta
+            ? $"\"{m.Name}\" aguardando o gatilho: cada toque em {HotkeyBox.Describe(key)} roda uma volta. {_stopKey} desliga."
+            : $"\"{m.Name}\" aguardando o gatilho: {HotkeyBox.Describe(key)} inicia e para. {_stopKey} desliga.", notify: true);
+    }
+
+    /// <summary>Tecla de gatilho apertada (chamado pela janela principal).</summary>
+    public void OnTrigger(int id)
+    {
+        var state = _running.FirstOrDefault(r => r.Armed && r.TriggerId == id);
+        if (state == null) return;
+        if (state.Runner != null) { state.Runner.Stop(); return; } // apertar de novo: para e volta a aguardar
+        var m = state.Macro;
+        if (m.Mode == ClickMode.Real && RealRun() is RunState other)
+        {
+            Say($"Só uma macro no modo real pode rodar por vez (\"{other.Macro.Name}\" já está usando o mouse e o teclado). " +
+                "Pare-a ou use o modo segundo plano.", notify: true);
+            return;
+        }
+        var window = ClickRunner.FindWindow(m, m == _current ? _targetHandle : IntPtr.Zero);
+        if (window == IntPtr.Zero) { Say($"A janela alvo ({m.TargetName}) não está aberta.", notify: true); return; }
+
+        var run = m;
+        if (m.TriggerMode == TriggerMode.UmaVolta)
+        {
+            run = m.Clone();   // uma volta só, sem mexer na macro salva
+            run.Id = m.Id;
+            run.Loops = 1;
+        }
+        try { StartRunner(state, run, window); }
+        catch (Exception ex) { Say(ex.Message, notify: true); }
+        AfterRunChange();
+    }
+
+    /// <summary>Desliga o gatilho (e para a volta em andamento, se houver).</summary>
+    void Disarm(RunState state)
+    {
+        state.Armed = false;
+        UnregisterTrigger?.Invoke(state.TriggerId);
+        if (state.Runner != null) { state.Runner.Stop(); return; } // o Stopped tira da lista
+        _running.Remove(state);
+        Say($"Gatilho de \"{state.Macro.Name}\" desligado.", notify: true);
+        AfterRunChange();
+    }
+
+    void StopState(RunState r)
+    {
+        if (r.Armed) Disarm(r); else r.Runner?.Stop();
+    }
+
+    /// <summary>Solta/registra de novo as teclas de gatilho (enquanto uma tecla está sendo gravada).</summary>
+    void SetTriggersSuspended(bool suspend)
+    {
+        if (_triggersSuspended == suspend) return;
+        _triggersSuspended = suspend;
+        foreach (var r in _running.Where(r => r.Armed))
+        {
+            if (suspend) UnregisterTrigger?.Invoke(r.TriggerId);
+            else RegisterTrigger?.Invoke(r.TriggerId, (Keys)r.Macro.TriggerKey);
+        }
     }
 
     void AfterRunChange()
@@ -1208,7 +1387,7 @@ public class AutoClickPage : Panel
     /// <summary>Tecla de parar (F8) ou "Parar todas": para todas as macros que estão rodando.</summary>
     public void StopRunning()
     {
-        foreach (var r in _running.ToList()) r.Runner.Stop();
+        foreach (var r in _running.ToList()) StopState(r);
     }
 
     /// <summary>Botão "Parar" da barra: para a macro selecionada.</summary>
@@ -1346,6 +1525,8 @@ public class AutoClickPage : Panel
             DrawPill(g, "RODANDO", p.Success, bg, e.Bounds.Right - pillW - Theme.S(8), new Rectangle(0, top, 0, BoldFont.Height));
 
         string info = L.F("{0} · {1} passo(s)", m.TargetName, m.Steps.Count);
+        if (m.TriggerEnabled && m.TriggerKey != 0)
+            info += " · " + L.F("gatilho {0}", HotkeyBox.Describe((Keys)m.TriggerKey));
         if (m.ScheduleEnabled)
             info += " · " + (m.ScheduleRepeat == ScheduleRepeat.TodoDia ? L.F("todo dia às {0}", m.ScheduleTime) : L.F("às {0}", m.ScheduleTime));
         TextRenderer.DrawText(g, info, SmallFont, new Rectangle(x, top + BoldFont.Height + Theme.S(4), e.Bounds.Right - x - Theme.S(8), SmallFont.Height),
@@ -1400,16 +1581,17 @@ public class AutoClickPage : Panel
         int d = Theme.S(10);
         var dot = new Rectangle(e.Bounds.Left + Theme.S(10), e.Bounds.Top + (e.Bounds.Height - d) / 2, d, d);
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        using (var db = new SolidBrush(r.Paused ? p.Favorite : p.Success)) g.FillEllipse(db, dot);
+        // Azul = aguardando o gatilho
+        using (var db = new SolidBrush(r.Waiting ? p.Accent : r.Paused ? p.Favorite : p.Success)) g.FillEllipse(db, dot);
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
 
         int x = dot.Right + Theme.S(10);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(2)) / 2;
-        string mode = r.Macro.Mode == ClickMode.Real ? "REAL" : "SEGUNDO PLANO";
+        string mode = r.Waiting ? "GATILHO" : r.Macro.Mode == ClickMode.Real ? "REAL" : "SEGUNDO PLANO";
         int pillW = TextRenderer.MeasureText(L.T(mode), PillFont).Width + Theme.S(10);
         TextRenderer.DrawText(g, r.Macro.Name, BoldFont, new Rectangle(x, top, e.Bounds.Right - x - pillW - Theme.S(14), BoldFont.Height), p.Text,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-        DrawPill(g, mode, r.Macro.Mode == ClickMode.Real ? p.Accent : p.Muted, bg, e.Bounds.Right - pillW - Theme.S(8),
+        DrawPill(g, mode, r.Waiting ? p.Favorite : r.Macro.Mode == ClickMode.Real ? p.Accent : p.Muted, bg, e.Bounds.Right - pillW - Theme.S(8),
             new Rectangle(0, top, 0, BoldFont.Height));
         string info = string.IsNullOrEmpty(r.Text) ? L.F("{0} · iniciando...", r.Macro.TargetName) : L.F("{0} · {1}", r.Macro.TargetName, L.T(r.Text));
         TextRenderer.DrawText(g, info, SmallFont, new Rectangle(x, top + BoldFont.Height + Theme.S(2), e.Bounds.Right - x - Theme.S(8), SmallFont.Height),

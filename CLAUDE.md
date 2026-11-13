@@ -157,6 +157,14 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   **Só uma no modo real** (`RealRun()`): o mouse/teclado e a janela em primeiro plano são um só — duas brigariam. Testes de
   passo também entram na lista (`IsTest`, mesmo `Id` da macro) para respeitar essa regra. F8 para todas; só a macro
   selecionada fica com a edição travada enquanto roda (`CurrentBusy`). Iniciar pela bandeja/agendamento não muda a seleção.
+- **Gatilho:** "Iniciar" numa macro com gatilho só a **arma** (`RunState.Armed`, `Runner` null = aguardando). A tecla é uma
+  tecla global (`RegisterHotKey`, ids a partir de `AutoClickPage.FirstTriggerId` = 100, registrada pelo `MainForm` via
+  `RegisterTrigger`; o `WndProc` repassa para `OnTrigger`). Cada execução é um `ClickRunner` novo no mesmo `RunState`;
+  ao terminar, volta a aguardar. Parar (F8, botão, bandeja) **desarma** (`Disarm`). "Uma volta por toque" roda um clone
+  com `Loops = 1`. A tecla de gatilho não pode ser atalho do app, gatilho de outra macro armada nem tecla de um passo
+  da própria macro (ela se dispararia). O gatilho também é solto enquanto uma tecla está sendo gravada.
+- **Iniciar e parar com a mesma tecla:** só uma tecla global é registrada (id de iniciar); no `WndProc`, se algo estiver
+  rodando ou armado, ela para tudo.
 - **Favoritas e ordem:** a ordem de `_macros` (e do `macros.json`) é a ordem do usuário; a lista mostra `Ordered()`
   (favoritas primeiro) numa `MacroComboBox` owner-draw: o clique na estrela da parte fechada alterna a favorita
   (intercepta `WM_LBUTTONDOWN` no `WndProc` para não abrir a lista); dentro da lista aberta a estrela não é clicável.
@@ -226,6 +234,8 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
     as novas funcionam; macros continuam salvas após reabrir o app. Passo de tecla (ex.: Ctrl+S no Bloco de Notas) nos
     dois modos; agendar para daqui a 2 minutos (todo dia e só uma vez); favoritar e subir/descer macros. Duas macros em segundo plano
     + uma real ao mesmo tempo (a segunda real deve ser recusada); parar uma pelo cartão "Em execução" e todas com F8.
+    Gatilho nos dois modos ("Rodar até parar" e "Uma volta por toque"), com a janela alvo em outro programa em foco;
+    mesma tecla para iniciar e parar.
 15. Idioma: botão 🌐 → English → reiniciar → janela, balões, menus da bandeja, diálogos e mensagens em inglês;
     repetir com 简体中文 (sem quadradinhos no lugar dos caracteres) e voltar para Português.
 

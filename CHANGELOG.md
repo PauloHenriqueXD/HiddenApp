@@ -9,6 +9,13 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
+## [2.5.0] - 2026-11-12
+
+### Adicionado
+
+- **Gatilho pelo mouse:** o gatilho da macro aceita o **botão do meio** e os **botões laterais** do mouse (com Ctrl, Alt
+  ou Shift, se quiser) — é só clicar com eles na caixa do gatilho. Os botões esquerdo e direito não podem ser gatilho.
+
 ## [2.4.0] - 2026-11-12
 
 ### Adicionado

@@ -11,7 +11,7 @@
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
     <!-- Ícone do .exe (Explorer / barra de tarefas) -->
     <ApplicationIcon>Assets\HiddenApp.ico</ApplicationIcon>
-    <Version>2.4.0</Version>
+    <Version>2.5.0</Version>
     <AssemblyTitle>HiddenApp</AssemblyTitle>
     <Product>HiddenApp</Product>
     <Company>Paulo Henrique Ferrari Mantuaneli</Company>

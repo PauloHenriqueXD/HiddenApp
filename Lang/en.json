@@ -533,5 +533,12 @@
  "Tecla de gatilho": "Trigger key",
  "Clique aqui e aperte a tecla (pode combinar com Ctrl, Alt ou Shift). Enquanto a macro aguarda, essa tecla fica reservada para o gatilho e não chega aos outros programas.": "Click here and press the key (you can combine it with Ctrl, Alt or Shift). While the macro is waiting, this key is reserved for the trigger and doesn't reach other programs.",
  "Ao apertar o gatilho": "On trigger press",
- "Rodar até parar: o gatilho inicia a macro (seguindo \"Repetir\"); apertar de novo para e volta a aguardar.\nUma volta por toque: cada toque roda a sequência de passos uma vez e volta a aguardar.": "Run until stopped: the trigger starts the macro (following \"Repeat\"); pressing again stops it and it goes back to waiting.\nOne round per press: each press runs the sequence of steps once and goes back to waiting."
+ "Rodar até parar: o gatilho inicia a macro (seguindo \"Repetir\"); apertar de novo para e volta a aguardar.\nUma volta por toque: cada toque roda a sequência de passos uma vez e volta a aguardar.": "Run until stopped: the trigger starts the macro (following \"Repeat\"); pressing again stops it and it goes back to waiting.\nOne round per press: each press runs the sequence of steps once and goes back to waiting.",
+ "Tecla ou botão": "Key or button",
+ "Botão do meio do mouse": "Middle mouse button",
+ "Botão lateral 1 do mouse": "Mouse side button 1",
+ "Botão lateral 2 do mouse": "Mouse side button 2",
+ "Não foi possível monitorar os botões do mouse. Use uma tecla como gatilho.": "Couldn't monitor the mouse buttons. Use a key as the trigger.",
+ "Tecla ou botão de gatilho": "Trigger key or button",
+ "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado para o gatilho e não chega aos outros programas.": "Click here and press the key, or click with the middle or a side mouse button (you can combine it with Ctrl, Alt or Shift). The left and right buttons can't be triggers. While the macro is waiting, this key or button is reserved for the trigger and doesn't reach other programs."
 }

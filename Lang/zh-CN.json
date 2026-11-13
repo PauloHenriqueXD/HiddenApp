@@ -533,5 +533,12 @@
  "Tecla de gatilho": "触发键",
  "Clique aqui e aperte a tecla (pode combinar com Ctrl, Alt ou Shift). Enquanto a macro aguarda, essa tecla fica reservada para o gatilho e não chega aos outros programas.": "点击这里并按下按键（可组合 Ctrl、Alt 或 Shift）。宏等待期间，该键专用于触发，不会传给其他程序。",
  "Ao apertar o gatilho": "按下触发键时",
- "Rodar até parar: o gatilho inicia a macro (seguindo \"Repetir\"); apertar de novo para e volta a aguardar.\nUma volta por toque: cada toque roda a sequência de passos uma vez e volta a aguardar.": "运行直到停止：触发键启动宏（按照“重复”设置）；再按一次停止并回到等待。\n每按一次运行一轮：每次按下运行一遍步骤序列，然后回到等待。"
+ "Rodar até parar: o gatilho inicia a macro (seguindo \"Repetir\"); apertar de novo para e volta a aguardar.\nUma volta por toque: cada toque roda a sequência de passos uma vez e volta a aguardar.": "运行直到停止：触发键启动宏（按照“重复”设置）；再按一次停止并回到等待。\n每按一次运行一轮：每次按下运行一遍步骤序列，然后回到等待。",
+ "Tecla ou botão": "按键或鼠标键",
+ "Botão do meio do mouse": "鼠标中键",
+ "Botão lateral 1 do mouse": "鼠标侧键 1",
+ "Botão lateral 2 do mouse": "鼠标侧键 2",
+ "Não foi possível monitorar os botões do mouse. Use uma tecla como gatilho.": "无法监听鼠标按键。请使用键盘按键作为触发键。",
+ "Tecla ou botão de gatilho": "触发键或鼠标键",
+ "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado para o gatilho e não chega aos outros programas.": "点击这里并按下按键，或用鼠标中键或侧键点击（可组合 Ctrl、Alt 或 Shift）。左键和右键不能作为触发键。宏等待期间，该按键或鼠标键专用于触发，不会传给其他程序。"
 }

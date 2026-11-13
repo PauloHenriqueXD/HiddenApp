@@ -163,6 +163,11 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   ao terminar, volta a aguardar. Parar (F8, botão, bandeja) **desarma** (`Disarm`). "Uma volta por toque" roda um clone
   com `Loops = 1`. A tecla de gatilho não pode ser atalho do app, gatilho de outra macro armada nem tecla de um passo
   da própria macro (ela se dispararia). O gatilho também é solto enquanto uma tecla está sendo gravada.
+- **Gatilho por botão do mouse** (meio e laterais, `Keys.MButton/XButton1/XButton2` em `TriggerKey`): `RegisterHotKey` não
+  pega mouse, então usa um gancho global `WH_MOUSE_LL` (`Native.MouseButtonHook`), ligado **só enquanto** alguma macro
+  armada usa botão do mouse (`UpdateMouseHook`). O callback precisa ser rápido (dispara `OnTrigger` por `BeginInvoke`),
+  engole o clique (e o "soltar" correspondente) e ignora cliques simulados (`LLMHF_INJECTED`), então as próprias macros
+  não disparam o gatilho. Esquerdo/direito nunca (dispararia a cada clique).
 - **Iniciar e parar com a mesma tecla:** só uma tecla global é registrada (id de iniciar); no `WndProc`, se algo estiver
   rodando ou armado, ela para tudo.
 - **Favoritas e ordem:** a ordem de `_macros` (e do `macros.json`) é a ordem do usuário; a lista mostra `Ordered()`

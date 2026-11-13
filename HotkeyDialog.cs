@@ -21,6 +21,27 @@ public class HotkeyBox : TextBox
         set { _keys = value; Text = Describe(value); }
     }
 
+    /// <summary>Aceita também o botão do meio e os botões laterais do mouse (usado no gatilho das macros).</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool AllowMouseButtons { get; set; }
+
+    /// <summary>Botões do mouse aceitos como gatilho (esquerdo e direito não: dispararia a cada clique).</summary>
+    public static bool IsMouseButton(Keys keys) => (keys & Keys.KeyCode) is Keys.MButton or Keys.XButton1 or Keys.XButton2;
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (!AllowMouseButtons) return;
+        Keys button = e.Button switch
+        {
+            MouseButtons.Middle => Keys.MButton,
+            MouseButtons.XButton1 => Keys.XButton1,
+            MouseButtons.XButton2 => Keys.XButton2,
+            _ => Keys.None,
+        };
+        if (button != Keys.None) { Focus(); Keys = button | ModifierKeys; }
+    }
+
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
         Keys code = keyData & Keys.KeyCode;
@@ -46,6 +67,9 @@ public class HotkeyBox : TextBox
             Keys.Space => L.T("Espaço"), Keys.Return => "Enter", Keys.Back => "Backspace", Keys.Delete => "Delete",
             Keys.Insert => "Insert", Keys.Home => "Home", Keys.End => "End", Keys.PageUp => "Page Up", Keys.PageDown => "Page Down",
             Keys.Pause => "Pause", Keys.Scroll => "Scroll Lock",
+            Keys.MButton => L.T("Botão do meio do mouse"),
+            Keys.XButton1 => L.T("Botão lateral 1 do mouse"),
+            Keys.XButton2 => L.T("Botão lateral 2 do mouse"),
             _ => code.ToString(),
         });
         return string.Join(" + ", parts);

@@ -32,6 +32,8 @@ public class AutoClickPage : Panel
     public const int FirstTriggerId = 100;
     int _nextTriggerId = FirstTriggerId;
     bool _triggersSuspended;
+    /// <summary>Gancho do mouse, ligado só enquanto alguma macro armada usa um botão do mouse como gatilho.</summary>
+    Native.MouseButtonHook? _mouseHook;
 
     /// <summary>Registra uma tecla global de gatilho (fornecido pela janela principal). Retorna false se a tecla estiver ocupada.</summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -90,7 +92,8 @@ public class AutoClickPage : Panel
     readonly NumericUpDown _schedMin = NewNum(0, 59, 0);
     readonly ComboBox _schedRepeat = NewCombo("Todo dia", "Só uma vez");
     readonly CheckBox _trigOn = new() { AutoSize = true, Margin = new Padding(0, Theme.S(5), Theme.S(4), 0) };
-    readonly HotkeyBox _trigKey = new() { Dock = DockStyle.None, PlaceholderText = "Tecla", Margin = new Padding(0, Theme.S(1), 0, 0) };
+    readonly HotkeyBox _trigKey = new() { Dock = DockStyle.None, PlaceholderText = "Tecla ou botão", AllowMouseButtons = true,
+        Margin = new Padding(0, Theme.S(1), 0, 0) };
     readonly ComboBox _trigMode = NewCombo("Rodar até parar", "Uma volta por toque");
 
     readonly ListBox _stepList = NewList(42);
@@ -356,7 +359,7 @@ public class AutoClickPage : Panel
         AddField(_settingsForm, "Iniciar às", sched);
         AddField(_settingsForm, "Agenda", _schedRepeat);
         var trig = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
-        _trigKey.Width = Theme.S(130);
+        _trigKey.Width = Theme.S(170);
         trig.Controls.AddRange(new Control[] { _trigOn, _trigKey });
         AddField(_settingsForm, "Gatilho", trig);
         AddField(_settingsForm, "Ao apertar", _trigMode);
@@ -610,8 +613,9 @@ public class AutoClickPage : Panel
         _tips.Set(_trigOn, "Gatilho",
             "Liga o gatilho: ao clicar em Iniciar, a macro fica aguardando (no cartão \"Em execução\") e só roda quando você " +
             "aperta a tecla escolhida — em qualquer programa. Ela continua aguardando até você parar (botão Parar ou tecla de parar).");
-        _tips.Set(_trigKey, "Tecla de gatilho",
-            "Clique aqui e aperte a tecla (pode combinar com Ctrl, Alt ou Shift). Enquanto a macro aguarda, essa tecla fica reservada " +
+        _tips.Set(_trigKey, "Tecla ou botão de gatilho",
+            "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). " +
+            "Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado " +
             "para o gatilho e não chega aos outros programas.");
         _tips.Set(_trigMode, "Ao apertar o gatilho",
             "Rodar até parar: o gatilho inicia a macro (seguindo \"Repetir\"); apertar de novo para e volta a aguardar.\n" +
@@ -1307,13 +1311,23 @@ public class AutoClickPage : Panel
             return;
         }
         int id = _nextTriggerId++;
-        if (!_triggersSuspended && RegisterTrigger?.Invoke(id, key) != true)
+        bool mouse = HotkeyBox.IsMouseButton(key);
+        if (!mouse && !_triggersSuspended && RegisterTrigger?.Invoke(id, key) != true)
         {
             Say($"A tecla {HotkeyBox.Describe(key)} já está sendo usada por outro programa e não pode ser gatilho.", notify: true);
             return;
         }
         SaveNow();
         _running.Add(new RunState { Macro = m, Armed = true, TriggerId = id, Text = WaitingText(m) });
+        UpdateMouseHook();
+        if (mouse && _mouseHook?.Installed != true)
+        {
+            // Sem o gancho do mouse o gatilho não funcionaria: desfaz
+            _running.RemoveAll(r => r.TriggerId == id);
+            UpdateMouseHook();
+            Say("Não foi possível monitorar os botões do mouse. Use uma tecla como gatilho.", notify: true);
+            return;
+        }
         AfterRunChange();
         Say(m.TriggerMode == TriggerMode.UmaVolta
             ? $"\"{m.Name}\" aguardando o gatilho: cada toque em {HotkeyBox.Describe(key)} roda uma volta. {_stopKey} desliga."
@@ -1352,7 +1366,8 @@ public class AutoClickPage : Panel
     void Disarm(RunState state)
     {
         state.Armed = false;
-        UnregisterTrigger?.Invoke(state.TriggerId);
+        if (HotkeyBox.IsMouseButton((Keys)state.Macro.TriggerKey)) UpdateMouseHook();
+        else UnregisterTrigger?.Invoke(state.TriggerId);
         if (state.Runner != null) { state.Runner.Stop(); return; } // o Stopped tira da lista
         _running.Remove(state);
         Say($"Gatilho de \"{state.Macro.Name}\" desligado.", notify: true);
@@ -1364,12 +1379,31 @@ public class AutoClickPage : Panel
         if (r.Armed) Disarm(r); else r.Runner?.Stop();
     }
 
+    /// <summary>Liga o gancho do mouse se alguma macro armada usa botão do mouse; desliga quando nenhuma usa.</summary>
+    void UpdateMouseHook()
+    {
+        bool need = _running.Any(r => r.Armed && HotkeyBox.IsMouseButton((Keys)r.Macro.TriggerKey));
+        if (need && _mouseHook == null)
+            _mouseHook = new Native.MouseButtonHook(OnMouseButton);
+        else if (!need && _mouseHook != null) { _mouseHook.Dispose(); _mouseHook = null; }
+    }
+
+    /// <summary>Botão do mouse apertado em qualquer programa. Devolve true para engolir o clique (é um gatilho).</summary>
+    bool OnMouseButton(Keys pressed)
+    {
+        if (_triggersSuspended) return false;
+        var state = _running.FirstOrDefault(r => r.Armed && (Keys)r.Macro.TriggerKey == pressed);
+        if (state == null) return false;
+        BeginInvoke(() => OnTrigger(state.TriggerId)); // o gancho precisa responder rápido
+        return true;
+    }
+
     /// <summary>Solta/registra de novo as teclas de gatilho (enquanto uma tecla está sendo gravada).</summary>
     void SetTriggersSuspended(bool suspend)
     {
         if (_triggersSuspended == suspend) return;
         _triggersSuspended = suspend;
-        foreach (var r in _running.Where(r => r.Armed))
+        foreach (var r in _running.Where(r => r.Armed && !HotkeyBox.IsMouseButton((Keys)r.Macro.TriggerKey)))
         {
             if (suspend) UnregisterTrigger?.Invoke(r.TriggerId);
             else RegisterTrigger?.Invoke(r.TriggerId, (Keys)r.Macro.TriggerKey);
@@ -1618,6 +1652,7 @@ public class AutoClickPage : Panel
         if (disposing)
         {
             StopRunning();
+            _mouseHook?.Dispose();
             _zoom?.Close();
             if (_saveTimer.Enabled) MacroStore.Save(_macros);
             _saveTimer.Dispose();

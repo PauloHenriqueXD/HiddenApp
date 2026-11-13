@@ -367,4 +367,71 @@ internal static class Native
         finally { Marshal.FreeHGlobal(buf); }
         return killed;
     }
+
+    // ---------- Gancho global do mouse (gatilho por botão do mouse) ----------
+    const int WH_MOUSE_LL = 14;
+    const uint WM_XBUTTONDOWN = 0x020B, WM_XBUTTONUP = 0x020C;
+    const uint LLMHF_INJECTED = 0x1;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MSLLHOOKSTRUCT { public POINT pt; public uint mouseData, flags, time; public IntPtr dwExtraInfo; }
+
+    public delegate IntPtr LowLevelProc(int nCode, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", SetLastError = true)] static extern IntPtr SetWindowsHookEx(int idHook, LowLevelProc fn, IntPtr hMod, uint threadId);
+    [DllImport("user32.dll")] static extern bool UnhookWindowsHookEx(IntPtr hhk);
+    [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
+
+    /// <summary>
+    /// Avisa quando o botão do meio ou os botões laterais do mouse são apertados em qualquer programa.
+    /// O callback devolve true para "engolir" o clique (ele não chega ao programa). Cliques simulados
+    /// (SendInput, inclusive das próprias macros) são ignorados. Precisa ser instalado na thread da interface.
+    /// </summary>
+    public sealed class MouseButtonHook : IDisposable
+    {
+        readonly LowLevelProc _proc;     // guardado em campo para o coletor de lixo não apagar o delegate
+        readonly Func<Keys, bool> _onDown;
+        IntPtr _hook;
+        Keys _swallowUp = Keys.None;     // botão cujo "soltar" também deve ser engolido
+
+        public MouseButtonHook(Func<Keys, bool> onDown)
+        {
+            _onDown = onDown;
+            _proc = Callback;
+            _hook = SetWindowsHookEx(WH_MOUSE_LL, _proc, GetModuleHandle(null), 0);
+        }
+
+        public bool Installed => _hook != IntPtr.Zero;
+
+        IntPtr Callback(int nCode, IntPtr wParam, IntPtr lParam)
+        {
+            if (nCode >= 0)
+            {
+                var info = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
+                uint msg = (uint)(long)wParam;
+                if ((info.flags & LLMHF_INJECTED) == 0)
+                {
+                    Keys button = msg switch
+                    {
+                        WM_MBUTTONDOWN or WM_MBUTTONUP => Keys.MButton,
+                        WM_XBUTTONDOWN or WM_XBUTTONUP => (info.mouseData >> 16) == 1 ? Keys.XButton1 : Keys.XButton2,
+                        _ => Keys.None,
+                    };
+                    if (button != Keys.None)
+                    {
+                        bool down = msg is WM_MBUTTONDOWN or WM_XBUTTONDOWN;
+                        if (down && _onDown(button | Control.ModifierKeys)) { _swallowUp = button; return (IntPtr)1; }
+                        if (!down && _swallowUp == button) { _swallowUp = Keys.None; return (IntPtr)1; }
+                    }
+                }
+            }
+            return CallNextHookEx(_hook, nCode, wParam, lParam);
+        }
+
+        public void Dispose()
+        {
+            if (_hook != IntPtr.Zero) UnhookWindowsHookEx(_hook);
+            _hook = IntPtr.Zero;
+        }
+    }
 }

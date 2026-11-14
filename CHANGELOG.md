@@ -27,7 +27,8 @@ _Nada ainda._
 
 - Aba Macro reorganizada para não cortar campos: importar/exportar foram para o botão "⋯"; "Repetir" e "Vezes" e
   "Iniciar às" e a agenda ficam na mesma linha; as configurações rolam em telas pequenas; "Posição (%)" e o texto
-  do passo ocupam a linha inteira.
+  do passo ocupam a linha inteira. As linhas combinadas se ajustam à largura da janela; o botão "+ Adicionar pontos"
+  virou "+ Pontos" para a barra de passos caber numa linha.
 - Arquivos `.hiddenmacro` passam para a versão 3 do formato (passos de texto).
 
 ## [2.4.0] - 2026-11-12

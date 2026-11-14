@@ -45,7 +45,7 @@ você pode estar usando uma cópia falsa do programa: o HiddenApp oficial só é
 Na aba **Macro** você cria **macros** que clicam e apertam teclas sozinhas numa janela:
 
 1. Clique no **+** verde e escolha a **janela alvo**.
-2. Adicione os **passos**: clique em **+ Adicionar pontos** e depois na prévia da janela (ou posicione o mouse
+2. Adicione os **passos**: clique em **+ Pontos** e depois na prévia da janela (ou posicione o mouse
    na própria janela e aperte **F9**); para uma **tecla**, use o botão verde do teclado e aperte a tecla desejada.
 3. Para cada ponto, escolha o botão, a ação (clique, duplo ou segurar), quantos cliques seguidos, o intervalo
    e a espera antes do próximo ponto.

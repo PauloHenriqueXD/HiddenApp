@@ -29,7 +29,7 @@
 On the **Macro** tab you create **macros** that click and press keys in a window by themselves:
 
 1. Click the green **+** and choose the **target window**.
-2. Add **points**: click **+ Add points** and then on the window preview — or place the mouse over the window itself and press **F9**.
+2. Add **points**: click **+ Points** and then on the window preview — or place the mouse over the window itself and press **F9**.
 3. For each point, choose the button, the action (click, double or hold), how many clicks in a row, the interval and the wait before the next point. Each point can have a **name or description**.
 4. Press **F7** to start and **F8** to stop — in any program. The keys can be changed.
 

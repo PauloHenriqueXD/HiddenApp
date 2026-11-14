@@ -133,7 +133,7 @@ public class AutoClickPage : Panel
     readonly RoundButton _btnMacroDown = RoundButton.IconButton(Theme.Glyph.Down, "Descer macro", ButtonKind.Secondary);
     readonly ContextMenuStrip _macroMenu = new();
     readonly ContextMenuStrip _exportMenu = new();
-    readonly RoundButton _btnAddPoint = new("+ Adicionar pontos", ButtonKind.Primary);
+    readonly RoundButton _btnAddPoint = new("+ Pontos", ButtonKind.Primary);
     readonly RoundButton _btnAddKey = RoundButton.IconButton(Theme.Glyph.Keyboard, "Adicionar tecla", ButtonKind.Success);
     readonly RoundButton _btnAddText = RoundButton.IconButton(Theme.Glyph.Font, "Adicionar texto", ButtonKind.Success);
     readonly RoundButton _btnMovePoint = RoundButton.IconButton(Theme.Glyph.Pin, "Reposicionar ponto", ButtonKind.Secondary);
@@ -269,9 +269,29 @@ public class AutoClickPage : Panel
             Margin = new Padding(secondPair ? Theme.S(10) : 0, Theme.S(6), Theme.S(8), Theme.S(6))
         };
         field.Margin = new Padding(0, Theme.S(3), 0, Theme.S(3));
-        form.Controls.Add(l);
-        form.Controls.Add(field);
+        // Posição fixa na grade: assim esconder uma linha (ex.: Texto/Posição) não embaralha as outras
+        int pair = form.Controls.Count / 2, perRow = form.ColumnCount / 2;
+        int row = pair / perRow, col = pair % perRow * 2;
+        if (form.RowCount <= row) form.RowCount = row + 1;
+        form.Controls.Add(l, col, row);
+        form.Controls.Add(field, col + 1, row);
         return l;
+    }
+
+    /// <summary>
+    /// Vários controles numa linha só. Porcentagem = coluna que divide a largura que sobra; 0 = tamanho do próprio controle.
+    /// </summary>
+    static TableLayoutPanel Line(params (Control Control, float Percent)[] parts)
+    {
+        var t = new TableLayoutPanel { ColumnCount = parts.Length, RowCount = 1, AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0) };
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var (c, pct) = parts[i];
+            t.ColumnStyles.Add(pct > 0 ? new ColumnStyle(SizeType.Percent, pct) : new ColumnStyle(SizeType.AutoSize));
+            if (pct > 0) { c.Dock = DockStyle.Fill; c.MinimumSize = new Size(Theme.S(36), 0); }
+            t.Controls.Add(c, i, 0);
+        }
+        return t;
     }
 
     static FlowLayoutPanel Toolbar(params Control[] buttons)
@@ -372,30 +392,19 @@ public class AutoClickPage : Panel
         AddField(_settingsForm, "Nome", _name);
         AddField(_settingsForm, "Janela alvo", _target);
         AddField(_settingsForm, "Modo", _mode);
-        // Repetir + quantas vezes na mesma linha
-        var loopRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
-        _loopKind.Dock = _loops.Dock = DockStyle.None;
-        _loopKind.Width = Theme.S(138);
-        _loops.Width = Theme.S(76);
-        _loopKind.Margin = new Padding(0);
-        _loops.Margin = new Padding(Theme.S(6), Theme.S(1), 0, 0);
-        loopRow.Controls.AddRange(new Control[] { _loopKind, _loops });
-        AddField(_settingsForm, "Repetir", loopRow);
+        // Linhas combinadas: colunas que se ajustam à largura (nada passa da borda)
+        _loops.Margin = new Padding(Theme.S(6), 0, 0, 0);
+        AddField(_settingsForm, "Repetir", Line((_loopKind, 62), (_loops, 38)));
         AddField(_settingsForm, "Variação (%)", _jitter);
-        var sched = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
-        _schedHour.Width = _schedMin.Width = Theme.S(52);
-        _schedHour.Dock = _schedMin.Dock = DockStyle.None;
-        _schedHour.Margin = _schedMin.Margin = new Padding(0, Theme.S(1), 0, 0);
-        var colon = new Label { Text = ":", AutoSize = true, Margin = new Padding(Theme.S(2), Theme.S(4), Theme.S(2), 0) };
-        _schedRepeat.Dock = DockStyle.None;
-        _schedRepeat.Width = Theme.S(104);
-        _schedRepeat.Margin = new Padding(Theme.S(6), 0, 0, 0);
-        sched.Controls.AddRange(new Control[] { _schedOn, _schedHour, colon, _schedMin, _schedRepeat });
-        AddField(_settingsForm, "Iniciar às", sched);
-        var trig = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
-        _trigKey.Width = Theme.S(140);
-        trig.Controls.AddRange(new Control[] { _trigOn, _trigKey, _btnTrigMouse });
-        AddField(_settingsForm, "Gatilho", trig);
+        var colon = new Label { Text = ":", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(Theme.S(1), 0, Theme.S(1), 0) };
+        _schedOn.Anchor = AnchorStyles.Left;
+        _schedOn.Margin = new Padding(0, 0, Theme.S(3), 0);
+        _schedRepeat.Margin = new Padding(Theme.S(5), 0, 0, 0);
+        AddField(_settingsForm, "Iniciar às", Line((_schedOn, 0), (_schedHour, 22), (colon, 0), (_schedMin, 22), (_schedRepeat, 56)));
+        _trigOn.Anchor = AnchorStyles.Left;
+        _trigOn.Margin = new Padding(0, 0, Theme.S(3), 0);
+        _btnTrigMouse.Anchor = AnchorStyles.Left;
+        AddField(_settingsForm, "Gatilho", Line((_trigOn, 0), (_trigKey, 100), (_btnTrigMouse, 0)));
         AddField(_settingsForm, "Ao apertar", _trigMode);
 
         _name.TextChanged += (_, _) => Change(m => m.Name = string.IsNullOrWhiteSpace(_name.Text) ? "Sem nome" : _name.Text.Trim());
@@ -944,8 +953,8 @@ public class AutoClickPage : Panel
         _emptySteps.Text = _current == null
             ? "Crie ou selecione uma macro à esquerda."
             : _current.TargetExe == null
-                ? "Nenhum passo ainda.\n\n1. Escolha a janela alvo (à esquerda)\n2. Clique em \"+ Adicionar pontos\" e depois na prévia,\n   ou no botão do teclado para adicionar uma tecla"
-                : $"Nenhum passo ainda.\n\nClique em \"+ Adicionar pontos\" e depois na prévia,\nposicione o mouse na janela alvo e aperte {_captureKey},\nou use o botão do teclado para adicionar uma tecla.";
+                ? "Nenhum passo ainda.\n\n1. Escolha a janela alvo (à esquerda)\n2. Clique em \"+ Pontos\" e depois na prévia,\n   ou no botão do teclado para adicionar uma tecla"
+                : $"Nenhum passo ainda.\n\nClique em \"+ Pontos\" e depois na prévia,\nposicione o mouse na janela alvo e aperte {_captureKey},\nou use o botão do teclado para adicionar uma tecla.";
     }
 
     MacroStep? SelectedStep => _stepList.SelectedItem as MacroStep;
@@ -1222,7 +1231,7 @@ public class AutoClickPage : Panel
         }
         _pick = kind;
         _preview.PickMode = true;
-        _btnAddPoint.Text = kind == PickKind.Add ? "✓ Concluir" : "+ Adicionar pontos";
+        _btnAddPoint.Text = kind == PickKind.Add ? "✓ Concluir" : "+ Pontos";
         _btnMovePoint.IconGlyph = kind == PickKind.Move ? Theme.Glyph.Cancel : Theme.Glyph.Pin;
         _btnMovePoint.Kind = kind == PickKind.Move ? ButtonKind.Primary : ButtonKind.Secondary;
         _btnMovePoint.Invalidate();
@@ -1236,7 +1245,7 @@ public class AutoClickPage : Panel
     {
         _pick = PickKind.None;
         _preview.PickMode = false;
-        _btnAddPoint.Text = "+ Adicionar pontos";
+        _btnAddPoint.Text = "+ Pontos";
         _btnMovePoint.IconGlyph = Theme.Glyph.Pin;
         _btnMovePoint.Kind = ButtonKind.Secondary;
         _btnMovePoint.Invalidate();
@@ -1656,7 +1665,7 @@ public class AutoClickPage : Panel
         }
         else
         {
-            _previewHint.Text = "Para marcar pontos: clique em \"+ Adicionar pontos\" e depois aqui na prévia.\n" +
+            _previewHint.Text = "Para marcar pontos: clique em \"+ Pontos\" e depois aqui na prévia.\n" +
                                 $"Ou posicione o mouse na própria janela e aperte {_captureKey}.";
             _previewHint.ForeColor = p.Muted;
         }

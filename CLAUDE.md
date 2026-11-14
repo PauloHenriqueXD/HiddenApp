@@ -179,7 +179,14 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 - **Prévia ampliada** (`ZoomPreviewForm`): segunda miniatura DWM da mesma janela alvo, com `AllowUpscale`; `SyncZoom`
   copia alvo, modo de marcar e dica da prévia da aba. Marcadores dos pontos não aparecem sobre a prévia porque a
   miniatura DWM é desenhada por cima de tudo que o app pinta.
-- **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 2, Macros: [...] }` (versão 2 = passos de tecla). Ao mudar o formato,
+- **Passos de texto** (`StepKind.Texto`, `Text`, `PressEnter`, `CharDelayMs`): real = `SendInput` com `KEYEVENTF_UNICODE`
+  (`Native.SendChar`, qualquer caractere; jogos que só leem scan code podem ignorar); segundo plano = `WM_CHAR` para o
+  controle com foco. Quebra de linha e "Digitar + Enter" mandam a tecla Enter. No modo real, `WaitUntilReady` é conferido a
+  cada letra (pausa se a janela sair da frente no meio do texto).
+- **Layout da aba Macro:** as configurações ficam num painel com rolagem (`_settingsScroll`) e campos combinados por linha
+  (`FlowLayoutPanel`); o editor do passo é uma grade de 4 colunas + linhas inteiras (`_stepNameForm`: Nome, Texto, Posição)
+  que aparecem/somem conforme o tipo. Campo novo: prefira linha inteira ou combinar, para não cortar em telas de 1280px.
+- **Arquivo `.hiddenmacro`:** JSON `{ Formato: "HiddenApp.Macro", Versao: 3, Macros: [...] }` (2 = passos de tecla, 3 = texto). Ao mudar o formato,
   suba `Versao` e trate versões antigas em `MacroStore.Import` (versões mais novas são recusadas com aviso).
   Ao "segurar", o botão é sempre solto no `finally`, mesmo se a macro for parada.
 - **Teclas de atalho globais** usam `RegisterHotKey` no handle do `MainForm` (ids 1–3, tratadas no `WndProc`).

@@ -8,7 +8,7 @@ public enum ClickButton { Esquerdo, Direito, Meio }
 public enum ClickAction { Clique, CliqueDuplo, Segurar }
 
 /// <summary>O que o passo faz: clicar num ponto da janela ou apertar uma tecla.</summary>
-public enum StepKind { Clique, Tecla }
+public enum StepKind { Clique, Tecla, Texto }
 
 /// <summary>O que acontece quando a tecla de gatilho é apertada.</summary>
 public enum TriggerMode { RodarAteParar, UmaVolta }
@@ -39,6 +39,13 @@ public class MacroStep
     /// <summary>Tecla do passo "Tecla", com Ctrl/Alt/Shift se houver (valor de <see cref="Keys"/>). 0 = nenhuma.</summary>
     public int Key { get; set; }
 
+    /// <summary>Texto digitado pelo passo "Texto".</summary>
+    public string? Text { get; set; }
+    /// <summary>Apertar Enter depois de digitar o texto (ex.: enviar no chat).</summary>
+    public bool PressEnter { get; set; }
+    /// <summary>Pausa entre as letras do texto, em ms (alguns programas perdem letras se for rápido demais).</summary>
+    public int CharDelayMs { get; set; } = 20;
+
     /// <summary>Posição relativa à área interna da janela (0 a 1), para continuar certa se a janela mudar de tamanho.</summary>
     public double RelX { get; set; } = 0.5;
     public double RelY { get; set; } = 0.5;
@@ -60,11 +67,24 @@ public class MacroStep
 
     public MacroStep Clone() => (MacroStep)MemberwiseClone();
 
+    public static string Short(string text, int max)
+    {
+        text = text.Replace("\r", "").Replace('\n', ' ');
+        return text.Length <= max ? text : text[..(max - 1)] + "…";
+    }
+
     [JsonIgnore]
     public Keys KeyValue => (Keys)Key;
 
     public string Describe()
     {
+        if (Kind == StepKind.Texto)
+        {
+            string t = string.IsNullOrEmpty(Text) ? L.T("nenhum texto") : $"\"{Short(Text, 24)}\"";
+            string typed = PressEnter ? L.F("Digitar {0} + Enter", t) : L.F("Digitar {0}", t);
+            string count = Repeat > 1 ? L.F("{0}x a cada {1}", Repeat, Ms(IntervalMs)) : "1x";
+            return L.F("{0} · {1} · depois espera {2}", typed, count, Ms(DelayAfterMs));
+        }
         if (Kind == StepKind.Tecla)
         {
             string key = Key == 0 ? L.T("nenhuma tecla") : HotkeyBox.Describe(KeyValue);
@@ -175,8 +195,8 @@ internal static class MacroStore
     class MacroFile
     {
         public string Formato { get; set; } = "HiddenApp.Macro";
-        /// <summary>1 = só cliques; 2 = passos de tecla, favorito e agendamento.</summary>
-        public int Versao { get; set; } = 2;
+        /// <summary>1 = só cliques; 2 = passos de tecla, favorito e agendamento; 3 = passos de texto.</summary>
+        public int Versao { get; set; } = 3;
         public List<Macro> Macros { get; set; } = new();
     }
 
@@ -194,7 +214,7 @@ internal static class MacroStore
         catch (Exception ex) { throw new InvalidOperationException("O arquivo não é uma macro válida do HiddenApp.", ex); }
         if (file == null || file.Formato != "HiddenApp.Macro" || file.Macros.Count == 0)
             throw new InvalidOperationException("O arquivo não é uma macro válida do HiddenApp.");
-        if (file.Versao > 2)
+        if (file.Versao > 3)
             throw new InvalidOperationException("Esta macro foi criada numa versão mais nova do HiddenApp. Atualize o programa para importá-la.");
 
         foreach (var m in file.Macros) Sanitize(m);
@@ -234,6 +254,8 @@ internal static class MacroStore
         foreach (var s in m.Steps)
         {
             if (!Enum.IsDefined(s.Kind)) s.Kind = StepKind.Clique;
+            if (s.Text?.Length > 2000) s.Text = s.Text[..2000];
+            s.CharDelayMs = Math.Clamp(s.CharDelayMs, 0, 2000);
             if (s.Key < 0 || ((Keys)s.Key & Keys.KeyCode) == Keys.None) s.Key = 0;
             s.Label = string.IsNullOrWhiteSpace(s.Label) ? null : s.Label.Trim()[..Math.Min(s.Label.Trim().Length, 60)];
             s.RelX = double.IsFinite(s.RelX) ? Math.Clamp(s.RelX, 0, 1) : 0.5;

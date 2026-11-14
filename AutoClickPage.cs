@@ -83,6 +83,7 @@ public class AutoClickPage : Panel
         Text = "Nenhuma macro ainda.\nClique no + verde para criar a primeira\nou importe uma macro recebida." };
 
     readonly TableLayoutPanel _settingsForm = NewForm(2);
+    Panel? _settingsScroll;
     readonly TextBox _name = new() { BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
     readonly ComboBox _target = NewCombo();
     readonly ComboBox _mode = NewCombo("Segundo plano", "Real");
@@ -103,7 +104,12 @@ public class AutoClickPage : Panel
     readonly ListBox _stepList = NewList(42);
     readonly Label _emptySteps = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted" };
     readonly TableLayoutPanel _stepEditor = NewForm(4);
-    readonly ComboBox _kind = NewCombo("Mouse", "Tecla");
+    readonly ComboBox _kind = NewCombo("Mouse", "Tecla", "Texto");
+    readonly TextBox _textBox = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, MaxLength = 2000,
+        PlaceholderText = "Texto que a macro vai digitar" };
+    Label? _textLabel;
+    Label? _posLabel;
+    readonly NumericUpDown _charDelay = NewNum(0, 2000, 20);
     readonly ComboBox _button = NewCombo("Esquerdo", "Direito", "Meio");
     readonly HotkeyBox _keyBox = new() { Dock = DockStyle.Fill, PlaceholderText = "Clique aqui e aperte a tecla" };
     readonly Panel _buttonOrKey = new() { Dock = DockStyle.Fill, Margin = new Padding(0) };
@@ -122,12 +128,14 @@ public class AutoClickPage : Panel
     readonly RoundButton _btnDelete = RoundButton.IconButton(Theme.Glyph.Delete, "Excluir macro", ButtonKind.Danger);
     readonly RoundButton _btnImport = RoundButton.IconButton(Theme.Glyph.Import, "Importar macros", ButtonKind.Secondary);
     readonly RoundButton _btnExport = RoundButton.IconButton(Theme.Glyph.Export, "Exportar macros", ButtonKind.Secondary);
+    readonly RoundButton _btnMore = RoundButton.IconButton(Theme.Glyph.More, "Mais opções", ButtonKind.Secondary);
     readonly RoundButton _btnMacroUp = RoundButton.IconButton(Theme.Glyph.Up, "Subir macro", ButtonKind.Secondary);
     readonly RoundButton _btnMacroDown = RoundButton.IconButton(Theme.Glyph.Down, "Descer macro", ButtonKind.Secondary);
     readonly ContextMenuStrip _macroMenu = new();
     readonly ContextMenuStrip _exportMenu = new();
     readonly RoundButton _btnAddPoint = new("+ Adicionar pontos", ButtonKind.Primary);
     readonly RoundButton _btnAddKey = RoundButton.IconButton(Theme.Glyph.Keyboard, "Adicionar tecla", ButtonKind.Success);
+    readonly RoundButton _btnAddText = RoundButton.IconButton(Theme.Glyph.Font, "Adicionar texto", ButtonKind.Success);
     readonly RoundButton _btnMovePoint = RoundButton.IconButton(Theme.Glyph.Pin, "Reposicionar ponto", ButtonKind.Secondary);
     readonly RoundButton _btnRemovePoint = RoundButton.IconButton(Theme.Glyph.Delete, "Remover passo", ButtonKind.Danger);
     readonly RoundButton _btnUp = RoundButton.IconButton(Theme.Glyph.Up, "Subir passo", ButtonKind.Secondary);
@@ -331,6 +339,19 @@ public class AutoClickPage : Panel
         };
 
         _btnImport.Click += (_, _) => ImportMacros();
+        // "⋯": importar e exportar (deixa a barra da macro numa linha só)
+        _btnMore.Click += (_, _) =>
+        {
+            _exportMenu.Items.Clear();
+            _exportMenu.Items.Add(new ToolStripMenuItem("Importar macros...", null, (_, _) => ImportMacros()));
+            _exportMenu.Items.Add(new ToolStripSeparator());
+            _exportMenu.Items.Add(new ToolStripMenuItem("Exportar a macro selecionada...", null, (_, _) => ExportMacros(selectedOnly: true))
+            { Enabled = _current != null });
+            _exportMenu.Items.Add(new ToolStripMenuItem("Exportar todas as macros...", null, (_, _) => ExportMacros(selectedOnly: false))
+            { Enabled = _macros.Count > 0 });
+            L.Apply(_exportMenu.Items);
+            _exportMenu.Show(_btnMore, new Point(0, _btnMore.Height));
+        };
         _btnExport.Click += (_, _) =>
         {
             _exportMenu.Items.Clear();
@@ -351,17 +372,26 @@ public class AutoClickPage : Panel
         AddField(_settingsForm, "Nome", _name);
         AddField(_settingsForm, "Janela alvo", _target);
         AddField(_settingsForm, "Modo", _mode);
-        AddField(_settingsForm, "Repetir", _loopKind);
-        AddField(_settingsForm, "Vezes", _loops);
+        // Repetir + quantas vezes na mesma linha
+        var loopRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
+        _loopKind.Dock = _loops.Dock = DockStyle.None;
+        _loopKind.Width = Theme.S(138);
+        _loops.Width = Theme.S(76);
+        _loopKind.Margin = new Padding(0);
+        _loops.Margin = new Padding(Theme.S(6), Theme.S(1), 0, 0);
+        loopRow.Controls.AddRange(new Control[] { _loopKind, _loops });
+        AddField(_settingsForm, "Repetir", loopRow);
         AddField(_settingsForm, "Variação (%)", _jitter);
         var sched = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
         _schedHour.Width = _schedMin.Width = Theme.S(52);
         _schedHour.Dock = _schedMin.Dock = DockStyle.None;
         _schedHour.Margin = _schedMin.Margin = new Padding(0, Theme.S(1), 0, 0);
         var colon = new Label { Text = ":", AutoSize = true, Margin = new Padding(Theme.S(2), Theme.S(4), Theme.S(2), 0) };
-        sched.Controls.AddRange(new Control[] { _schedOn, _schedHour, colon, _schedMin });
+        _schedRepeat.Dock = DockStyle.None;
+        _schedRepeat.Width = Theme.S(104);
+        _schedRepeat.Margin = new Padding(Theme.S(6), 0, 0, 0);
+        sched.Controls.AddRange(new Control[] { _schedOn, _schedHour, colon, _schedMin, _schedRepeat });
         AddField(_settingsForm, "Iniciar às", sched);
-        AddField(_settingsForm, "Agenda", _schedRepeat);
         var trig = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
         _trigKey.Width = Theme.S(140);
         trig.Controls.AddRange(new Control[] { _trigOn, _trigKey, _btnTrigMouse });
@@ -425,11 +455,15 @@ public class AutoClickPage : Panel
         _trigKey.LostFocus += (_, _) => SuspendHotkeys?.Invoke(false);
 
         // Ordem de encaixe: o último adicionado fica mais acima
-        var toolbar = Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnImport, _btnExport);
+        var toolbar = Toolbar(_btnNew, _btnDuplicate, _btnDelete, _btnMacroUp, _btnMacroDown, _btnMore);
         toolbar.Padding = new Padding(0, Theme.S(8), 0, Theme.S(4));
         var line = new Panel { Dock = DockStyle.Top, Height = Theme.S(10) };
         line.Paint += (_, e) => { using var pen = new Pen(Theme.Current.Border); e.Graphics.DrawLine(pen, 0, Theme.S(4), line.Width, Theme.S(4)); };
-        _settingsCard.Controls.Add(_settingsForm);
+        // As configurações rolam se não couberem (telas menores), em vez de cortar
+        var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Margin = new Padding(0) };
+        scroll.Controls.Add(_settingsForm);
+        _settingsScroll = scroll;
+        _settingsCard.Controls.Add(scroll);
         _settingsCard.Controls.Add(line);
         _settingsCard.Controls.Add(toolbar);
         _settingsCard.Controls.Add(_emptyMacros);
@@ -442,6 +476,7 @@ public class AutoClickPage : Panel
         _stepList.SelectedIndexChanged += (_, _) => { if (!_loading) LoadStep(); };
         _btnAddPoint.Click += (_, _) => TogglePick(PickKind.Add);
         _btnAddKey.Click += (_, _) => AddKeyStep();
+        _btnAddText.Click += (_, _) => AddTextStep();
         _btnMovePoint.Click += (_, _) => TogglePick(PickKind.Move);
         _btnRemovePoint.Click += (_, _) =>
         {
@@ -457,12 +492,17 @@ public class AutoClickPage : Panel
         // Nome do passo (linha inteira) e, abaixo, dois campos por linha para caber sem rolagem
         AddField(_stepNameForm, "Nome", _stepLabel);
         _stepLabel.TextChanged += (_, _) => ChangeStep(s => s.Label = string.IsNullOrWhiteSpace(_stepLabel.Text) ? null : _stepLabel.Text.Trim());
+        // Texto do passo "Texto" (linha inteira; só aparece nesse tipo)
+        _textLabel = AddField(_stepNameForm, "Texto", _textBox);
+        _textBox.TextChanged += (_, _) => ChangeStep(s => s.Text = _textBox.Text);
 
         // "Botão" (clique) e "Tecla" dividem o mesmo lugar: aparece um ou outro conforme o tipo do passo
-        _button.Margin = _keyBox.Margin = new Padding(0);
+        _button.Margin = _keyBox.Margin = _charDelay.Margin = new Padding(0);
         _buttonOrKey.Height = Math.Max(_button.PreferredHeight, _keyBox.PreferredHeight);
         _buttonOrKey.Controls.Add(_button);
         _buttonOrKey.Controls.Add(_keyBox);
+        _buttonOrKey.Controls.Add(_charDelay); // no passo de texto: pausa entre as letras
+        _charDelay.ValueChanged += (_, _) => ChangeStep(s => s.CharDelayMs = (int)_charDelay.Value);
         AddField(_stepEditor, "Tipo", _kind);
         _buttonLabel = AddField(_stepEditor, "Botão", _buttonOrKey);
         AddField(_stepEditor, "Ação", _action);
@@ -473,18 +513,19 @@ public class AutoClickPage : Panel
         // Posição do clique em % da área da janela: ajuste fino sem precisar clicar na prévia
         var times = new Label { Text = "×", AutoSize = true, Margin = new Padding(Theme.S(3), Theme.S(4), Theme.S(3), 0) };
         _posPanel.Controls.AddRange(new Control[] { _posX, times, _posY });
-        AddField(_stepEditor, "Posição (%)", _posPanel);
+        _posLabel = AddField(_stepNameForm, "Posição (%)", _posPanel);
         _posX.ValueChanged += (_, _) => ChangeStep(s => s.RelX = (double)_posX.Value / 100);
         _posY.ValueChanged += (_, _) => ChangeStep(s => s.RelY = (double)_posY.Value / 100);
         _kind.SelectedIndexChanged += (_, _) =>
         {
             if (_loading || SelectedStep is not MacroStep s) return;
-            s.Kind = _kind.SelectedIndex == 1 ? StepKind.Tecla : StepKind.Clique;
+            s.Kind = _kind.SelectedIndex switch { 1 => StepKind.Tecla, 2 => StepKind.Texto, _ => StepKind.Clique };
             if (s.Action == ClickAction.CliqueDuplo && s.Kind == StepKind.Tecla) s.Action = ClickAction.Clique;
             ScheduleSave();
             _stepList.Invalidate();
             LoadStep();
             if (s.Kind == StepKind.Tecla && s.Key == 0) _keyBox.Focus();
+            if (s.Kind == StepKind.Texto) _textBox.Focus();
         };
         _button.SelectedIndexChanged += (_, _) => ChangeStep(s => s.Button = (ClickButton)Math.Max(0, _button.SelectedIndex));
         _keyBox.TextChanged += (_, _) =>
@@ -509,6 +550,12 @@ public class AutoClickPage : Panel
         SuspendHotkeys += suspend => SetTriggersSuspended(suspend);
         _action.SelectedIndexChanged += (_, _) =>
         {
+            if (SelectedStep?.Kind == StepKind.Texto)
+            {
+                // Texto: "Digitar" ou "Digitar + Enter"
+                ChangeStep(s => s.PressEnter = _action.SelectedIndex == 1);
+                return;
+            }
             var a = ActionFromIndex(_action.SelectedIndex);
             _hold.Enabled = a == ClickAction.Segurar;
             ChangeStep(s => s.Action = a);
@@ -531,7 +578,7 @@ public class AutoClickPage : Panel
 
         _pointsCard.Controls.Add(_stepList);
         _pointsCard.Controls.Add(_emptySteps);
-        _pointsCard.Controls.Add(Toolbar(_btnAddPoint, _btnAddKey, _btnMovePoint, _btnRemovePoint, _btnUp, _btnDown));
+        _pointsCard.Controls.Add(Toolbar(_btnAddPoint, _btnAddKey, _btnAddText, _btnMovePoint, _btnRemovePoint, _btnUp, _btnDown));
         _pointsCard.Controls.Add(editor);
     }
 
@@ -648,6 +695,7 @@ public class AutoClickPage : Panel
         _tips.Set(_btnNew, "Nova macro", "Cria uma macro vazia. Depois escolha a janela alvo e adicione os pontos de clique.");
         _tips.Set(_btnDuplicate, "Duplicar macro", "Cria uma cópia da macro selecionada, para fazer variações sem mexer na original.");
         _tips.Set(_btnDelete, "Excluir macro", "Apaga a macro selecionada (pede confirmação).");
+        _tips.Set(_btnMore, "Mais opções", "Importar macros recebidas (.hiddenmacro) e exportar a macro selecionada ou todas, para compartilhar.");
         _tips.Set(_btnImport, "Importar macros", "Abre arquivos .hiddenmacro recebidos de outras pessoas e adiciona as macros na sua lista.");
         _tips.Set(_btnExport, "Exportar macros",
             "Salva a macro selecionada (ou todas) num arquivo .hiddenmacro, para compartilhar com outras pessoas.");
@@ -662,7 +710,14 @@ public class AutoClickPage : Panel
         _tips.Set(_btnAddKey, "Adicionar tecla",
             "Adiciona um passo que aperta uma tecla (com Ctrl, Alt ou Shift, se quiser) depois do passo selecionado. " +
             "Depois clique na caixa \"Tecla\" e aperte a tecla desejada.");
-        _tips.Set(_kind, "Tipo do passo", "Clique do mouse: clica num ponto da janela.\nTecla: aperta uma tecla do teclado na janela alvo.");
+        _tips.Set(_kind, "Tipo do passo",
+            "Mouse: clica num ponto da janela.\nTecla: aperta uma tecla do teclado na janela alvo.\nTexto: digita um texto inteiro (ex.: uma mensagem no chat).");
+        _tips.Set(_textBox, "Texto", "O texto que a macro digita neste passo, letra por letra. Aceita acentos e qualquer caractere.");
+        _tips.Set(_charDelay, "Entre letras (ms)",
+            "Pausa entre uma letra e outra, em milissegundos. Se o programa perder letras, aumente (ex.: 50).");
+        _tips.Set(_btnAddText, "Adicionar texto",
+            "Adiciona um passo que digita um texto inteiro (ex.: uma mensagem no chat) depois do passo selecionado. " +
+            "Em \"Ação\", escolha \"Digitar + Enter\" para enviar no fim.");
         _tips.Set(_keyBox, "Tecla", "Clique aqui e aperte a tecla (pode combinar com Ctrl, Alt ou Shift). As teclas de atalho do HiddenApp não podem ser usadas.");
         _tips.Set(_schedOn, "Agendar",
             "Inicia esta macro sozinha no horário escolhido (o HiddenApp precisa estar aberto, mesmo escondido perto do relógio, " +
@@ -719,6 +774,7 @@ public class AutoClickPage : Panel
         ThemeChildren(this, p);
         UpdatePreviewHint();
         Theme.ApplyScrollbars(_stepList);
+        if (_settingsScroll != null) { _settingsScroll.BackColor = p.Surface; Theme.ApplyScrollbars(_settingsScroll); }
         Theme.ApplyScrollbars(_runList);
         if (_zoom is { IsDisposed: false }) { _zoom.ApplyTheme(); SyncZoom(); }
         Invalidate(true);
@@ -901,19 +957,29 @@ public class AutoClickPage : Panel
         try
         {
             bool key = s?.Kind == StepKind.Tecla;
+            bool text = s?.Kind == StepKind.Texto;
             _stepLabel.Text = s?.Label ?? "";
-            _kind.SelectedIndex = key ? 1 : 0;
-            _button.Visible = !key;
+            _kind.SelectedIndex = text ? 2 : key ? 1 : 0;
+            _button.Visible = !key && !text;
             _keyBox.Visible = key;
-            if (_buttonLabel != null) _buttonLabel.Text = key ? "Tecla" : "Botão";
+            _charDelay.Visible = text;
+            if (_buttonLabel != null) _buttonLabel.Text = text ? "Entre letras (ms)" : key ? "Tecla" : "Botão";
+            // Linhas que só valem para um tipo de passo
+            _textBox.Visible = text;
+            if (_textLabel != null) _textLabel.Visible = text;
+            _posPanel.Visible = !key && !text;
+            if (_posLabel != null) _posLabel.Visible = !key && !text;
+            _textBox.Text = s?.Text ?? "";
+            _charDelay.Value = Math.Clamp(s?.CharDelayMs ?? 20, 0, (int)_charDelay.Maximum);
             _button.SelectedIndex = (int)(s?.Button ?? ClickButton.Esquerdo);
             _keyBox.Keys = (Keys)(s?.Key ?? 0);
             if ((s?.Key ?? 0) == 0) _keyBox.Text = "";
             // Ações: clique tem "Clique / Clique duplo / Segurar"; tecla tem "Apertar / Segurar"
             _action.Items.Clear();
-            _action.Items.AddRange(key ? new object[] { L.T("Apertar"), L.T("Segurar") }
+            _action.Items.AddRange(text ? new object[] { L.T("Digitar"), L.T("Digitar + Enter") }
+                                 : key ? new object[] { L.T("Apertar"), L.T("Segurar") }
                                        : new object[] { L.T("Clique"), L.T("Clique duplo"), L.T("Segurar") });
-            _action.SelectedIndex = IndexFromAction(s?.Action ?? ClickAction.Clique, key);
+            _action.SelectedIndex = text ? (s!.PressEnter ? 1 : 0) : IndexFromAction(s?.Action ?? ClickAction.Clique, key);
             _posX.Value = (decimal)Math.Round(Math.Clamp(s?.RelX ?? 0.5, 0, 1) * 100, 1);
             _posY.Value = (decimal)Math.Round(Math.Clamp(s?.RelY ?? 0.5, 0, 1) * 100, 1);
             _posPanel.Enabled = !key;
@@ -921,7 +987,7 @@ public class AutoClickPage : Panel
             _repeat.Value = Math.Clamp(s?.Repeat ?? 1, 1, (int)_repeat.Maximum);
             _interval.Value = Math.Clamp(s?.IntervalMs ?? 100, 1, (int)_interval.Maximum);
             _delay.Value = Math.Clamp(s?.DelayAfterMs ?? 100, 0, (int)_delay.Maximum);
-            _hold.Enabled = (s?.Action ?? ClickAction.Clique) == ClickAction.Segurar;
+            _hold.Enabled = !text && (s?.Action ?? ClickAction.Clique) == ClickAction.Segurar;
             _interval.Enabled = _repeat.Value > 1;
         }
         finally { _loading = false; }
@@ -943,6 +1009,20 @@ public class AutoClickPage : Panel
     static int IndexFromAction(ClickAction action, bool key) => key
         ? (action == ClickAction.Segurar ? 1 : 0)
         : action switch { ClickAction.CliqueDuplo => 1, ClickAction.Segurar => 2, _ => 0 };
+
+    /// <summary>Adiciona um passo de texto depois do passo selecionado (ou no fim) e coloca o cursor no texto.</summary>
+    void AddTextStep()
+    {
+        if (_current == null) { Say("Crie ou selecione uma macro primeiro."); return; }
+        CancelPick();
+        var step = new MacroStep { Kind = StepKind.Texto };
+        int at = SelectedStep is MacroStep sel ? _current.Steps.IndexOf(sel) + 1 : _current.Steps.Count;
+        _current.Steps.Insert(at, step);
+        SaveNow();
+        RefreshSteps(step);
+        _textBox.Focus();
+        SetStatus("Passo de texto adicionado: escreva o texto que a macro vai digitar.");
+    }
 
     /// <summary>Adiciona um passo de tecla depois do passo selecionado (ou no fim) e pede a tecla.</summary>
     void AddKeyStep()
@@ -1547,7 +1627,7 @@ public class AutoClickPage : Panel
         _btnTest.Enabled = has && !running && SelectedStep != null;
         _btnDelete.Enabled = has && !running;
         _btnDuplicate.Enabled = _btnMacroUp.Enabled = _btnMacroDown.Enabled = has;
-        _btnAddPoint.Enabled = _btnAddKey.Enabled = has && !running;
+        _btnAddPoint.Enabled = _btnAddKey.Enabled = _btnAddText.Enabled = has && !running;
         _btnRemovePoint.Enabled = _btnUp.Enabled = _btnDown.Enabled = SelectedStep != null && !running;
         _btnMovePoint.Enabled = SelectedStep?.Kind == StepKind.Clique && !running;
     }
@@ -1660,22 +1740,24 @@ public class AutoClickPage : Panel
         int d = Theme.S(24);
         var circle = new Rectangle(e.Bounds.Left + Theme.S(8), e.Bounds.Top + (e.Bounds.Height - d) / 2, d, d);
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        bool key = s.Kind == StepKind.Tecla;
-        // Número do passo: círculo azul para clique, verde para tecla
-        using (var cb = new SolidBrush(key ? p.Success : p.Accent)) g.FillEllipse(cb, circle);
+        bool key = s.Kind == StepKind.Tecla, text = s.Kind == StepKind.Texto;
+        // Número do passo: círculo azul para clique, verde para tecla, amarelo para texto
+        using (var cb = new SolidBrush(text ? p.Favorite : key ? p.Success : p.Accent)) g.FillEllipse(cb, circle);
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
-        TextRenderer.DrawText(g, (e.Index + 1).ToString(), PillFont, circle, key ? p.SuccessText : p.AccentText,
+        TextRenderer.DrawText(g, (e.Index + 1).ToString(), PillFont, circle, text ? (p.IsDark ? p.Back : p.Text) : key ? p.SuccessText : p.AccentText,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
 
         int x = circle.Right + Theme.S(10);
         int top = e.Bounds.Top + (e.Bounds.Height - BoldFont.Height - SmallFont.Height - Theme.S(2)) / 2;
-        string position = key
+        string position = text
+            ? (string.IsNullOrEmpty(s.Text) ? L.T("Texto (escreva o texto)") : L.F("Texto \"{0}\"", MacroStep.Short(s.Text, 30)))
+            : key
             ? (s.Key == 0 ? L.T("Tecla (escolha a tecla)") : L.F("Tecla {0}", HotkeyBox.Describe(s.KeyValue)))
             : L.F("Posição {0} × {1}", s.RelX.ToString("P0"), s.RelY.ToString("P0"));
         TextRenderer.DrawText(g, s.Label ?? position, BoldFont,
             new Rectangle(x, top, e.Bounds.Right - x - Theme.S(6), BoldFont.Height), p.Text,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-        TextRenderer.DrawText(g, (s.Label != null && !key ? position + " · " : "") + s.Describe(), SmallFont,
+        TextRenderer.DrawText(g, (s.Label != null && !key && !text ? position + " · " : "") + s.Describe(), SmallFont,
             new Rectangle(x, top + BoldFont.Height + Theme.S(2), e.Bounds.Right - x - Theme.S(6), SmallFont.Height), p.Muted,
             TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
     }

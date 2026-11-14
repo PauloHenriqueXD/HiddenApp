@@ -225,6 +225,20 @@ internal static class Native
         SendInput(1, input, Marshal.SizeOf<INPUT>());
     }
 
+    const uint KEYEVENTF_UNICODE = 0x4;
+    public const uint WM_CHAR = 0x0102;
+
+    /// <summary>Digita um caractere "de verdade" (qualquer letra, com acento, emoji...) no programa em primeiro plano.</summary>
+    public static void SendChar(char c)
+    {
+        var input = new[]
+        {
+            new INPUT { type = INPUT_KEYBOARD, u = new InputUnion { ki = new KEYBDINPUT { wScan = c, dwFlags = KEYEVENTF_UNICODE } } },
+            new INPUT { type = INPUT_KEYBOARD, u = new InputUnion { ki = new KEYBDINPUT { wScan = c, dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP } } },
+        };
+        SendInput(2, input, Marshal.SizeOf<INPUT>());
+    }
+
     /// <summary>lParam de WM_KEYDOWN/WM_KEYUP (contagem 1, scan code, tecla estendida e estado de transição).</summary>
     public static IntPtr KeyLParam(Keys key, bool up)
     {

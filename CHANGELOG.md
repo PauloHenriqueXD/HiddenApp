@@ -9,16 +9,26 @@ e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada ainda._
 
-## [2.5.0] - 2026-11-12
+## [2.5.0] - 2026-11-13
 
 ### Adicionado
 
+- **Passo de texto:** a macro digita um texto inteiro (ex.: uma mensagem no chat), com acentos e qualquer caractere.
+  Ação "Digitar" ou "Digitar + Enter", pausa entre as letras ajustável. Botão "Aa" verde adiciona o passo.
+  No modo real usa o teclado do Windows; em segundo plano manda os caracteres direto para a janela.
 - **Gatilho pelo mouse:** o gatilho da macro aceita o **botão do meio** e os **botões laterais** do mouse (com Ctrl, Alt
   ou Shift, se quiser) — é só clicar com eles na caixa do gatilho ou escolher em "Mouse ▾". O clique fica reservado
   para o gatilho enquanto a macro aguarda.
 - **Botão esquerdo ou direito como gatilho**, só no modo "Uma volta por toque": cada clique **dentro da janela alvo**
   roda uma volta, e o clique continua funcionando normalmente (não é engolido). Cliques durante uma volta são ignorados. Ao escolher
   esquerdo ou direito, um aviso explica esse funcionamento e pede confirmação.
+
+### Alterado
+
+- Aba Macro reorganizada para não cortar campos: importar/exportar foram para o botão "⋯"; "Repetir" e "Vezes" e
+  "Iniciar às" e a agenda ficam na mesma linha; as configurações rolam em telas pequenas; "Posição (%)" e o texto
+  do passo ocupam a linha inteira.
+- Arquivos `.hiddenmacro` passam para a versão 3 do formato (passos de texto).
 
 ## [2.4.0] - 2026-11-12
 

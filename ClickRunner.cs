@@ -24,6 +24,8 @@ internal sealed class ClickRunner
         if (macro.Steps.Count == 0) throw new InvalidOperationException("A macro não tem nenhum passo.");
         int noKey = macro.Steps.FindIndex(s => s.Kind == StepKind.Tecla && s.Key == 0);
         if (noKey >= 0) throw new InvalidOperationException(L.F("O passo {0} não tem tecla escolhida.", noKey + 1));
+        int noText = macro.Steps.FindIndex(s => s.Kind == StepKind.Texto && string.IsNullOrEmpty(s.Text));
+        if (noText >= 0) throw new InvalidOperationException(L.F("O passo {0} não tem texto para digitar.", noText + 1));
         if (!Native.IsWindow(window)) throw new InvalidOperationException("A janela alvo não está aberta.");
 
         IsRunning = true;
@@ -63,6 +65,7 @@ internal sealed class ClickRunner
                         WaitUntilReady(macro, window, token);
                         Progress?.Invoke($"Volta {loop}{(macro.Loops > 0 ? $"/{macro.Loops}" : "")} · passo {i + 1}/{steps.Count} · {actions} ações");
                         if (step.Kind == StepKind.Tecla) DoKey(macro.Mode, step, window, token);
+                        else if (step.Kind == StepKind.Texto) DoText(macro, step, window, token);
                         else DoClick(macro.Mode, step, window, token);
                         actions++;
                         if (r < step.Repeat - 1) Sleep(step.IntervalMs, macro.JitterPercent, token);
@@ -230,6 +233,45 @@ internal sealed class ClickRunner
 
     static readonly (Keys Flag, Keys Key)[] Modifiers =
         { (Keys.Control, Keys.ControlKey), (Keys.Alt, Keys.Menu), (Keys.Shift, Keys.ShiftKey) };
+
+    /// <summary>
+    /// Digita o texto do passo, letra por letra. Real: teclado "Unicode" (qualquer caractere) no programa da frente.
+    /// Segundo plano: WM_CHAR para o controle com foco da janela. Quebra de linha vira Enter.
+    /// </summary>
+    void DoText(Macro macro, MacroStep step, IntPtr window, CancellationToken token)
+    {
+        var mode = macro.Mode;
+        string text = (step.Text ?? "").Replace("\r\n", "\n").Replace('\r', '\n');
+        IntPtr target = mode == ClickMode.Real ? IntPtr.Zero : Native.FocusedChild(window);
+        foreach (char c in text)
+        {
+            token.ThrowIfCancellationRequested();
+            if (mode == ClickMode.Real) WaitUntilReady(macro, window, token); // pausa se a janela sair da frente
+            if (c == '\n') PressEnter(mode, target);
+            else if (mode == ClickMode.Real) Native.SendChar(c);
+            else Native.PostMessage(target, Native.WM_CHAR, (IntPtr)c, (IntPtr)1);
+            if (step.CharDelayMs > 0) Sleep(step.CharDelayMs, 0, token);
+        }
+        if (step.PressEnter)
+        {
+            if (mode == ClickMode.Real) WaitUntilReady(macro, window, token);
+            PressEnter(mode, target);
+        }
+    }
+
+    static void PressEnter(ClickMode mode, IntPtr target)
+    {
+        if (mode == ClickMode.Real)
+        {
+            Native.SendKey(Keys.Return, up: false);
+            Thread.Sleep(20);
+            Native.SendKey(Keys.Return, up: true);
+            return;
+        }
+        Native.PostMessage(target, Native.WM_KEYDOWN, (IntPtr)(int)Keys.Return, Native.KeyLParam(Keys.Return, false));
+        Native.PostMessage(target, Native.WM_CHAR, (IntPtr)'\r', (IntPtr)1);
+        Native.PostMessage(target, Native.WM_KEYUP, (IntPtr)(int)Keys.Return, Native.KeyLParam(Keys.Return, true));
+    }
 
     void DoKey(ClickMode mode, MacroStep step, IntPtr window, CancellationToken token)
     {

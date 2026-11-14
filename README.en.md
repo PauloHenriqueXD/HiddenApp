@@ -6,7 +6,7 @@
 
 <p align="center">Cut the internet of any Windows window with one click — and automate clicks with macros.</p>
 
-<p align="center"><a href="README.md">Português</a> · <b>English</b></p>
+<p align="center"><a href="README.md">Português</a> · <b>English</b> · 🌐 <a href="https://paulohenriquexd.github.io/HiddenApp/en/">Official website</a></p>
 
 ---
 

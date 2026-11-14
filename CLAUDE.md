@@ -49,6 +49,7 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
 | `Feedback.cs` | Botão "Sugestões": abre o Google Forms (`GoogleFormTemplate`) ou uma issue do GitHub já preenchidos com versão/Windows/idioma |
 | `.github/ISSUE_TEMPLATE/` | Formulários de issue `sugestao.yml` e `problema.yml` (ids `versao`, `windows`, `idioma` são preenchidos pela URL) |
 | `LICENSE`, `PRIVACY.md`, `CODE_SIGNING_POLICY.md` | Licença MIT e políticas exigidas pela SignPath Foundation (assinatura grátis). Mantenha-as verdadeiras: qualquer acesso novo à rede ou mudança no sistema precisa aparecer na política de privacidade e no "Desinstalar" |
+| `docs/` | Site oficial (GitHub Pages): `index.html` (pt-BR), `en/index.html`, `style.css` com as cores do tema escuro. O botão de download aponta para `releases/latest/download/HiddenApp.exe` (sempre a última versão). Recurso novo importante = atualizar o site nos dois idiomas |
 | `.github/FUNDING.yml` | Faz o GitHub mostrar o botão "Sponsor" no repositório |
 | `SupportDialog.cs` | Janela "Apoiar o projeto": QR, copia e cola, conferência do recebedor e site oficial |
 | `I18n.cs` | Traduções: `L.T`/`L.F` (dicionário por texto em português, com modelos `{0}`), `L.Apply(controle)`, `Msg.Show` |

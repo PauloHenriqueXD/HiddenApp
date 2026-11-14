@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HiddenApp — cut the internet of any program and automate clicks</title>
+  <meta name="description" content="HiddenApp is a free, open-source Windows app: it blocks internet access for chosen programs with one click, using Windows Firewall, and creates macros of clicks, keys and text.">
+  <meta property="og:title" content="HiddenApp">
+  <meta property="og:description" content="Cut the internet of any Windows program with one click — and automate clicks with macros. Free and open source.">
+  <meta property="og:image" content="https://paulohenriquexd.github.io/HiddenApp/logo.png">
+  <link rel="icon" href="../logo.png">
+  <link rel="alternate" hreflang="pt-BR" href="https://paulohenriquexd.github.io/HiddenApp/">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="../logo.png" alt="">HiddenApp</a>
+    <nav>
+      <a href="#recursos">Features</a>
+      <a href="#macros">Macros</a>
+      <a href="#download">Download</a>
+      <a href="#duvidas">FAQ</a>
+      <a href="https://github.com/PauloHenriqueXD/HiddenApp">GitHub</a>
+      <a class="lang" href="../">Português</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Free · open source · Windows 10 and 11</div>
+      <h1>Cut the internet of any program with one click</h1>
+      <p class="lead">
+        Pick a window and block that program's internet — the rest of the computer stays online.
+        And on the Macro tab, let HiddenApp click, press keys and type text for you.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://github.com/PauloHenriqueXD/HiddenApp/releases/latest/download/HiddenApp.exe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
+          Download for Windows
+        </a>
+        <a class="btn btn-secondary" href="https://github.com/PauloHenriqueXD/HiddenApp">View the code on GitHub</a>
+      </div>
+      <div class="meta"><span id="version">Latest version</span> · a single file, no installation</div>
+    </div>
+
+    <div class="mock" aria-hidden="true">
+      <div class="bar"><img src="../logo.png" alt="">HiddenApp</div>
+      <div class="tabs"><span class="on">Internet</span><span>Macro</span></div>
+      <div class="rows">
+        <div class="row"><span class="star on">★</span><div>Browser — work<small>chrome.exe</small></div><span class="pill ok">ALLOWED</span></div>
+        <div class="row sel"><span class="star">☆</span><div>Game<small>game.exe</small></div><span class="pill no">BLOCKED</span></div>
+        <div class="row"><span class="star">☆</span><div>Browser — "Personal" copy<small>chrome.exe (copy)</small></div><span class="pill no">BLOCKED</span></div>
+        <div class="row"><span class="star on">★</span><div>Messenger<small>app.exe</small></div><span class="pill ok">ALLOWED</span></div>
+      </div>
+      <div class="foot"><span class="r">🔒 Block internet</span><span class="g">🔓 Allow internet</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="recursos" class="alt">
+  <div class="wrap">
+    <h2>Internet under control, program by program</h2>
+    <p class="sub">Blocking uses Windows Firewall rules. It stays in effect even with HiddenApp closed or after restarting the PC, until you allow it again.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="icon r"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+        <h3>Block with one click</h3>
+        <p>Lists open windows with a live preview. Select one and click "Block internet" — or double-click. Open connections are dropped immediately.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="13" height="13" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v11"/></svg></div>
+        <h3>Blockable copy</h3>
+        <p>Want two windows of the same browser, only one without internet? HiddenApp opens a copy of the program (taking no space) with its own block. You can have several.</p>
+      </div>
+      <div class="card">
+        <div class="icon y"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.3L12 17.1 6.3 20.2l1.2-6.3L2.8 9.5l6.4-.8z"/></svg></div>
+        <h3>Favorites</h3>
+        <p>Star the programs you block often and control everything right from the icon next to the clock.</p>
+      </div>
+      <div class="card">
+        <div class="icon g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="5"/></svg></div>
+        <h3>Lives in the tray</h3>
+        <p>It can start with Windows, hidden next to the clock, without asking for confirmation every time.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></div>
+        <h3>Portuguese, English and Chinese</h3>
+        <p>Follows the Windows language, with dark and light themes. Every button explains what it does when you hover it.</p>
+      </div>
+      <div class="card">
+        <div class="icon g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></div>
+        <h3>Safe updates</h3>
+        <p>Tells you when there is a new version and only updates if you want. The downloaded file is verified (SHA-256) before it is installed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="macros">
+  <div class="wrap">
+    <h2>Macros: leave the repetitive clicks to HiddenApp</h2>
+    <p class="sub">Build a sequence of steps in a window and run it in a loop, as many times as you want — right away, at a set time or when you press a trigger.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 8-6 2-2 6z"/></svg></div>
+        <h3>Clicks, keys and text</h3>
+        <p>Mark points by clicking the window preview, add keys (with Ctrl, Alt and Shift) or a whole text to type — with Enter at the end, if you want.</p>
+      </div>
+      <div class="card">
+        <div class="icon y"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></div>
+        <h3>Schedule and trigger</h3>
+        <p>Start by itself at 2 PM, every day or once. Or leave it waiting for a trigger: a key or mouse button that runs the macro when you press it.</p>
+      </div>
+      <div class="card">
+        <div class="icon g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/></svg></div>
+        <h3>Several at once</h3>
+        <p>In the background, without touching your mouse, run as many macros as you want. In real mode (real mouse and keyboard), one at a time.</p>
+      </div>
+    </div>
+    <p class="meta" style="margin-top:22px">⚠️ Many online games forbid macros and auto clickers in their terms of service, and anti-cheat systems may ban the account. Check the game rules before using it.</p>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="sub">No installation: it is a single file. Windows asks for administrator permission, which is required to change the firewall.</p>
+    <div class="steps">
+      <div class="step"><h3>Download and open</h3><p>Download <code>HiddenApp.exe</code> and open it. It also shows up as an icon next to the clock.</p></div>
+      <div class="step"><h3>Pick the window</h3><p>Select it in the list (with preview) or use "Select manually" and click the window you want.</p></div>
+      <div class="step"><h3>Block or allow</h3><p>One click cuts the program's internet; another gives it back. That simple.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap download">
+    <div>
+      <h2>Download</h2>
+      <p class="sub" style="margin-bottom:22px">Windows 10 or 11 (64-bit). No need to install .NET or anything besides the file.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://github.com/PauloHenriqueXD/HiddenApp/releases/latest/download/HiddenApp.exe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
+          Download HiddenApp.exe
+        </a>
+        <a class="btn btn-secondary" href="https://github.com/PauloHenriqueXD/HiddenApp/releases">All versions and release notes</a>
+      </div>
+      <p class="meta">Always download from this site or the official GitHub. Every version includes <code>HiddenApp.exe.sha256</code> so you can verify the file is the original.</p>
+    </div>
+    <div class="note">
+      <strong>"Windows protected your PC"?</strong>
+      <p style="margin:6px 0 0;color:var(--muted)">It is normal for new programs that don't have a paid digital signature yet — it doesn't mean there is a virus. To open it:</p>
+      <ol class="plain">
+        <li>Click <strong>More info</strong>;</li>
+        <li>Click <strong>Run anyway</strong>;</li>
+        <li>Confirm the administrator permission.</li>
+      </ol>
+      <p style="margin:10px 0 0;color:var(--muted)">The code is open: anyone can check what the program does, and every version is built automatically by GitHub from it.</p>
+    </div>
+  </div>
+</section>
+
+<section id="duvidas" class="alt">
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="sub">The most common questions. Didn't find yours? <a href="https://forms.gle/u8iYro9XmFs2Anng9">Send a suggestion or question</a>.</p>
+    <details><summary>Why does the program ask for administrator rights?</summary>
+      <p>Windows itself requires administrator permission to create and remove Windows Firewall rules. Without it, a program's internet can't be blocked.</p></details>
+    <details><summary>Does blocking a program block all of its windows?</summary>
+      <p>Yes. Windows controls internet access per program, not per window. To leave only one window without internet, use the "blockable copy": it opens another instance of the program with its own block.</p></details>
+    <details><summary>Does the block remain after I close HiddenApp?</summary>
+      <p>Yes. The rule stays in Windows Firewall until you allow the program again — even after restarting the computer.</p></details>
+    <details><summary>Does HiddenApp collect my data?</summary>
+      <p>No. There is no telemetry, advertising or account. It only checks GitHub for new versions. See the <a href="https://github.com/PauloHenriqueXD/HiddenApp/blob/main/PRIVACY.md">privacy policy</a>.</p></details>
+    <details><summary>My antivirus complained. What now?</summary>
+      <p>Programs that change the firewall and simulate clicks are sometimes mistaken for threats, especially without a digital signature. Make sure you downloaded from here or the official GitHub and, if you want, verify the file with the version's <code>.sha256</code>. If in doubt, open a <a href="https://github.com/PauloHenriqueXD/HiddenApp/issues">report on GitHub</a>.</p></details>
+    <details><summary>How do I uninstall it?</summary>
+      <p>In the program, go to <strong>Updates ▾ → Uninstall (remove everything from the computer)</strong>. It removes the firewall rules, the copies and the start with Windows. Then just delete <code>HiddenApp.exe</code>.</p></details>
+  </div>
+</section>
+
+<section>
+  <div class="wrap" style="text-align:center">
+    <h2>Support the project ❤</h2>
+    <p class="sub" style="margin:0 auto 24px">HiddenApp is free. If it helps you, you can support its development through GitHub Sponsors — or, in Brazil, by Pix through the "Support" button inside the program.</p>
+    <a class="btn btn-secondary" href="https://github.com/sponsors/PauloHenriqueXD">❤ Support via GitHub Sponsors</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Paulo Henrique Ferrari Mantuaneli · MIT license</span>
+    <div class="links">
+      <a href="https://github.com/PauloHenriqueXD/HiddenApp/blob/main/PRIVACY.md">Privacy</a>
+      <a href="https://github.com/PauloHenriqueXD/HiddenApp/blob/main/CODE_SIGNING_POLICY.md">Code signing policy</a>
+      <a href="https://github.com/PauloHenriqueXD/HiddenApp/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://forms.gle/u8iYro9XmFs2Anng9">Feedback</a>
+      <a href="../">Português</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Shows the latest version (if GitHub doesn't answer, the default text stays)
+  fetch("https://api.github.com/repos/PauloHenriqueXD/HiddenApp/releases/latest")
+    .then(r => r.ok ? r.json() : null)
+    .then(r => {
+      if (!r || !r.tag_name) return;
+      const d = new Date(r.published_at).toLocaleDateString("en-US");
+      document.getElementById("version").textContent = "Version " + r.tag_name.replace(/^v/, "") + " · " + d;
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>

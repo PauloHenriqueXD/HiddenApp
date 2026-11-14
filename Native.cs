@@ -383,18 +383,19 @@ internal static class Native
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
 
     /// <summary>
-    /// Avisa quando o botão do meio ou os botões laterais do mouse são apertados em qualquer programa.
+    /// Avisa quando um botão do mouse é apertado em qualquer programa (com a posição na tela); esquerdo e direito
+    /// avisam quando são soltos.
     /// O callback devolve true para "engolir" o clique (ele não chega ao programa). Cliques simulados
     /// (SendInput, inclusive das próprias macros) são ignorados. Precisa ser instalado na thread da interface.
     /// </summary>
     public sealed class MouseButtonHook : IDisposable
     {
         readonly LowLevelProc _proc;     // guardado em campo para o coletor de lixo não apagar o delegate
-        readonly Func<Keys, bool> _onDown;
+        readonly Func<Keys, POINT, bool> _onDown;
         IntPtr _hook;
         Keys _swallowUp = Keys.None;     // botão cujo "soltar" também deve ser engolido
 
-        public MouseButtonHook(Func<Keys, bool> onDown)
+        public MouseButtonHook(Func<Keys, POINT, bool> onDown)
         {
             _onDown = onDown;
             _proc = Callback;
@@ -413,14 +414,22 @@ internal static class Native
                 {
                     Keys button = msg switch
                     {
+                        WM_LBUTTONDOWN or WM_LBUTTONUP => Keys.LButton,
+                        WM_RBUTTONDOWN or WM_RBUTTONUP => Keys.RButton,
                         WM_MBUTTONDOWN or WM_MBUTTONUP => Keys.MButton,
                         WM_XBUTTONDOWN or WM_XBUTTONUP => (info.mouseData >> 16) == 1 ? Keys.XButton1 : Keys.XButton2,
                         _ => Keys.None,
                     };
                     if (button != Keys.None)
                     {
-                        bool down = msg is WM_MBUTTONDOWN or WM_XBUTTONDOWN;
-                        if (down && _onDown(button | Control.ModifierKeys)) { _swallowUp = button; return (IntPtr)1; }
+                        bool down = msg is WM_LBUTTONDOWN or WM_RBUTTONDOWN or WM_MBUTTONDOWN or WM_XBUTTONDOWN;
+                        if (button is Keys.LButton or Keys.RButton)
+                        {
+                            // Esquerdo/direito avisam ao SOLTAR e nunca são engolidos: assim o clique termina normalmente
+                            // antes de a macro mexer no mouse (senão viraria um "arrastar")
+                            if (!down) _onDown(button | Control.ModifierKeys, info.pt);
+                        }
+                        else if (down && _onDown(button | Control.ModifierKeys, info.pt)) { _swallowUp = button; return (IntPtr)1; }
                         if (!down && _swallowUp == button) { _swallowUp = Keys.None; return (IntPtr)1; }
                     }
                 }

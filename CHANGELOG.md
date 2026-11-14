@@ -14,7 +14,10 @@ _Nada ainda._
 ### Adicionado
 
 - **Gatilho pelo mouse:** o gatilho da macro aceita o **botão do meio** e os **botões laterais** do mouse (com Ctrl, Alt
-  ou Shift, se quiser) — é só clicar com eles na caixa do gatilho. Os botões esquerdo e direito não podem ser gatilho.
+  ou Shift, se quiser) — é só clicar com eles na caixa do gatilho ou escolher em "Mouse ▾". O clique fica reservado
+  para o gatilho enquanto a macro aguarda.
+- **Botão esquerdo ou direito como gatilho**, só no modo "Uma volta por toque": cada clique **dentro da janela alvo**
+  roda uma volta, e o clique continua funcionando normalmente (não é engolido). Cliques durante uma volta são ignorados.
 
 ## [2.4.0] - 2026-11-12
 

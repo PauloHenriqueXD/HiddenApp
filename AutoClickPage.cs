@@ -23,6 +23,8 @@ public class AutoClickPage : Panel
         /// <summary>Macro com gatilho "armada": fica na lista esperando a tecla até ser parada.</summary>
         public bool Armed { get; set; }
         public int TriggerId { get; init; }
+        /// <summary>Janela alvo guardada para o gatilho por clique esquerdo/direito (o gancho do mouse não pode procurar janelas).</summary>
+        public IntPtr TargetWindow { get; set; }
         public string Text { get; set; } = "";
         public bool Waiting => Armed && Runner == null;
         public bool Paused => Runner != null && Text.StartsWith("Pausado", StringComparison.Ordinal);
@@ -95,6 +97,8 @@ public class AutoClickPage : Panel
     readonly HotkeyBox _trigKey = new() { Dock = DockStyle.None, PlaceholderText = "Tecla ou botão", AllowMouseButtons = true,
         Margin = new Padding(0, Theme.S(1), 0, 0) };
     readonly ComboBox _trigMode = NewCombo("Rodar até parar", "Uma volta por toque");
+    readonly RoundButton _btnTrigMouse = new("Mouse ▾") { Margin = new Padding(Theme.S(4), 0, 0, 0) };
+    readonly ContextMenuStrip _trigMouseMenu = new();
 
     readonly ListBox _stepList = NewList(42);
     readonly Label _emptySteps = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Tag = "muted" };
@@ -359,8 +363,8 @@ public class AutoClickPage : Panel
         AddField(_settingsForm, "Iniciar às", sched);
         AddField(_settingsForm, "Agenda", _schedRepeat);
         var trig = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
-        _trigKey.Width = Theme.S(170);
-        trig.Controls.AddRange(new Control[] { _trigOn, _trigKey });
+        _trigKey.Width = Theme.S(140);
+        trig.Controls.AddRange(new Control[] { _trigOn, _trigKey, _btnTrigMouse });
         AddField(_settingsForm, "Gatilho", trig);
         AddField(_settingsForm, "Ao apertar", _trigMode);
 
@@ -404,7 +408,18 @@ public class AutoClickPage : Panel
                 return;
             }
             Change(m => m.TriggerKey = (int)_trigKey.Keys);
+            UpdateTriggerFields();
+            if (HotkeyBox.IsMainMouseButton(_trigKey.Keys))
+                SetStatus("Com o botão esquerdo ou direito, o gatilho funciona só em \"Uma volta por toque\": cada clique dentro da janela alvo roda uma volta, e o clique continua funcionando normalmente.");
             _macroList.Invalidate();
+        };
+        // Botões do mouse pela lista (clicar com o esquerdo na caixa é o próprio clique que a seleciona)
+        _btnTrigMouse.Click += (_, _) =>
+        {
+            _trigMouseMenu.Items.Clear();
+            foreach (var b in new[] { Keys.LButton, Keys.RButton, Keys.MButton, Keys.XButton1, Keys.XButton2 })
+                _trigMouseMenu.Items.Add(new ToolStripMenuItem(HotkeyBox.Describe(b), null, (_, _) => _trigKey.Keys = b | ModifierKeys));
+            _trigMouseMenu.Show(_btnTrigMouse, new Point(0, _btnTrigMouse.Height));
         };
         _trigKey.GotFocus += (_, _) => SuspendHotkeys?.Invoke(true);
         _trigKey.LostFocus += (_, _) => SuspendHotkeys?.Invoke(false);
@@ -617,6 +632,10 @@ public class AutoClickPage : Panel
             "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). " +
             "Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado " +
             "para o gatilho e não chega aos outros programas.");
+        _tips.Set(_btnTrigMouse, "Botão do mouse",
+            "Escolhe um botão do mouse como gatilho (segure Ctrl, Alt ou Shift ao escolher para combinar).\n" +
+            "Esquerdo e direito: só em \"Uma volta por toque\" — cada clique dentro da janela alvo roda uma volta e o clique " +
+            "continua funcionando normalmente.\nMeio e laterais: o clique fica reservado para o gatilho.");
         _tips.Set(_trigMode, "Ao apertar o gatilho",
             "Rodar até parar: o gatilho inicia a macro (seguindo \"Repetir\"); apertar de novo para e volta a aguardar.\n" +
             "Uma volta por toque: cada toque roda a sequência de passos uma vez e volta a aguardar.");
@@ -942,7 +961,14 @@ public class AutoClickPage : Panel
     // =====================================================================
     //  Agendamento: iniciar a macro sozinha num horário
     // =====================================================================
-    void UpdateTriggerFields() => _trigKey.Enabled = _trigMode.Enabled = _trigOn.Checked;
+    void UpdateTriggerFields()
+    {
+        _trigKey.Enabled = _btnTrigMouse.Enabled = _trigOn.Checked;
+        // Esquerdo/direito só no modo "uma volta por toque"
+        bool main = HotkeyBox.IsMainMouseButton(_trigKey.Keys);
+        if (main && _trigMode.SelectedIndex != 1) _trigMode.SelectedIndex = 1;
+        _trigMode.Enabled = _trigOn.Checked && !main;
+    }
 
     void UpdateScheduleFields() => _schedHour.Enabled = _schedMin.Enabled = _schedRepeat.Enabled = _schedOn.Checked;
 
@@ -1310,6 +1336,18 @@ public class AutoClickPage : Panel
             Say($"A tecla {HotkeyBox.Describe(key)} já é o gatilho de \"{same.Macro.Name}\".", notify: true);
             return;
         }
+        IntPtr targetWindow = IntPtr.Zero;
+        if (HotkeyBox.IsMainMouseButton(key))
+        {
+            if (m.TriggerMode != TriggerMode.UmaVolta)
+            {
+                Say("Botão esquerdo ou direito como gatilho só funciona no modo \"Uma volta por toque\".", notify: true);
+                return;
+            }
+            // O clique só conta dentro da janela alvo: ela precisa estar aberta
+            targetWindow = ClickRunner.FindWindow(m, m == _current ? _targetHandle : IntPtr.Zero);
+            if (targetWindow == IntPtr.Zero) { Say($"A janela alvo ({m.TargetName}) não está aberta.", notify: true); return; }
+        }
         int id = _nextTriggerId++;
         bool mouse = HotkeyBox.IsMouseButton(key);
         if (!mouse && !_triggersSuspended && RegisterTrigger?.Invoke(id, key) != true)
@@ -1318,7 +1356,7 @@ public class AutoClickPage : Panel
             return;
         }
         SaveNow();
-        _running.Add(new RunState { Macro = m, Armed = true, TriggerId = id, Text = WaitingText(m) });
+        _running.Add(new RunState { Macro = m, Armed = true, TriggerId = id, Text = WaitingText(m), TargetWindow = targetWindow });
         UpdateMouseHook();
         if (mouse && _mouseHook?.Installed != true)
         {
@@ -1329,7 +1367,9 @@ public class AutoClickPage : Panel
             return;
         }
         AfterRunChange();
-        Say(m.TriggerMode == TriggerMode.UmaVolta
+        Say(HotkeyBox.IsMainMouseButton(key)
+            ? $"\"{m.Name}\" aguardando o gatilho: cada {HotkeyBox.Describe(key)} dentro da janela alvo roda uma volta. {_stopKey} desliga."
+            : m.TriggerMode == TriggerMode.UmaVolta
             ? $"\"{m.Name}\" aguardando o gatilho: cada toque em {HotkeyBox.Describe(key)} roda uma volta. {_stopKey} desliga."
             : $"\"{m.Name}\" aguardando o gatilho: {HotkeyBox.Describe(key)} inicia e para. {_stopKey} desliga.", notify: true);
     }
@@ -1339,7 +1379,12 @@ public class AutoClickPage : Panel
     {
         var state = _running.FirstOrDefault(r => r.Armed && r.TriggerId == id);
         if (state == null) return;
-        if (state.Runner != null) { state.Runner.Stop(); return; } // apertar de novo: para e volta a aguardar
+        if (state.Runner != null)
+        {
+            // Apertar de novo: para e volta a aguardar (no clique esquerdo/direito, cliques durante a volta são ignorados)
+            if (!HotkeyBox.IsMainMouseButton((Keys)state.Macro.TriggerKey)) state.Runner.Stop();
+            return;
+        }
         var m = state.Macro;
         if (m.Mode == ClickMode.Real && RealRun() is RunState other)
         {
@@ -1347,7 +1392,8 @@ public class AutoClickPage : Panel
                 "Pare-a ou use o modo segundo plano.", notify: true);
             return;
         }
-        var window = ClickRunner.FindWindow(m, m == _current ? _targetHandle : IntPtr.Zero);
+        var window = Native.IsWindow(state.TargetWindow) ? state.TargetWindow
+            : ClickRunner.FindWindow(m, m == _current ? _targetHandle : IntPtr.Zero);
         if (window == IntPtr.Zero) { Say($"A janela alvo ({m.TargetName}) não está aberta.", notify: true); return; }
 
         var run = m;
@@ -1389,11 +1435,25 @@ public class AutoClickPage : Panel
     }
 
     /// <summary>Botão do mouse apertado em qualquer programa. Devolve true para engolir o clique (é um gatilho).</summary>
-    bool OnMouseButton(Keys pressed)
+    bool OnMouseButton(Keys pressed, Native.POINT pt)
     {
         if (_triggersSuspended) return false;
         var state = _running.FirstOrDefault(r => r.Armed && (Keys)r.Macro.TriggerKey == pressed);
         if (state == null) return false;
+
+        if (HotkeyBox.IsMainMouseButton(pressed))
+        {
+            // Esquerdo/direito: o clique sempre passa; só dispara dentro da janela alvo e com a macro aguardando
+            if (state.Runner != null) return false;
+            if (!Native.IsWindow(state.TargetWindow))
+            {
+                BeginInvoke(() => state.TargetWindow = ClickRunner.FindWindow(state.Macro, IntPtr.Zero)); // reabriu o programa
+                return false;
+            }
+            if (Native.GetAncestor(Native.WindowFromPoint(pt), Native.GA_ROOT) != state.TargetWindow) return false;
+            BeginInvoke(() => OnTrigger(state.TriggerId));
+            return false;
+        }
         BeginInvoke(() => OnTrigger(state.TriggerId)); // o gancho precisa responder rápido
         return true;
     }

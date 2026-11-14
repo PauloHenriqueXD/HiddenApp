@@ -540,5 +540,13 @@
  "Botão lateral 2 do mouse": "Mouse side button 2",
  "Não foi possível monitorar os botões do mouse. Use uma tecla como gatilho.": "Couldn't monitor the mouse buttons. Use a key as the trigger.",
  "Tecla ou botão de gatilho": "Trigger key or button",
- "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado para o gatilho e não chega aos outros programas.": "Click here and press the key, or click with the middle or a side mouse button (you can combine it with Ctrl, Alt or Shift). The left and right buttons can't be triggers. While the macro is waiting, this key or button is reserved for the trigger and doesn't reach other programs."
+ "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado para o gatilho e não chega aos outros programas.": "Click here and press the key, or click with the middle or a side mouse button (you can combine it with Ctrl, Alt or Shift). The left and right buttons can't be triggers. While the macro is waiting, this key or button is reserved for the trigger and doesn't reach other programs.",
+ "Botão esquerdo do mouse": "Left mouse button",
+ "Botão direito do mouse": "Right mouse button",
+ "Mouse ▾": "Mouse ▾",
+ "Botão do mouse": "Mouse button",
+ "Com o botão esquerdo ou direito, o gatilho funciona só em \"Uma volta por toque\": cada clique dentro da janela alvo roda uma volta, e o clique continua funcionando normalmente.": "With the left or right button, the trigger only works in \"One round per press\": each click inside the target window runs one round, and the click still works normally.",
+ "Botão esquerdo ou direito como gatilho só funciona no modo \"Uma volta por toque\".": "Left or right button as a trigger only works in \"One round per press\" mode.",
+ "\"{0}\" aguardando o gatilho: cada {1} dentro da janela alvo roda uma volta. {2} desliga.": "\"{0}\" waiting for the trigger: each {1} inside the target window runs one round. {2} turns it off.",
+ "Escolhe um botão do mouse como gatilho (segure Ctrl, Alt ou Shift ao escolher para combinar).\nEsquerdo e direito: só em \"Uma volta por toque\" — cada clique dentro da janela alvo roda uma volta e o clique continua funcionando normalmente.\nMeio e laterais: o clique fica reservado para o gatilho.": "Chooses a mouse button as the trigger (hold Ctrl, Alt or Shift while choosing to combine).\nLeft and right: only in \"One round per press\" — each click inside the target window runs one round and the click still works normally.\nMiddle and side buttons: the click is reserved for the trigger."
 }

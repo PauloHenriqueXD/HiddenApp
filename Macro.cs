@@ -230,6 +230,7 @@ internal static class MacroStore
         if (!Enum.IsDefined(m.ScheduleRepeat)) m.ScheduleRepeat = ScheduleRepeat.TodoDia;
         if (!Enum.IsDefined(m.TriggerMode)) m.TriggerMode = TriggerMode.RodarAteParar;
         if (m.TriggerKey < 0 || ((Keys)m.TriggerKey & Keys.KeyCode) == Keys.None) { m.TriggerKey = 0; m.TriggerEnabled = false; }
+        if (HotkeyBox.IsMainMouseButton((Keys)m.TriggerKey)) m.TriggerMode = TriggerMode.UmaVolta; // esquerdo/direito: só uma volta por toque
         foreach (var s in m.Steps)
         {
             if (!Enum.IsDefined(s.Kind)) s.Kind = StepKind.Clique;

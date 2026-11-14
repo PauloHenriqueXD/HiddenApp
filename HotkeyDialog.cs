@@ -25,8 +25,12 @@ public class HotkeyBox : TextBox
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool AllowMouseButtons { get; set; }
 
-    /// <summary>Botões do mouse aceitos como gatilho (esquerdo e direito não: dispararia a cada clique).</summary>
-    public static bool IsMouseButton(Keys keys) => (keys & Keys.KeyCode) is Keys.MButton or Keys.XButton1 or Keys.XButton2;
+    /// <summary>Botões do mouse aceitos como gatilho.</summary>
+    public static bool IsMouseButton(Keys keys) =>
+        (keys & Keys.KeyCode) is Keys.LButton or Keys.RButton or Keys.MButton or Keys.XButton1 or Keys.XButton2;
+
+    /// <summary>Esquerdo/direito: só no modo "uma volta por toque", sem engolir o clique e só dentro da janela alvo.</summary>
+    public static bool IsMainMouseButton(Keys keys) => (keys & Keys.KeyCode) is Keys.LButton or Keys.RButton;
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
@@ -67,6 +71,8 @@ public class HotkeyBox : TextBox
             Keys.Space => L.T("Espaço"), Keys.Return => "Enter", Keys.Back => "Backspace", Keys.Delete => "Delete",
             Keys.Insert => "Insert", Keys.Home => "Home", Keys.End => "End", Keys.PageUp => "Page Up", Keys.PageDown => "Page Down",
             Keys.Pause => "Pause", Keys.Scroll => "Scroll Lock",
+            Keys.LButton => L.T("Botão esquerdo do mouse"),
+            Keys.RButton => L.T("Botão direito do mouse"),
             Keys.MButton => L.T("Botão do meio do mouse"),
             Keys.XButton1 => L.T("Botão lateral 1 do mouse"),
             Keys.XButton2 => L.T("Botão lateral 2 do mouse"),

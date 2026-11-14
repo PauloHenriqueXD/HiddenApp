@@ -167,7 +167,9 @@ Não há testes automatizados. Validação é manual (ver "Checklist de teste" a
   pega mouse, então usa um gancho global `WH_MOUSE_LL` (`Native.MouseButtonHook`), ligado **só enquanto** alguma macro
   armada usa botão do mouse (`UpdateMouseHook`). O callback precisa ser rápido (dispara `OnTrigger` por `BeginInvoke`),
   engole o clique (e o "soltar" correspondente) e ignora cliques simulados (`LLMHF_INJECTED`), então as próprias macros
-  não disparam o gatilho. Esquerdo/direito nunca (dispararia a cada clique).
+  não disparam o gatilho. **Esquerdo/direito** (`IsMainMouseButton`): só em "Uma volta por toque", avisam ao **soltar** (senão
+  a macro real arrastaria), **nunca** são engolidos e só contam dentro da janela alvo (`RunState.TargetWindow`, guardada ao
+  armar — o gancho não pode procurar janelas); cliques durante uma volta são ignorados.
 - **Iniciar e parar com a mesma tecla:** só uma tecla global é registrada (id de iniciar); no `WndProc`, se algo estiver
   rodando ou armado, ela para tudo.
 - **Favoritas e ordem:** a ordem de `_macros` (e do `macros.json`) é a ordem do usuário; a lista mostra `Ordered()`

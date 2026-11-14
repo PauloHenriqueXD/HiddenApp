@@ -15,7 +15,7 @@ nem contas.
   o que você enviar segue a política de privacidade do respectivo serviço. O formulário vem preenchido
   apenas com a versão do HiddenApp, a versão do Windows e o idioma.
 - **Gatilho pelo botão do mouse:** enquanto uma macro com gatilho no mouse está aguardando, o programa monitora
-  apenas se o botão do meio ou os botões laterais foram apertados, para iniciar a macro. Nada é gravado nem enviado,
+  apenas qual botão foi apertado e em qual janela, para iniciar a macro. Nada é gravado nem enviado,
   e o monitoramento termina quando a macro é parada.
 - **O que o programa muda no Windows:** regras do Firewall do Windows (nome `HiddenApp - ...`), a pasta
   `HiddenAppClones` na raiz dos discos (cópias bloqueáveis) e, se você ativar, a tarefa agendada

@@ -540,5 +540,13 @@
  "Botão lateral 2 do mouse": "鼠标侧键 2",
  "Não foi possível monitorar os botões do mouse. Use uma tecla como gatilho.": "无法监听鼠标按键。请使用键盘按键作为触发键。",
  "Tecla ou botão de gatilho": "触发键或鼠标键",
- "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado para o gatilho e não chega aos outros programas.": "点击这里并按下按键，或用鼠标中键或侧键点击（可组合 Ctrl、Alt 或 Shift）。左键和右键不能作为触发键。宏等待期间，该按键或鼠标键专用于触发，不会传给其他程序。"
+ "Clique aqui e aperte a tecla, ou clique com o botão do meio ou um botão lateral do mouse (pode combinar com Ctrl, Alt ou Shift). Os botões esquerdo e direito não podem ser gatilho. Enquanto a macro aguarda, essa tecla ou botão fica reservado para o gatilho e não chega aos outros programas.": "点击这里并按下按键，或用鼠标中键或侧键点击（可组合 Ctrl、Alt 或 Shift）。左键和右键不能作为触发键。宏等待期间，该按键或鼠标键专用于触发，不会传给其他程序。",
+ "Botão esquerdo do mouse": "鼠标左键",
+ "Botão direito do mouse": "鼠标右键",
+ "Mouse ▾": "鼠标 ▾",
+ "Botão do mouse": "鼠标按键",
+ "Com o botão esquerdo ou direito, o gatilho funciona só em \"Uma volta por toque\": cada clique dentro da janela alvo roda uma volta, e o clique continua funcionando normalmente.": "使用鼠标左键或右键时，触发键只能用于“每按一次运行一轮”：在目标窗口内每点击一次运行一轮，点击本身仍正常生效。",
+ "Botão esquerdo ou direito como gatilho só funciona no modo \"Uma volta por toque\".": "鼠标左键或右键作为触发键时，只能使用“每按一次运行一轮”模式。",
+ "\"{0}\" aguardando o gatilho: cada {1} dentro da janela alvo roda uma volta. {2} desliga.": "“{0}”正在等待触发：在目标窗口内每次{1}运行一轮。按 {2} 关闭。",
+ "Escolhe um botão do mouse como gatilho (segure Ctrl, Alt ou Shift ao escolher para combinar).\nEsquerdo e direito: só em \"Uma volta por toque\" — cada clique dentro da janela alvo roda uma volta e o clique continua funcionando normalmente.\nMeio e laterais: o clique fica reservado para o gatilho.": "选择一个鼠标按键作为触发键（选择时按住 Ctrl、Alt 或 Shift 可组合）。\n左键和右键：仅限“每按一次运行一轮”——在目标窗口内每点击一次运行一轮，点击本身仍正常生效。\n中键和侧键：该点击专用于触发。"
 }

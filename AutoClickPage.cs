@@ -965,7 +965,7 @@ public class AutoClickPage : Panel
     void ChooseMouseTrigger(Keys button)
     {
         if (HotkeyBox.IsMainMouseButton(button) &&
-            Msg.Show(FindForm(),
+            Msg.Show(
                 $"Usar o {HotkeyBox.Describe(button)} como gatilho?\n\n" +
                 "Como ele é usado o tempo todo, funciona de um jeito diferente:\n\n" +
                 "• o modo fica em \"Uma volta por toque\": cada clique roda a sequência uma vez;\n" +

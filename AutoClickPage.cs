@@ -418,7 +418,7 @@ public class AutoClickPage : Panel
         {
             _trigMouseMenu.Items.Clear();
             foreach (var b in new[] { Keys.LButton, Keys.RButton, Keys.MButton, Keys.XButton1, Keys.XButton2 })
-                _trigMouseMenu.Items.Add(new ToolStripMenuItem(HotkeyBox.Describe(b), null, (_, _) => _trigKey.Keys = b | ModifierKeys));
+                _trigMouseMenu.Items.Add(new ToolStripMenuItem(HotkeyBox.Describe(b), null, (_, _) => ChooseMouseTrigger(b | ModifierKeys)));
             _trigMouseMenu.Show(_btnTrigMouse, new Point(0, _btnTrigMouse.Height));
         };
         _trigKey.GotFocus += (_, _) => SuspendHotkeys?.Invoke(true);
@@ -961,6 +961,24 @@ public class AutoClickPage : Panel
     // =====================================================================
     //  Agendamento: iniciar a macro sozinha num horário
     // =====================================================================
+    /// <summary>Escolhe um botão do mouse como gatilho; esquerdo/direito pedem confirmação explicando como funcionam.</summary>
+    void ChooseMouseTrigger(Keys button)
+    {
+        if (HotkeyBox.IsMainMouseButton(button) &&
+            Msg.Show(FindForm(),
+                $"Usar o {HotkeyBox.Describe(button)} como gatilho?\n\n" +
+                "Como ele é usado o tempo todo, funciona de um jeito diferente:\n\n" +
+                "• o modo fica em \"Uma volta por toque\": cada clique roda a sequência uma vez;\n" +
+                "• o clique NÃO é bloqueado: ele faz a ação normal E dispara a macro;\n" +
+                "• só conta clicando DENTRO da janela alvo (cliques em outros programas são ignorados);\n" +
+                "• cliques enquanto uma volta está rodando são ignorados;\n" +
+                "• no modo real, a macro move o mouse logo depois do seu clique — evite mexer nele até a volta terminar.\n\n" +
+                "Para desligar, use o botão Parar ou a tecla de parar.",
+                "Gatilho pelo mouse", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
+            return;
+        _trigKey.Keys = button;
+    }
+
     void UpdateTriggerFields()
     {
         _trigKey.Enabled = _btnTrigMouse.Enabled = _trigOn.Checked;

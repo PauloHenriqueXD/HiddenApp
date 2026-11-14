@@ -17,7 +17,8 @@ _Nada ainda._
   ou Shift, se quiser) — é só clicar com eles na caixa do gatilho ou escolher em "Mouse ▾". O clique fica reservado
   para o gatilho enquanto a macro aguarda.
 - **Botão esquerdo ou direito como gatilho**, só no modo "Uma volta por toque": cada clique **dentro da janela alvo**
-  roda uma volta, e o clique continua funcionando normalmente (não é engolido). Cliques durante uma volta são ignorados.
+  roda uma volta, e o clique continua funcionando normalmente (não é engolido). Cliques durante uma volta são ignorados. Ao escolher
+  esquerdo ou direito, um aviso explica esse funcionamento e pede confirmação.
 
 ## [2.4.0] - 2026-11-12
 
